@@ -16,7 +16,7 @@ function Header(props: Props) {
           <p>{Subtitle}</p>
         </div>
 
-        <div className="flex item">
+        <div className="flex items-center">
           <h1 className="mr-2 text-sm font-medium">Habeeb Bolaji</h1>
           <span className="p-3 bg-blue-200 rounded-full">
             <FaUser className="text-blue-500 text-lg" />

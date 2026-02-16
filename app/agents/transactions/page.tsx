@@ -1,13 +1,16 @@
-import React from 'react'
-
+import Header from "@/components/Header";
+import React from "react";
 
 function Page() {
-
-    return (
-        <div>
-            Agent Transactions
-        </div>
-    )
+  return (
+    <div className="h-screen w-full bg-gray-100">
+      <Header
+        title="Transactions"
+        Subtitle="Create and manage patient payments"
+      />
+      Agent Transactions
+    </div>
+  );
 }
 
-export default Page
+export default Page;
