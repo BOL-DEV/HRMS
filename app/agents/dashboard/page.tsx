@@ -1,28 +1,20 @@
 import React from "react";
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
-import StatusPill from "@/components/StatusPill";
-import RevenueBarChart from "@/components/RevenueBarChart";
+
 import {
   FiClock,
   FiDollarSign,
   FiFileText,
-  FiPlus,
-  FiPrinter,
   FiRefreshCcw,
-  FiUserPlus,
-  FiMoreVertical,
 } from "react-icons/fi";
 import { formatCurrency, formatCompactNumber } from "@/libs/helper";
-import { Transaction } from "@/libs/type";
 import RecentTransactions from "@/components/RecentTransactions";
 import RevenueTrend from "@/components/RevenueTrend";
 import TopAgents from "@/components/TopAgents";
 import BalanceTopUp from "@/components/BalanceTopUp";
 
 function Page() {
-  const timeRange = "Today";
-
   const stats = [
     {
       title: "Revenue (Today)",
@@ -61,7 +53,7 @@ function Page() {
         Subtitle="Track your daily transactions and revenue"
         actions={
           <select className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium md:block hidden">
-            <option>{timeRange}</option>
+            <option>Today</option>
             <option>Yesterday</option>
             <option>This Week</option>
           </select>
@@ -70,7 +62,7 @@ function Page() {
 
       <div className="p-6 space-y-6">
         <select className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium md:hidden ">
-          <option>{timeRange}</option>
+          <option>Today</option>
           <option>Yesterday</option>
           <option>This Week</option>
         </select>
