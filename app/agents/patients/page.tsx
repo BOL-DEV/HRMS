@@ -10,7 +10,7 @@ function Page() {
         Subtitle="Manage patient records and view billing history"
       />
 
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 ">
         <PatientActionBar />
         <PatientLists />
       </div>

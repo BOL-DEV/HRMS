@@ -18,6 +18,7 @@ import { Transaction } from "@/libs/type";
 import RecentTransactions from "@/components/RecentTransactions";
 import RevenueTrend from "@/components/RevenueTrend";
 import TopAgents from "@/components/TopAgents";
+import BalanceTopUp from "@/components/BalanceTopUp";
 
 function Page() {
   const timeRange = "Today";
@@ -59,7 +60,7 @@ function Page() {
         title="Agent Dashboard"
         Subtitle="Track your daily transactions and revenue"
         actions={
-          <select className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium">
+          <select className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium md:block hidden">
             <option>{timeRange}</option>
             <option>Yesterday</option>
             <option>This Week</option>
@@ -68,6 +69,14 @@ function Page() {
       />
 
       <div className="p-6 space-y-6">
+        <select className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium md:hidden ">
+          <option>{timeRange}</option>
+          <option>Yesterday</option>
+          <option>This Week</option>
+        </select>
+
+        <BalanceTopUp />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
           {stats.map((s) => (
             <StatCard

@@ -13,11 +13,11 @@ export default function AgentLayout({ children }: Props) {
 
 
   return (
-    <div >
-          <main className="flex">
+    <div>
+      <main className="flex">
         <AgentSidebar />
-              {children}
-          </main>
+        {children}
+      </main>
     </div>
   );
 }
