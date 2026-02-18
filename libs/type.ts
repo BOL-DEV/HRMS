@@ -38,3 +38,18 @@ export interface ReceiptRow {
   status: ReceiptStatus;
   dateIssued: string;
 }
+
+type PaymentMethod = "Cash" | "Transfer" | "POS";
+
+export interface TransactionRow {
+  id: string;
+  patient: string;
+  phone: string;
+  invoiceNo: string;
+  revenueHead: string;
+  department: string;
+  amount: number;
+  payment: PaymentMethod;
+  status: TransactionStatus;
+  dateTime: string;
+}

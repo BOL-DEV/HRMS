@@ -161,11 +161,19 @@ function ReceiptLists() {
 
                       {openMenu === r.id ? (
                         <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
-                          {[{ label: "View Receipt", icon: <FiEye className="text-gray-600" />, tone: "text-gray-800" },
-                            { label: "Print Receipt", icon: <FiPrinter className="text-gray-600" />, tone: "text-gray-800" },
-                            { label: "Download PDF", icon: <FiDownload className="text-gray-600" />, tone: "text-gray-800" },
-                            { label: "Copy Receipt Link", icon: <FiLink className="text-gray-600" />, tone: "text-gray-800" },
-                            { label: "View Transaction", icon: <FiExternalLink className="text-gray-600" />, tone: "text-gray-800" },
+                          {[
+                            {
+                              label: "View Receipt",
+                              icon: <FiEye className="text-gray-600" />,
+                              tone: "text-gray-800",
+                            },
+                            {
+                              label: "View Transaction",
+                              icon: (
+                                <FiExternalLink className="text-gray-600" />
+                              ),
+                              tone: "text-gray-800",
+                            },
                           ].map((item) => (
                             <button
                               key={item.label}

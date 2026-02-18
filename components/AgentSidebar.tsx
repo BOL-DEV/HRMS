@@ -36,12 +36,12 @@ const sidebarData = {
       label: <BsReceipt className="inline mr-2" />,
       active: false,
     },
-    {
-      name: "Reports",
-      link: "/agents/reports",
-      label: <GrDocumentStore className="inline mr-2" />,
-      active: false,
-    },
+    // {
+    //   name: "Reports",
+    //   link: "/agents/reports",
+    //   label: <GrDocumentStore className="inline mr-2" />,
+    //   active: false,
+    // },
     {
       name: "Settings",
       link: "/agents/settings",
