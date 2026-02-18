@@ -6,7 +6,7 @@ function Page() {
       <div className="sticky w-full">
         <Header
           title="Receipts Approval"
-          Subtitle="View and manage all hospital receipts and invoices"
+          Subtitle="View and manage all hospital rrrr and invoices"
         />
       </div>
     );
