@@ -238,7 +238,7 @@ function Page() {
   return (
     <div className="w-full bg-gray-50 min-h-screen">
       <Header
-        title="Patientsss"
+        title="Patients Records"
         Subtitle="View all patient records and billing history"
       />
 
