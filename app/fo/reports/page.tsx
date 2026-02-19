@@ -3,7 +3,7 @@
 import Header from "@/components/Header";
 import StatusPill from "@/components/StatusPill";
 import TagPill from "@/components/TagPill";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -13,7 +13,6 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
   Cell,
@@ -86,11 +85,51 @@ const topAgents = [
 ];
 
 const breakdownTable: RevenueBreakdown[] = [
-  { revenueHead: "Consultation", department: "General Medicine", transactions: 12, totalRevenue: 185000, paid: 165000, pending: 20000, refunds: 0 },
-  { revenueHead: "Lab Test", department: "Laboratory", transactions: 18, totalRevenue: 370000, paid: 355000, pending: 0, refunds: 15000 },
-  { revenueHead: "Scan", department: "Radiology", transactions: 14, totalRevenue: 490000, paid: 490000, pending: 0, refunds: 0 },
-  { revenueHead: "Pharmacy", department: "Pharmacy", transactions: 13, totalRevenue: 290000, paid: 290000, pending: 0, refunds: 0 },
-  { revenueHead: "Admission", department: "Inpatient", transactions: 11, totalRevenue: 600000, paid: 580000, pending: 20000, refunds: 0 },
+  {
+    revenueHead: "Consultation",
+    department: "General Medicine",
+    transactions: 12,
+    totalRevenue: 185000,
+    paid: 165000,
+    pending: 20000,
+    refunds: 0,
+  },
+  {
+    revenueHead: "Lab Test",
+    department: "Laboratory",
+    transactions: 18,
+    totalRevenue: 370000,
+    paid: 355000,
+    pending: 0,
+    refunds: 15000,
+  },
+  {
+    revenueHead: "Scan",
+    department: "Radiology",
+    transactions: 14,
+    totalRevenue: 490000,
+    paid: 490000,
+    pending: 0,
+    refunds: 0,
+  },
+  {
+    revenueHead: "Pharmacy",
+    department: "Pharmacy",
+    transactions: 13,
+    totalRevenue: 290000,
+    paid: 290000,
+    pending: 0,
+    refunds: 0,
+  },
+  {
+    revenueHead: "Admission",
+    department: "Inpatient",
+    transactions: 11,
+    totalRevenue: 600000,
+    paid: 580000,
+    pending: 20000,
+    refunds: 0,
+  },
 ];
 
 const transactionsData: Transaction[] = [
@@ -161,7 +200,9 @@ type DateRange = "Last 7 Days" | "Last 30 Days" | "This Year" | "All Time";
 function Page() {
   const [dateRange, setDateRange] = useState<DateRange>("Last 7 Days");
   const [department, setDepartment] = useState<string>("All");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "All">("All");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "All">(
+    "All",
+  );
   const [agent, setAgent] = useState<string>("All");
   const [revenueHead, setRevenueHead] = useState<string>("All");
 
@@ -171,32 +212,49 @@ function Page() {
     const withinRange = (date: string) => {
       if (dateRange === "All Time") return true;
       const d = new Date(date + "T00:00:00");
-      if (dateRange === "This Year") return d.getFullYear() === now.getFullYear();
+      if (dateRange === "This Year")
+        return d.getFullYear() === now.getFullYear();
       const diff = now.getTime() - d.getTime();
       const days = dateRange === "Last 7 Days" ? 7 : 30;
       return diff <= days * 24 * 60 * 60 * 1000;
     };
 
-    return transactionsData.filter((t) =>
-      withinRange(t.date) &&
-      (department === "All" || t.department === department) &&
-      (paymentMethod === "All" || t.paymentMethod === paymentMethod) &&
-      (agent === "All" || t.agent === agent) &&
-      (revenueHead === "All" || t.revenueHead === revenueHead)
+    return transactionsData.filter(
+      (t) =>
+        withinRange(t.date) &&
+        (department === "All" || t.department === department) &&
+        (paymentMethod === "All" || t.paymentMethod === paymentMethod) &&
+        (agent === "All" || t.agent === agent) &&
+        (revenueHead === "All" || t.revenueHead === revenueHead),
     );
   }, [agent, dateRange, department, paymentMethod, revenueHead]);
 
   const stats = useMemo(() => {
-    const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const totalRevenue = filteredTransactions.reduce(
+      (sum, t) => sum + t.amount,
+      0,
+    );
     const totalTransactions = filteredTransactions.length;
-    const patientsServed = new Set(filteredTransactions.map((t) => t.patient)).size;
-    const avgTransaction = totalTransactions ? totalRevenue / totalTransactions : 0;
-    const refundRequests = filteredTransactions.filter((t) => t.status === "Refund Requested").length;
+    const patientsServed = new Set(filteredTransactions.map((t) => t.patient))
+      .size;
+    const avgTransaction = totalTransactions
+      ? totalRevenue / totalTransactions
+      : 0;
+    const refundRequests = filteredTransactions.filter(
+      (t) => t.status === "Refund Requested",
+    ).length;
     const pendingPayments = filteredTransactions
       .filter((t) => t.status === "Pending")
       .reduce((sum, t) => sum + t.amount, 0);
 
-    return { totalRevenue, totalTransactions, patientsServed, avgTransaction, refundRequests, pendingPayments };
+    return {
+      totalRevenue,
+      totalTransactions,
+      patientsServed,
+      avgTransaction,
+      refundRequests,
+      pendingPayments,
+    };
   }, [filteredTransactions]);
 
   return (
@@ -246,10 +304,14 @@ function Page() {
             </div>
 
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700">Payment Method</p>
+              <p className="text-sm font-medium text-gray-700">
+                Payment Method
+              </p>
               <select
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | "All")}
+                onChange={(e) =>
+                  setPaymentMethod(e.target.value as PaymentMethod | "All")
+                }
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
               >
                 <option value="All">All Methods</option>
@@ -299,31 +361,38 @@ function Page() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {[{
-            label: "Total Revenue",
-            value: formatNaira(stats.totalRevenue || 2000000),
-          },
-          {
-            label: "Total Transactions",
-            value: stats.totalTransactions || 16,
-          },
-          {
-            label: "Patients Served",
-            value: stats.patientsServed || 16,
-          },
-          {
-            label: "Avg Transaction",
-            value: stats.avgTransaction ? formatNaira(Math.round(stats.avgTransaction)) : "₦127K",
-          },
-          {
-            label: "Refund Requests",
-            value: stats.refundRequests || 1,
-          },
-          {
-            label: "Pending Payments",
-            value: formatNaira(stats.pendingPayments || 180000),
-          }].map((card) => (
-            <div key={card.label} className="bg-white border border-gray-200 rounded-xl p-4">
+          {[
+            {
+              label: "Total Revenue",
+              value: formatNaira(stats.totalRevenue || 2000000),
+            },
+            {
+              label: "Total Transactions",
+              value: stats.totalTransactions || 16,
+            },
+            {
+              label: "Patients Served",
+              value: stats.patientsServed || 16,
+            },
+            {
+              label: "Avg Transaction",
+              value: stats.avgTransaction
+                ? formatNaira(Math.round(stats.avgTransaction))
+                : "₦127K",
+            },
+            {
+              label: "Refund Requests",
+              value: stats.refundRequests || 1,
+            },
+            {
+              label: "Pending Payments",
+              value: formatNaira(stats.pendingPayments || 180000),
+            },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="bg-white border border-gray-200 rounded-xl p-4"
+            >
               <p className="text-sm text-gray-600 font-medium">{card.label}</p>
               <h2 className="text-2xl font-bold mt-2">{card.value}</h2>
             </div>
@@ -335,12 +404,25 @@ function Page() {
             <h2 className="text-lg font-bold mb-2">Revenue Trend</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueTrend} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                <LineChart
+                  data={revenueTrend}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" />
-                  <YAxis tickFormatter={(v) => formatNaira(Number(v)).replace("₦", "₦")} width={70} />
-                  <Tooltip formatter={(v: number) => formatNaira(Number(v))} />
-                  <Line type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={2} dot={{ r: 4 }} />
+                  <YAxis
+                    tickFormatter={(v) =>
+                      formatNaira(Number(v)).replace("₦", "₦")
+                    }
+                    width={70}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#2563EB"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -350,11 +432,18 @@ function Page() {
             <h2 className="text-lg font-bold mb-2">Payment Method Breakdown</h2>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={paymentMethodSummary} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <BarChart
+                  data={paymentMethodSummary}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
-                  <YAxis tickFormatter={(v) => formatNaira(Number(v)).replace("₦", "₦")} width={70} />
-                  <Tooltip formatter={(v: number) => formatNaira(Number(v))} />
+                  <YAxis
+                    tickFormatter={(v) =>
+                      formatNaira(Number(v)).replace("₦", "₦")
+                    }
+                    width={70}
+                  />
                   <Bar dataKey="value" fill="#22C55E" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -368,12 +457,29 @@ function Page() {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={departmentRevenue} dataKey="value" nameKey="name" innerRadius={70} outerRadius={110} paddingAngle={2}>
+                  <Pie
+                    data={departmentRevenue}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={70}
+                    outerRadius={110}
+                    paddingAngle={2}
+                  >
                     {departmentRevenue.map((entry, idx) => (
-                      <Cell key={entry.name} fill={["#F59E0B", "#22C55E", "#6366F1", "#F97316", "#8B5CF6"][idx % 5]} />
+                      <Cell
+                        key={entry.name}
+                        fill={
+                          [
+                            "#F59E0B",
+                            "#22C55E",
+                            "#6366F1",
+                            "#F97316",
+                            "#8B5CF6",
+                          ][idx % 5]
+                        }
+                      />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number, n: string) => [formatNaira(Number(v)), n]} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -383,11 +489,24 @@ function Page() {
             <h2 className="text-lg font-bold mb-2">Top Agents by Revenue</h2>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topAgents} margin={{ top: 10, right: 10, left: 0, bottom: 30 }}>
+                <BarChart
+                  data={topAgents}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 30 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" interval={0} angle={-10} textAnchor="end" height={50} />
-                  <YAxis tickFormatter={(v) => formatNaira(Number(v)).replace("₦", "₦")} width={70} />
-                  <Tooltip formatter={(v: number) => formatNaira(Number(v))} />
+                  <XAxis
+                    dataKey="name"
+                    interval={0}
+                    angle={-10}
+                    textAnchor="end"
+                    height={50}
+                  />
+                  <YAxis
+                    tickFormatter={(v) =>
+                      formatNaira(Number(v)).replace("₦", "₦")
+                    }
+                    width={70}
+                  />
                   <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -412,14 +531,27 @@ function Page() {
               </thead>
               <tbody>
                 {breakdownTable.map((row) => (
-                  <tr key={row.revenueHead} className="border-b border-gray-100">
-                    <td className="p-3 font-semibold text-gray-900">{row.revenueHead}</td>
+                  <tr
+                    key={row.revenueHead}
+                    className="border-b border-gray-100"
+                  >
+                    <td className="p-3 font-semibold text-gray-900">
+                      {row.revenueHead}
+                    </td>
                     <td className="p-3 text-gray-700">{row.department}</td>
                     <td className="p-3 text-gray-700">{row.transactions}</td>
-                    <td className="p-3 font-semibold text-gray-900">{formatNaira(row.totalRevenue)}</td>
-                    <td className="p-3 text-green-600 font-semibold">{formatNaira(row.paid)}</td>
-                    <td className="p-3 text-amber-600 font-semibold">{formatNaira(row.pending)}</td>
-                    <td className="p-3 text-red-600 font-semibold">{formatNaira(row.refunds)}</td>
+                    <td className="p-3 font-semibold text-gray-900">
+                      {formatNaira(row.totalRevenue)}
+                    </td>
+                    <td className="p-3 text-green-600 font-semibold">
+                      {formatNaira(row.paid)}
+                    </td>
+                    <td className="p-3 text-amber-600 font-semibold">
+                      {formatNaira(row.pending)}
+                    </td>
+                    <td className="p-3 text-red-600 font-semibold">
+                      {formatNaira(row.refunds)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -446,14 +578,30 @@ function Page() {
               <tbody>
                 {filteredTransactions.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100">
-                    <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">{t.invoice}</td>
-                    <td className="p-3 text-gray-900 font-semibold whitespace-nowrap">{t.patient}</td>
-                    <td className="p-3 font-semibold text-gray-900">{formatNaira(t.amount)}</td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">{t.department}</td>
-                    <td className="p-3"><TagPill label={t.paymentMethod} /></td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">{t.agent}</td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">{t.date}</td>
-                    <td className="p-3 whitespace-nowrap"><StatusPill status={t.status} /></td>
+                    <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">
+                      {t.invoice}
+                    </td>
+                    <td className="p-3 text-gray-900 font-semibold whitespace-nowrap">
+                      {t.patient}
+                    </td>
+                    <td className="p-3 font-semibold text-gray-900">
+                      {formatNaira(t.amount)}
+                    </td>
+                    <td className="p-3 text-gray-700 whitespace-nowrap">
+                      {t.department}
+                    </td>
+                    <td className="p-3">
+                      <TagPill label={t.paymentMethod} />
+                    </td>
+                    <td className="p-3 text-gray-700 whitespace-nowrap">
+                      {t.agent}
+                    </td>
+                    <td className="p-3 text-gray-700 whitespace-nowrap">
+                      {t.date}
+                    </td>
+                    <td className="p-3 whitespace-nowrap">
+                      <StatusPill status={t.status} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

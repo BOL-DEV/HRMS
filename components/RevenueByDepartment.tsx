@@ -1,12 +1,5 @@
 "use client";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts";
+
 import RevenueBarChart from "./RevenueBarChart";
 
 // type DepartmentData = {
@@ -24,10 +17,6 @@ const departmentRevenue = [
   { name: "Pediatrics", value: 21400 },
 ];
 
-const formatValue = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
-  }).format(value);
 
 function RevenueByDepartment() {
     const data = departmentRevenue.map((dept) => ({
