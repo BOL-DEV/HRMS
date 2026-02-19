@@ -16,7 +16,7 @@ function Sidebar({ title, links, isOpen }: Props) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-gray-200 bg-white shadow-sm transition-transform duration-200 ${mobileState} md:static md:translate-x-0 md:shadow-none md:block`}
+      className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-gray-200 bg-white shadow-sm transition-transform duration-200 ${mobileState}  md:translate-x-0 md:shadow-none md:block md:sticky md:top-0 md:h-screen md:overflow-y-auto`}
     >
       <h1 className="border-b border-gray-200 p-8 text-xl font-bold">
         {title}
