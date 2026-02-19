@@ -1,4 +1,10 @@
-type TransactionStatus = "Paid" | "Pending" | "Refund" | "Failed";
+type TransactionStatus =
+  | "Paid"
+  | "Pending"
+  | "Refund"
+  | "Refunded"
+  | "Refund Requested"
+  | "Failed";
 
 export interface Transaction {
   id: string;

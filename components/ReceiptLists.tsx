@@ -1,18 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { formatUsd } from "@/libs/helper";
 import { ReceiptRow } from "@/libs/type";
 import TagPill from "@/components/TagPill";
 import StatusPill from "@/components/StatusPill";
-import {
-  FiMoreVertical,
-  FiEye,
-  FiPrinter,
-  FiDownload,
-  FiLink,
-  FiExternalLink,
-} from "react-icons/fi";
+import { FiMoreVertical, FiEye, FiExternalLink } from "react-icons/fi";
 
 
 const receipts: ReceiptRow[] = [

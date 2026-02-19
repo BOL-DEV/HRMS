@@ -85,17 +85,17 @@ const FoSidebar = () => {
 
   return (
     <div className="relative">
-        {isOpen ? (
-          <IoMdClose
-            onClick={toggleSidebar}
-            className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-45 top-7 z-50"
-          />
-        ) : (
-          <RxHamburgerMenu
-            onClick={toggleSidebar}
-            className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-4 top-5 z-50"
-          />
-        )}
+      {isOpen ? (
+        <IoMdClose
+          onClick={toggleSidebar}
+          className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-45 top-7 z-50"
+        />
+      ) : (
+        <RxHamburgerMenu
+          onClick={toggleSidebar}
+          className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-4 top-5 z-50"
+        />
+      )}
 
       <Sidebar title={sidebarData.title} links={links} isOpen={isOpen} />
 
