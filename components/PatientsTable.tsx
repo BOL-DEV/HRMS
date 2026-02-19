@@ -24,6 +24,8 @@ export type PatientTableRow = {
   lastVisit: string;
   assignedAgent: string;
   status: PatientStatus;
+  pending?: number;
+  refunds?: number;
 };
 
 type Props = {

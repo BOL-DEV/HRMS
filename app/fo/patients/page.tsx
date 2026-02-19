@@ -3,7 +3,7 @@
 import Header from "@/components/Header";
 import PatientProfileModal, { PatientProfile } from "@/components/PatientProfileModal";
 import PatientsTable, { PatientTableRow, PatientStatus } from "@/components/PatientsTable";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FiDownload, FiSearch } from "react-icons/fi";
 
 type PatientRecord = PatientTableRow & {
