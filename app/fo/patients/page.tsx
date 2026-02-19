@@ -237,40 +237,58 @@ function Page() {
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
-      <Header title="Patients" Subtitle="View all patient records and billing history" />
+      <Header
+        title="Patientsss"
+        Subtitle="View all patient records and billing history"
+      />
 
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[{
-            label: "Total Patients",
-            value: stats.total,
-            sub: "",
-            icon: "👥",
-          },
-          {
-            label: "Active Patients",
-            value: stats.active,
-            sub: `${Math.round((stats.active / stats.total) * 100)}% of total`,
-            icon: "🩺",
-          },
-          {
-            label: "Total Revenue",
-            value: new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(stats.revenue),
-            sub: `from ${stats.total} patients`,
-            icon: "💲",
-          },
-          {
-            label: "Added This Month",
-            value: stats.addedThisMonth,
-            sub: "",
-            icon: "📅",
-          }].map((card) => (
-            <div key={card.label} className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-lg">{card.icon}</div>
+          {[
+            {
+              label: "Total Patients",
+              value: stats.total,
+              sub: "",
+              icon: "👥",
+            },
+            {
+              label: "Active Patients",
+              value: stats.active,
+              sub: `${Math.round((stats.active / stats.total) * 100)}% of total`,
+              icon: "🩺",
+            },
+            {
+              label: "Total Revenue",
+              value: new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+                minimumFractionDigits: 0,
+              }).format(stats.revenue),
+              sub: `from ${stats.total} patients`,
+              icon: "💲",
+            },
+            {
+              label: "Added This Month",
+              value: stats.addedThisMonth,
+              sub: "",
+              icon: "📅",
+            },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="bg-white border border-gray-200 rounded-xl p-5 flex items-center gap-4"
+            >
+              <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-lg">
+                {card.icon}
+              </div>
               <div>
-                <p className="text-sm text-gray-600 font-medium">{card.label}</p>
+                <p className="text-sm text-gray-600 font-medium">
+                  {card.label}
+                </p>
                 <h2 className="text-2xl font-bold">{card.value}</h2>
-                {card.sub ? <p className="text-xs text-gray-500">{card.sub}</p> : null}
+                {card.sub ? (
+                  <p className="text-xs text-gray-500">{card.sub}</p>
+                ) : null}
               </div>
             </div>
           ))}
@@ -291,7 +309,9 @@ function Page() {
             <div className="flex items-center gap-2">
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as PatientStatus | "All")}
+                onChange={(e) =>
+                  setStatus(e.target.value as PatientStatus | "All")
+                }
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
               >
                 <option value="All">All</option>
@@ -331,19 +351,26 @@ function Page() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold">Patients List</h2>
-              <p className="text-sm text-gray-600">{filtered.length} patients found</p>
+              <p className="text-sm text-gray-600">
+                {filtered.length} patients found
+              </p>
             </div>
           </div>
 
           <PatientsTable
             rows={filtered}
-            onViewProfile={(patient) => setSelectedPatient(patient as PatientProfile)}
+            onViewProfile={(patient) =>
+              setSelectedPatient(patient as PatientProfile)
+            }
           />
         </div>
       </div>
 
       {selectedPatient ? (
-        <PatientProfileModal patient={selectedPatient} onClose={() => setSelectedPatient(null)} />
+        <PatientProfileModal
+          patient={selectedPatient}
+          onClose={() => setSelectedPatient(null)}
+        />
       ) : null}
     </div>
   );
