@@ -1,27 +1,39 @@
-import React from "react";
 import StatusPill from "@/components/StatusPill";
-
-export type RefundRequest = {
-  id: string;
-  patient: string;
-  agent: string;
-  reason: string;
-  amount: number;
-  status: "Pending" | "Approved" | "Rejected";
-};
+import { RefundRequest } from "@/libs/type";
+import { formatUsd } from "@/libs/helper";
 
 type Props = {
-  requests: RefundRequest[];
+  requests?: RefundRequest[];
 };
 
-const usd = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(value);
+const refundRequests: RefundRequest[] = [
+  {
+    id: "r1",
+    patient: "Emma Wilson",
+    agent: "Patricia",
+    reason: "Duplicate charge",
+    amount: 150,
+    status: "Pending",
+  },
+  {
+    id: "r2",
+    patient: "Thomas Gray",
+    agent: "Marcus",
+    reason: "Service not rendered",
+    amount: 200,
+    status: "Pending",
+  },
+  {
+    id: "r3",
+    patient: "Jessica Lee",
+    agent: "James",
+    reason: "Quality issue",
+    amount: 300,
+    status: "Pending",
+  },
+];
 
-function RefundRequests({ requests }: Props) {
+function RefundRequests({ requests = refundRequests }: Props) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl h-full flex flex-col">
       <div className="p-5 border-b border-gray-200">
@@ -39,7 +51,9 @@ function RefundRequests({ requests }: Props) {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-base font-semibold text-gray-900">{item.patient}</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {item.patient}
+                </p>
                 <p className="text-sm text-gray-500">Agent {item.agent}</p>
               </div>
               <StatusPill status={item.status} />
@@ -48,7 +62,9 @@ function RefundRequests({ requests }: Props) {
             <p className="text-sm text-gray-600">{item.reason}</p>
 
             <div className="flex items-center justify-between">
-              <p className="text-blue-700 font-semibold">{usd(item.amount)}</p>
+              <p className="text-blue-700 font-semibold">
+                {formatUsd(item.amount)}
+              </p>
               <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50">
                 Review
               </button>

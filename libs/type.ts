@@ -59,3 +59,24 @@ export interface TransactionRow {
   status: TransactionStatus;
   dateTime: string;
 }
+
+interface PaymentSlice {
+  name: string;
+  value: number;
+  color: string;
+};
+
+export interface paymentMethodProps {
+  title?: string;
+  subtitle?: string;
+  data?: PaymentSlice[];
+};
+
+export interface RefundRequest {
+  id: string;
+  patient: string;
+  agent: string;
+  reason: string;
+  amount: number;
+  status: "Pending" | "Approved" | "Rejected";
+};
