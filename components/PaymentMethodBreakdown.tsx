@@ -6,27 +6,21 @@ import {
   PieChart,
   ResponsiveContainer,
 } from "recharts";
+import { paymentMethodProps } from "@/libs/type";
 
-type PaymentSlice = {
-  name: string;
-  value: number;
-  color: string;
-};
-
-type Props = {
-  title?: string;
-  subtitle?: string;
-  data: PaymentSlice[];
-};
+const paymentMethods = [
+  { name: "Credit Card", value: 45, color: "#2563EB" },
+  { name: "Insurance", value: 28, color: "#10B981" },
+  { name: "Bank Transfer", value: 18, color: "#F59E0B" },
+  { name: "Cash", value: 9, color: "#EF4444" },
+];
 
 function PaymentMethodBreakdown({
   title = "Payment Method Breakdown",
   subtitle = "Distribution of payment methods",
-  data,
-}: Props) {
+  data = paymentMethods,
+}: paymentMethodProps) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
-
-
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl h-full flex flex-col">
@@ -45,7 +39,9 @@ function PaymentMethodBreakdown({
               innerRadius={70}
               outerRadius={100}
               paddingAngle={2}
-              label={({ name, value }) => `${name} ${(value / total * 100).toFixed(0)}%`}
+              label={({ name, value }) =>
+                `${name} ${((value / total) * 100).toFixed(0)}%`
+              }
             >
               {data.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
@@ -56,7 +52,10 @@ function PaymentMethodBreakdown({
 
         <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
           {data.map((item) => (
-            <div key={item.name} className="flex items-center gap-2 text-gray-700">
+            <div
+              key={item.name}
+              className="flex items-center gap-2 text-gray-700"
+            >
               <span
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: item.color }}
