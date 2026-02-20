@@ -80,3 +80,26 @@ export interface RefundRequest {
   amount: number;
   status: "Pending" | "Approved" | "Rejected";
 };
+
+
+export type AgentStatus = "Active" | "Inactive" | "Suspended";
+
+export interface AgentRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  transactions: number;
+  revenue: number;
+  pending: number;
+  refunds: number;
+  lastActive: string;
+  status: AgentStatus;
+}
+
+export type SortOption = "newest" | "oldest" | "revenue";
+
+export interface AgentProfile  {
+  rows: AgentRow[];
+  onViewProfile?: (row: AgentRow) => void;
+};

@@ -1,4 +1,5 @@
 import { TransactionRow } from "./type";
+import { AgentRow } from "./type";
 
 export const transactions: TransactionRow[] = [
   {
@@ -72,5 +73,68 @@ export const transactions: TransactionRow[] = [
     payment: "Cash",
     status: "Refund",
     dateTime: "2024-02-12 04:30 PM",
+  },
+];
+
+export const agents: AgentRow[] = [
+  {
+    id: "a1",
+    name: "David Martinez",
+    email: "david.martinez@hospital.com",
+    phone: "+1-555-0105",
+    transactions: 289,
+    revenue: 41200,
+    pending: 10,
+    refunds: 4,
+    lastActive: "2024-02-15 11:00 AM",
+    status: "Active",
+  },
+  {
+    id: "a2",
+    name: "Patricia Johnson",
+    email: "patricia.johnson@hospital.com",
+    phone: "+1-555-0104",
+    transactions: 156,
+    revenue: 22400,
+    pending: 5,
+    refunds: 1,
+    lastActive: "2024-02-10 02:15 PM",
+    status: "Suspended",
+  },
+  {
+    id: "a3",
+    name: "Marcus Williams",
+    email: "marcus.williams@hospital.com",
+    phone: "+1-555-0103",
+    transactions: 267,
+    revenue: 35600,
+    pending: 15,
+    refunds: 5,
+    lastActive: "2024-02-14 03:20 PM",
+    status: "Active",
+  },
+  {
+    id: "a4",
+    name: "Lisa Chen",
+    email: "lisa.chen@hospital.com",
+    phone: "+1-555-0102",
+    transactions: 298,
+    revenue: 38500,
+    pending: 8,
+    refunds: 2,
+    lastActive: "2024-02-15 09:45 AM",
+    status: "Active",
+  },
+  {
+    id: "a5",
+    name: "James Anderson",
+    email: "james.anderson@hospital.com",
+    phone: "+1-555-0101",
+    transactions: 342,
+    revenue: 45200,
+    pending: 12,
+    refunds: 3,
+    lastActive: "2024-02-15 10:30 AM",
+    status: "Active",
   },
 ];

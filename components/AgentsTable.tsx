@@ -1,36 +1,18 @@
 import React, { useState } from "react";
 import StatusPill from "@/components/StatusPill";
 import { FiEye, FiMoreVertical } from "react-icons/fi";
+import { AgentProfile } from "@/libs/type";
+import { formatUsd } from "@/libs/helper";
 
-type AgentStatus = "Active" | "Inactive" | "Suspended";
 
-type AgentRow = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  transactions: number;
-  revenue: number;
-  pending: number;
-  refunds: number;
-  lastActive: string;
-  status: AgentStatus;
-};
 
-type Props = {
-  rows: AgentRow[];
-  onViewProfile?: (row: AgentRow) => void;
-};
 
-const usd = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(value);
 
-function AgentsTable({ rows, onViewProfile }: Props) {
+
+
+function AgentsTable({ rows, onViewProfile }: AgentProfile) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -57,7 +39,7 @@ function AgentsTable({ rows, onViewProfile }: Props) {
                 <td className="p-3 text-gray-700 whitespace-nowrap">{row.email}</td>
                 <td className="p-3 text-gray-700 whitespace-nowrap">{row.phone}</td>
                 <td className="p-3 text-gray-700">{row.transactions}</td>
-                <td className="p-3 text-blue-700 font-semibold">{usd(row.revenue)}</td>
+                <td className="p-3 text-blue-700 font-semibold">{formatUsd(row.revenue)}</td>
                 <td className="p-3 text-gray-700">{row.pending}</td>
                 <td className="p-3 text-gray-700">{row.refunds}</td>
                 <td className="p-3 text-gray-700 whitespace-nowrap">{row.lastActive}</td>
@@ -110,5 +92,5 @@ function AgentsTable({ rows, onViewProfile }: Props) {
   );
 }
 
-export type { AgentRow, AgentStatus };
+// export interface { AgentRow, AgentStatus };
 export default AgentsTable;
