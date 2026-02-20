@@ -12,19 +12,26 @@ import {
 	YAxis,
 } from "recharts";
 import { formatUsd } from "@/libs/helper";
-import { getHospitalById } from "@/libs/hospital";
+import {
+  getHospitalById,
+  type HospitalTransactionStatus,
+} from "@/libs/hospital";
 
-function StatusTag({ status }: { status: "completed" | "pending" }) {
-	const className =
-		status === "completed"
-			? "bg-green-100 text-green-700"
-			: "bg-yellow-100 text-yellow-700";
+function StatusTag({ status }: { status: HospitalTransactionStatus }) {
+  const className =
+    status === "completed"
+      ? "bg-green-100 text-green-700"
+      : status === "pending"
+        ? "bg-yellow-100 text-yellow-700"
+        : "bg-red-100 text-red-700";
 
-	return (
-		<span className={`px-3 py-1 rounded-full text-xs font-semibold ${className}`}>
-			{status}
-		</span>
-	);
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold ${className}`}
+    >
+      {status}
+    </span>
+  );
 }
 
 export default function HospitalOverviewPage() {
