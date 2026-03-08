@@ -32,7 +32,7 @@ export interface PatientRow {
 }
 
 type ReceiptStatus = "Paid" | "Pending" | "Refunded";
-type ReceiptPaymentMethod = "Cash" | "Transfer" | "POS" | "Insurance";
+type ReceiptPaymentMethod = "Cash" | "Transfer" | "POS";
 
 export interface ReceiptRow {
   id: string;
@@ -64,13 +64,13 @@ interface PaymentSlice {
   name: string;
   value: number;
   color: string;
-};
+}
 
 export interface paymentMethodProps {
   title?: string;
   subtitle?: string;
   data?: PaymentSlice[];
-};
+}
 
 export interface RefundRequest {
   id: string;
@@ -79,8 +79,7 @@ export interface RefundRequest {
   reason: string;
   amount: number;
   status: "Pending" | "Approved" | "Rejected";
-};
-
+}
 
 export type AgentStatus = "Active" | "Inactive" | "Suspended";
 
@@ -99,7 +98,19 @@ export interface AgentRow {
 
 export type SortOption = "newest" | "oldest" | "revenue";
 
-export interface AgentProfile  {
+export interface AgentProfile {
   rows: AgentRow[];
   onViewProfile?: (row: AgentRow) => void;
-};
+}
+
+export interface NewTransactionForm {
+  patient: string;
+  phoneNo: string;
+  department: string;
+  paymentMethod: PaymentMethod;
+  amount: string;
+  notes: string;
+}
+  
+
+

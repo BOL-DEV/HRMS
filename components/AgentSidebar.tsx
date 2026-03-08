@@ -21,12 +21,12 @@ const sidebarData = {
       label: <FaRegChartBar className="inline mr-2" />,
       active: true,
     },
-    {
-      name: "Patients",
-      link: "/agents/patients",
-      label: <MdOutlinePeopleAlt className="inline mr-2" />,
-      active: false,
-    },
+    // {
+    //   name: "Patients",
+    //   link: "/agents/patients",
+    //   label: <MdOutlinePeopleAlt className="inline mr-2" />,
+    //   active: false,
+    // },
     {
       name: "Transactions",
       link: "/agents/transactions",
