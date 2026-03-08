@@ -32,7 +32,7 @@ export interface PatientRow {
 }
 
 type ReceiptStatus = "Paid" | "Pending" | "Refunded";
-type ReceiptPaymentMethod = "Cash" | "Transfer" | "POS";
+type ReceiptPaymentMethod = "Cash" | "Transfer" | "POS" | "Insurance";
 
 export interface ReceiptRow {
   id: string;
