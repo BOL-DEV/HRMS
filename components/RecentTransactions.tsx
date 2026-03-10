@@ -78,7 +78,6 @@ function RecentTransactions() {
               <th className="p-3 font-semibold">Amount</th>
               <th className="p-3 font-semibold">Status</th>
               <th className="p-3 font-semibold">Date/Time</th>
-              <th className="p-3 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -97,11 +96,6 @@ function RecentTransactions() {
                   <StatusPill status={tx.status} />
                 </td>
                 <td className="p-3 text-gray-700">{tx.dateTime}</td>
-                <td className="p-3 text-right">
-                  <button className="p-2 rounded-lg hover:bg-gray-100 border border-transparent hover:border-gray-200">
-                    <FiMoreVertical className="text-gray-700" />
-                  </button>
-                </td>
               </tr>
             ))}
           </tbody>

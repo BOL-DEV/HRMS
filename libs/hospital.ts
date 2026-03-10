@@ -20,6 +20,7 @@ export type HospitalAgent = {
   name: string;
   email: string;
   role: string;
+  walletBalance: number;
   sales: number;
   performance: number; // 0 - 100
   status: HospitalAgentStatus;
@@ -72,6 +73,7 @@ export type Hospital = {
   email: string;
   phone: string;
   address: string;
+  departmentsList: string[];
   revenue: number;
   transactions: number;
   agents: number;
@@ -100,6 +102,7 @@ const hospitals: Hospital[] = [
     email: "admin@metropolitan.com",
     phone: "+1 (555) 123-4567",
     address: "500 Park Avenue",
+    departmentsList: ["General Medicine", "Radiology", "Pharmacy", "Pathology", "Surgery"],
     revenue: 385000,
     transactions: 2450,
     agents: 45,
@@ -216,6 +219,7 @@ const hospitals: Hospital[] = [
         name: "Alice Johnson",
         email: "alice@metropolitan.com",
         role: "Senior Agent",
+        walletBalance: 250000,
         sales: 45000,
         performance: 95,
         status: "Active",
@@ -225,6 +229,7 @@ const hospitals: Hospital[] = [
         name: "Robert Smith",
         email: "robert@metropolitan.com",
         role: "Agent",
+        walletBalance: 100000,
         sales: 32000,
         performance: 88,
         status: "Active",
@@ -234,6 +239,7 @@ const hospitals: Hospital[] = [
         name: "Emily Chen",
         email: "emily@metropolitan.com",
         role: "Junior Agent",
+        walletBalance: 50000,
         sales: 18000,
         performance: 72,
         status: "Active",
@@ -280,6 +286,7 @@ const hospitals: Hospital[] = [
     email: "contact@citymedical.com",
     phone: "+1 (555) 234-5678",
     address: "1200 Main Street",
+    departmentsList: [],
     revenue: 320000,
     transactions: 2100,
     agents: 38,
@@ -307,6 +314,7 @@ const hospitals: Hospital[] = [
     email: "info@riverside.com",
     phone: "+1 (555) 345-6789",
     address: "77 Riverside Blvd",
+    departmentsList: [],
     revenue: 285000,
     transactions: 1800,
     agents: 32,
@@ -334,6 +342,7 @@ const hospitals: Hospital[] = [
     email: "admin@sunsetmedical.com",
     phone: "+1 (555) 456-7890",
     address: "44 Sunset Road",
+    departmentsList: [],
     revenue: 245000,
     transactions: 1500,
     agents: 28,
@@ -361,6 +370,7 @@ const hospitals: Hospital[] = [
     email: "contact@northside.com",
     phone: "+1 (555) 567-8901",
     address: "9 Northside Ave",
+    departmentsList: [],
     revenue: 210000,
     transactions: 1200,
     agents: 24,
@@ -388,6 +398,7 @@ const hospitals: Hospital[] = [
     email: "admin@eastside.com",
     phone: "+1 (555) 678-9012",
     address: "18 Eastside Way",
+    departmentsList: [],
     revenue: 156000,
     transactions: 900,
     agents: 18,
@@ -415,6 +426,7 @@ const hospitals: Hospital[] = [
     email: "info@westview.com",
     phone: "+1 (555) 789-0123",
     address: "310 Westview Drive",
+    departmentsList: [],
     revenue: 189000,
     transactions: 1050,
     agents: 22,
@@ -442,6 +454,7 @@ const hospitals: Hospital[] = [
     email: "contact@centralhealth.com",
     phone: "+1 (555) 890-1234",
     address: "1 Central Plaza",
+    departmentsList: [],
     revenue: 298000,
     transactions: 1980,
     agents: 35,

@@ -9,6 +9,7 @@ import { getHospitalById } from "@/libs/hospital";
 const tabs = [
   { label: "Overview", href: (id: string) => `/admin/hospitals/${id}` },
   { label: "Agents", href: (id: string) => `/admin/hospitals/${id}/agents` },
+  { label: "Departments", href: (id: string) => `/admin/hospitals/${id}/departments` },
   { label: "Patients", href: (id: string) => `/admin/hospitals/${id}/patients` },
   { label: "Transactions", href: (id: string) => `/admin/hospitals/${id}/transactions` },
   {

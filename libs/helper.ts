@@ -6,6 +6,15 @@ export function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+export function formatNaira(amount: number) {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export function formatCompactNumber(value: number) {
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
