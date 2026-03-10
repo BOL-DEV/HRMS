@@ -2,20 +2,21 @@ import React from "react";
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 
-import {
-  FiClock,
-  FiDollarSign,
-  FiFileText,
-  FiRefreshCcw,
-} from "react-icons/fi";
+import { FiDollarSign, FiFileText, FiRefreshCcw } from "react-icons/fi";
 import { formatCurrency, formatCompactNumber } from "@/libs/helper";
 import RecentTransactions from "@/components/RecentTransactions";
 import RevenueTrend from "@/components/RevenueTrend";
 import TopAgents from "@/components/TopAgents";
-import BalanceTopUp from "@/components/BalanceTopUp";
 
 function Page() {
   const stats = [
+    {
+      title: "Current Balance",
+      value: formatCurrency(5000000),
+      delta: "+12.5%",
+      deltaTone: "positive" as const,
+      icon: <FiDollarSign className="text-xl" />,
+    },
     {
       title: "Revenue (Today)",
       value: formatCurrency(12450),
@@ -30,13 +31,7 @@ function Page() {
       deltaTone: "positive" as const,
       icon: <FiFileText className="text-xl" />,
     },
-    {
-      title: "Pending Payments",
-      value: formatCompactNumber(34),
-      delta: "-2.4%",
-      deltaTone: "negative" as const,
-      icon: <FiClock className="text-xl" />,
-    },
+
     {
       title: "Refund Requests",
       value: formatCompactNumber(8),
