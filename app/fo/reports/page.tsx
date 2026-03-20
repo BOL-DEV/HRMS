@@ -1,7 +1,6 @@
 "use client";
 
 import Header from "@/components/Header";
-import StatusPill from "@/components/StatusPill";
 import TagPill from "@/components/TagPill";
 import { useMemo, useState } from "react";
 import {
@@ -20,7 +19,6 @@ import {
 import { FiDownload, FiTrendingUp } from "react-icons/fi";
 
 type PaymentMethod = "Cash" | "Transfer" | "POS";
-type TransactionStatus = "Paid" | "Pending" | "Refunded" | "Refund Requested";
 
 type Transaction = {
   id: string;
@@ -31,7 +29,6 @@ type Transaction = {
   revenueHead: string;
   paymentMethod: PaymentMethod;
   agent: string;
-  status: TransactionStatus;
   date: string; // YYYY-MM-DD
 };
 
@@ -40,9 +37,6 @@ type RevenueBreakdown = {
   department: string;
   transactions: number;
   totalRevenue: number;
-  paid: number;
-  pending: number;
-  refunds: number;
 };
 
 const formatNaira = (value: number) =>
@@ -90,45 +84,30 @@ const breakdownTable: RevenueBreakdown[] = [
     department: "General Medicine",
     transactions: 12,
     totalRevenue: 185000,
-    paid: 165000,
-    pending: 20000,
-    refunds: 0,
   },
   {
     revenueHead: "Lab Test",
     department: "Laboratory",
     transactions: 18,
     totalRevenue: 370000,
-    paid: 355000,
-    pending: 0,
-    refunds: 15000,
   },
   {
     revenueHead: "Scan",
     department: "Radiology",
     transactions: 14,
     totalRevenue: 490000,
-    paid: 490000,
-    pending: 0,
-    refunds: 0,
   },
   {
     revenueHead: "Pharmacy",
     department: "Pharmacy",
     transactions: 13,
     totalRevenue: 290000,
-    paid: 290000,
-    pending: 0,
-    refunds: 0,
   },
   {
     revenueHead: "Admission",
     department: "Inpatient",
     transactions: 11,
     totalRevenue: 600000,
-    paid: 580000,
-    pending: 20000,
-    refunds: 0,
   },
 ];
 
@@ -142,7 +121,6 @@ const transactionsData: Transaction[] = [
     revenueHead: "Admission",
     paymentMethod: "Cash",
     agent: "Zainab Mohammed",
-    status: "Paid",
     date: "2024-03-17",
   },
   {
@@ -154,7 +132,6 @@ const transactionsData: Transaction[] = [
     revenueHead: "Admission",
     paymentMethod: "POS",
     agent: "Zainab Mohammed",
-    status: "Paid",
     date: "2024-03-13",
   },
   {
@@ -166,7 +143,6 @@ const transactionsData: Transaction[] = [
     revenueHead: "Scan",
     paymentMethod: "Cash",
     agent: "Oluwaseun Adeyemi",
-    status: "Paid",
     date: "2024-03-16",
   },
   {
@@ -178,7 +154,6 @@ const transactionsData: Transaction[] = [
     revenueHead: "Scan",
     paymentMethod: "Cash",
     agent: "Oluwaseun Adeyemi",
-    status: "Pending",
     date: "2024-03-18",
   },
   {
@@ -190,7 +165,6 @@ const transactionsData: Transaction[] = [
     revenueHead: "Scan",
     paymentMethod: "Transfer",
     agent: "Oluwaseun Adeyemi",
-    status: "Refunded",
     date: "2024-03-14",
   },
 ];
@@ -240,20 +214,12 @@ function Page() {
     const avgTransaction = totalTransactions
       ? totalRevenue / totalTransactions
       : 0;
-    const refundRequests = filteredTransactions.filter(
-      (t) => t.status === "Refund Requested",
-    ).length;
-    const pendingPayments = filteredTransactions
-      .filter((t) => t.status === "Pending")
-      .reduce((sum, t) => sum + t.amount, 0);
 
     return {
       totalRevenue,
       totalTransactions,
       patientsServed,
       avgTransaction,
-      refundRequests,
-      pendingPayments,
     };
   }, [filteredTransactions]);
 
@@ -512,9 +478,6 @@ function Page() {
                   <th className="p-3 font-semibold">Department</th>
                   <th className="p-3 font-semibold">Transactions</th>
                   <th className="p-3 font-semibold">Total Revenue</th>
-                  <th className="p-3 font-semibold">Paid</th>
-                  <th className="p-3 font-semibold">Pending</th>
-                  <th className="p-3 font-semibold">Refunds</th>
                 </tr>
               </thead>
               <tbody>
@@ -530,15 +493,6 @@ function Page() {
                     <td className="p-3 text-gray-700">{row.transactions}</td>
                     <td className="p-3 font-semibold text-gray-900">
                       {formatNaira(row.totalRevenue)}
-                    </td>
-                    <td className="p-3 text-green-600 font-semibold">
-                      {formatNaira(row.paid)}
-                    </td>
-                    <td className="p-3 text-amber-600 font-semibold">
-                      {formatNaira(row.pending)}
-                    </td>
-                    <td className="p-3 text-red-600 font-semibold">
-                      {formatNaira(row.refunds)}
                     </td>
                   </tr>
                 ))}
@@ -560,7 +514,6 @@ function Page() {
                   <th className="p-3 font-semibold">Payment Method</th>
                   <th className="p-3 font-semibold">Agent</th>
                   <th className="p-3 font-semibold">Date</th>
-                  <th className="p-3 font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -586,9 +539,6 @@ function Page() {
                     </td>
                     <td className="p-3 text-gray-700 whitespace-nowrap">
                       {t.date}
-                    </td>
-                    <td className="p-3 whitespace-nowrap">
-                      <StatusPill status={t.status} />
                     </td>
                   </tr>
                 ))}

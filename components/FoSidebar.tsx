@@ -11,7 +11,6 @@ import { RxHamburgerMenu } from "react-icons/rx";
 import { useMemo, useState } from "react";
 import { IoMdClose } from "react-icons/io";
 import { TbReportMedical } from "react-icons/tb";
-import { RiRefundLine } from "react-icons/ri";
 
 const sidebarData = {
   title: "FO",
@@ -44,12 +43,6 @@ const sidebarData = {
       name: "Reports",
       link: "/fo/reports",
       label: <TbReportMedical className="inline mr-2" />,
-      active: false,
-    },
-    {
-      name: "Refunds",
-      link: "/fo/refunds",
-      label: <RiRefundLine className="inline mr-2" />,
       active: false,
     },
     {

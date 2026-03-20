@@ -1,18 +1,9 @@
-type TransactionStatus =
-  | "Paid"
-  | "Pending"
-  | "Refund"
-  | "Refunded"
-  | "Refund Requested"
-  | "Failed";
-
 export interface Transaction {
   id: string;
   patient: string;
   invoiceNo: string;
   revenueHead: string;
   amount: number;
-  status: TransactionStatus;
   dateTime: string;
 }
 
@@ -58,7 +49,6 @@ export interface TransactionRow {
   despcription?: string;
   amount: number;
   payment: PaymentMethod;
-  status: TransactionStatus;
   dateTime: string;
 }
 
@@ -114,6 +104,3 @@ export interface NewTransactionForm {
   amount: string;
   notes: string;
 }
-  
-
-

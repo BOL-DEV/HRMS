@@ -12,7 +12,6 @@ export const transactions: TransactionRow[] = [
     despcription: "General consultation fee",
     amount: 250,
     payment: "Cash",
-    status: "Paid",
     dateTime: "2024-02-15 10:30 AM",
   },
   {
@@ -24,7 +23,6 @@ export const transactions: TransactionRow[] = [
     despcription: "Blood test and analysis",
     amount: 350,
     payment: "Transfer",
-    status: "Paid",
     dateTime: "2024-02-15 09:15 AM",
   },
   {
@@ -36,7 +34,6 @@ export const transactions: TransactionRow[] = [
     despcription: "Hospital admission fee",
     amount: 1500,
     payment: "POS",
-    status: "Pending",
     dateTime: "2024-02-14 02:45 PM",
   },
   {
@@ -48,7 +45,6 @@ export const transactions: TransactionRow[] = [
     despcription: "MRI scan",
     amount: 150,
     payment: "Cash",
-    status: "Paid",
     dateTime: "2024-02-14 11:20 AM",
   },
   {
@@ -60,7 +56,6 @@ export const transactions: TransactionRow[] = [
     despcription: "Medication for treatment",
     amount: 200,
     payment: "Transfer",
-    status: "Pending",
     dateTime: "2024-02-13 03:50 PM",
   },
   {
@@ -72,7 +67,6 @@ export const transactions: TransactionRow[] = [
     despcription: "Urine t  est and analysis",
     amount: 500,
     payment: "Cash",
-    status: "Refund",
     dateTime: "2024-02-12 04:30 PM",
   },
 ];
