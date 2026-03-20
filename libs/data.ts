@@ -69,7 +69,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567890",
     invoiceNo: "INV-2024-006",
     revenueHead: "Lab Test",
-    despcription: "Urine test and analysis",
+    despcription: "Urine t  est and analysis",
     amount: 500,
     payment: "Cash",
     status: "Refund",
