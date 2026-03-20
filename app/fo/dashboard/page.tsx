@@ -1,13 +1,12 @@
 import Header from "@/components/Header";
 import PaymentMethodBreakdown from "@/components/PaymentMethodBreakdown";
 import RecentTransactions from "@/components/RecentTransactions";
-import RefundRequests from "@/components/RefundRequests";
 import RevenueByDepartment from "@/components/RevenueByDepartment";
 import RevenueTrend from "@/components/RevenueTrend";
 import AgentPerformance from "@/components/AgentPerformance";
 import { FiCalendar } from "react-icons/fi";
-import { transactions } from "@/libs/data";
-import { formatNaira } from "@/libs/helper";
+import { agents, transactions } from "@/libs/data";
+import { formatCompactNumber, formatNaira } from "@/libs/helper";
 
 function getDateKey(dateTime: string) {
   // Expected: YYYY-MM-DD ...
@@ -17,6 +16,12 @@ function getDateKey(dateTime: string) {
 function getMonthKey(dateKey: string) {
   // YYYY-MM
   return dateKey.slice(0, 7);
+}
+
+function parseDateKey(dateKey: string) {
+  // dateKey: YYYY-MM-DD
+  const d = new Date(`${dateKey}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function getPrevMonthKey(monthKey: string) {
@@ -45,6 +50,13 @@ function sumAmounts(
   );
 }
 
+function countRows(
+  rows: typeof transactions,
+  predicate: (row: (typeof transactions)[number]) => boolean,
+) {
+  return rows.reduce((acc, row) => (predicate(row) ? acc + 1 : acc), 0);
+}
+
 function buildPeriodStats() {
   const dateKeys = transactions
     .map((t) => getDateKey(t.dateTime))
@@ -54,54 +66,72 @@ function buildPeriodStats() {
   const prevMonthKey = latestMonthKey ? getPrevMonthKey(latestMonthKey) : "";
   const latestYearKey = latestDateKey.slice(0, 4);
 
-  const isRefund = (status: string) => status.startsWith("Refund");
-
   const forDay = (dateKey: string) => ({
     revenue: sumAmounts(
       transactions,
-      (t) => getDateKey(t.dateTime) === dateKey && t.status === "Paid",
+      (t) => getDateKey(t.dateTime) === dateKey,
     ),
-    refund: sumAmounts(
+    transactions: countRows(
       transactions,
-      (t) => getDateKey(t.dateTime) === dateKey && isRefund(t.status),
+      (t) => getDateKey(t.dateTime) === dateKey,
     ),
   });
 
   const forMonth = (monthKey: string) => ({
     revenue: sumAmounts(
       transactions,
-      (t) =>
-        getMonthKey(getDateKey(t.dateTime)) === monthKey && t.status === "Paid",
+      (t) => getMonthKey(getDateKey(t.dateTime)) === monthKey,
     ),
-    refund: sumAmounts(
+    transactions: countRows(
       transactions,
-      (t) =>
-        getMonthKey(getDateKey(t.dateTime)) === monthKey && isRefund(t.status),
+      (t) => getMonthKey(getDateKey(t.dateTime)) === monthKey,
     ),
   });
 
+  const forRollingDays = (endDateKey: string, days: number) => {
+    const end = parseDateKey(endDateKey);
+    if (!end || days <= 0) return { revenue: 0, transactions: 0 };
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (days - 1));
+
+    const within = (dateTime: string) => {
+      const key = getDateKey(dateTime);
+      const d = parseDateKey(key);
+      if (!d) return false;
+      return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+    };
+
+    return {
+      revenue: sumAmounts(transactions, (t) => within(t.dateTime)),
+      transactions: countRows(transactions, (t) => within(t.dateTime)),
+    };
+  };
+
   const forYear = (yearKey: string) => ({
-    revenue: sumAmounts(
-      transactions,
-      (t) => getDateKey(t.dateTime).startsWith(yearKey) && t.status === "Paid",
+    revenue: sumAmounts(transactions, (t) =>
+      getDateKey(t.dateTime).startsWith(yearKey),
     ),
-    refund: sumAmounts(
-      transactions,
-      (t) => getDateKey(t.dateTime).startsWith(yearKey) && isRefund(t.status),
+    transactions: countRows(transactions, (t) =>
+      getDateKey(t.dateTime).startsWith(yearKey),
     ),
   });
 
   return {
-    today: latestDateKey ? forDay(latestDateKey) : { revenue: 0, refund: 0 },
+    today: latestDateKey
+      ? forDay(latestDateKey)
+      : { revenue: 0, transactions: 0 },
+    thisWeek: latestDateKey
+      ? forRollingDays(latestDateKey, 7)
+      : { revenue: 0, transactions: 0 },
     thisMonth: latestMonthKey
       ? forMonth(latestMonthKey)
-      : { revenue: 0, refund: 0 },
+      : { revenue: 0, transactions: 0 },
     lastMonth: prevMonthKey
       ? forMonth(prevMonthKey)
-      : { revenue: 0, refund: 0 },
+      : { revenue: 0, transactions: 0 },
     thisYear: latestYearKey
       ? forYear(latestYearKey)
-      : { revenue: 0, refund: 0 },
+      : { revenue: 0, transactions: 0 },
   };
 }
 
@@ -110,15 +140,15 @@ const periodStats = buildPeriodStats();
 function StatsPeriodCard({
   accentClassName,
   revenueLabel,
-  refundLabel,
+  transCountLabel,
   revenue,
-  refund,
+  transCount,
 }: {
   accentClassName: string;
   revenueLabel: string;
-  refundLabel: string;
+  transCountLabel: string;
   revenue: number;
-  refund: number;
+  transCount: number;
 }) {
   return (
     <div
@@ -136,10 +166,10 @@ function StatsPeriodCard({
 
         <div>
           <p className="text-xs font-semibold tracking-wide text-gray-500">
-            {refundLabel}
+            {transCountLabel}
           </p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {formatNaira(refund)}
+            {formatCompactNumber(transCount)}
           </p>
         </div>
       </div>
@@ -152,6 +182,22 @@ function StatsPeriodCard({
 }
 
 function Page() {
+  const cashCount = transactions.filter((t) => t.payment === "Cash").length;
+  const transferCount = transactions.filter(
+    (t) => t.payment === "Transfer",
+  ).length;
+  const posCount = transactions.filter((t) => t.payment === "POS").length;
+
+  const leaderboard = [...agents]
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+    .map((a, idx) => ({
+      rank: idx + 1,
+      name: a.name,
+      count: a.transactions,
+      amount: a.revenue,
+    }));
+
   return (
     <div className="w-full bg-gray-50 min-h-screen">
       <Header
@@ -162,6 +208,8 @@ function Page() {
             <option>Today</option>
             <option>Yesterday</option>
             <option>This Week</option>
+            <option>This Month</option>
+            <option>This Year</option>
           </select>
         }
       />
@@ -171,41 +219,127 @@ function Page() {
           <StatsPeriodCard
             accentClassName="border-red-600"
             revenueLabel="REVENUE (TODAY)"
-            refundLabel="REFUND (TODAY)"
+            transCountLabel="TRANSACTIONS (TODAY)"
             revenue={periodStats.today.revenue}
-            refund={periodStats.today.refund}
+            transCount={periodStats.today.transactions}
           />
           <StatsPeriodCard
             accentClassName="border-green-600"
-            revenueLabel="REVENUE (THIS MONTH)"
-            refundLabel="REFUND (THIS MONTH)"
-            revenue={periodStats.thisMonth.revenue}
-            refund={periodStats.thisMonth.refund}
+            revenueLabel="REVENUE (THIS WEEK)"
+            transCountLabel="TRANSACTIONS (THIS WEEK)"
+            revenue={periodStats.thisWeek.revenue}
+            transCount={periodStats.thisWeek.transactions}
           />
           <StatsPeriodCard
             accentClassName="border-pink-900"
-            revenueLabel="REVENUE (LAST MONTH)"
-            refundLabel="REFUND (LAST MONTH)"
-            revenue={periodStats.lastMonth.revenue}
-            refund={periodStats.lastMonth.refund}
+            revenueLabel="REVENUE (THIS MONTH)"
+            transCountLabel="TRANSACTIONS (THIS MONTH)"
+            revenue={periodStats.thisMonth.revenue}
+            transCount={periodStats.thisMonth.transactions}
           />
           <StatsPeriodCard
             accentClassName="border-yellow-600"
             revenueLabel="REVENUE (THIS YEAR)"
-            refundLabel="REFUND (THIS YEAR)"
+            transCountLabel="TRANSACTIONS (THIS YEAR)"
             revenue={periodStats.thisYear.revenue}
-            refund={periodStats.thisYear.refund}
+            transCount={periodStats.thisYear.transactions}
           />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="flex flex-col mb-10 gap-6">
           <RevenueTrend />
-          <RevenueByDepartment />
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+            <RevenueByDepartment />
+
+            <div className="bg-white border border-gray-200 rounded-xl">
+              <div className="p-5 flex items-start justify-between border-b border-gray-200">
+                <div>
+                  <h2 className="text-xl font-bold">Agents Leader Board</h2>
+                  <p className="text-sm text-gray-600">Top agents by revenue</p>
+                </div>
+                <FiCalendar className="text-2xl text-gray-300" />
+              </div>
+
+              <div className="p-5 overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-600 bg-gray-100">
+                      <th className="p-3 font-semibold">#</th>
+                      <th className="p-3 font-semibold">Name</th>
+                      <th className="p-3 font-semibold text-right">Count</th>
+                      <th className="p-3 font-semibold text-right">Amount ₦</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row) => (
+                      <tr key={row.rank} className="border-b border-gray-100">
+                        <td className="p-3 text-gray-700">{row.rank}</td>
+                        <td className="p-3 font-semibold text-blue-600 whitespace-nowrap">
+                          {row.name}
+                        </td>
+                        <td className="p-3 text-gray-700 text-right whitespace-nowrap">
+                          {formatCompactNumber(row.count)}
+                        </td>
+                        <td className="p-3 font-semibold text-gray-900 text-right whitespace-nowrap">
+                          {formatNaira(row.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <PaymentMethodBreakdown />
-          <RefundRequests />
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="flex items-start justify-between border-b border-gray-200 pb-4">
+              <div>
+                <h2 className="text-xl font-bold">Transaction Counts</h2>
+                <p className="text-sm text-gray-600">
+                  Summary by payment method
+                </p>
+              </div>
+              <FiCalendar className="text-2xl text-gray-300" />
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="border border-gray-200 rounded-xl p-4">
+                <p className="text-xs font-semibold tracking-wide text-gray-500">
+                  TOTAL
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatCompactNumber(transactions.length)}
+                </p>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <p className="text-xs font-semibold tracking-wide text-gray-500">
+                  CASH
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatCompactNumber(cashCount)}
+                </p>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <p className="text-xs font-semibold tracking-wide text-gray-500">
+                  TRANSFER
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatCompactNumber(transferCount)}
+                </p>
+              </div>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <p className="text-xs font-semibold tracking-wide text-gray-500">
+                  POS
+                </p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatCompactNumber(posCount)}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <AgentPerformance />

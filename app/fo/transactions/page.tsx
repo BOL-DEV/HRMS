@@ -1,13 +1,11 @@
 "use client";
 
 import Header from "@/components/Header";
-import StatusPill from "@/components/StatusPill";
 import TagPill from "@/components/TagPill";
 import { TransactionRow } from "@/libs/type";
 import { useMemo, useState } from "react";
-import { FiDownload, FiFilter, FiMoreVertical, FiSearch } from "react-icons/fi";
+import { FiDownload, FiMoreVertical, FiSearch } from "react-icons/fi";
 
-type StatusFilter = "All" | TransactionRow["status"];
 type MethodFilter = "All" | TransactionRow["payment"];
 type DateFilter = "All" | "Today";
 
@@ -24,7 +22,6 @@ const transactionsData: TransactionItem[] = [
     revenueHead: "Consultation",
     amount: 45000,
     payment: "Cash",
-    status: "Paid",
     dateTime: "2024-03-18 14:32",
     agent: "Oluwaseun Adeyemi",
   },
@@ -36,7 +33,6 @@ const transactionsData: TransactionItem[] = [
     revenueHead: "Lab Test",
     amount: 28000,
     payment: "Transfer",
-    status: "Pending",
     dateTime: "2024-03-18 11:45",
     agent: "Amara Okoro",
   },
@@ -48,7 +44,6 @@ const transactionsData: TransactionItem[] = [
     revenueHead: "Admission",
     amount: 125000,
     payment: "POS",
-    status: "Refund Requested",
     dateTime: "2024-03-17 16:20",
     agent: "Zainab Mohammed",
   },
@@ -60,7 +55,6 @@ const transactionsData: TransactionItem[] = [
     revenueHead: "Scan",
     amount: 65000,
     payment: "Cash",
-    status: "Paid",
     dateTime: "2024-03-18 09:10",
     agent: "Chinedu Nwankwo",
   },
@@ -72,11 +66,12 @@ const transactionsData: TransactionItem[] = [
     revenueHead: "Drugs",
     amount: 35000,
     payment: "Transfer",
-    status: "Refunded",
     dateTime: "2024-03-18 13:55",
     agent: "Oluwaseun Adeyemi",
   },
 ];
+
+const getDateKey = (dateTime: string) => dateTime.split(" ")[0];
 
 const formatNaira = (value: number) =>
   new Intl.NumberFormat("en-NG", {
@@ -87,37 +82,51 @@ const formatNaira = (value: number) =>
 
 function Page() {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("All");
   const [method, setMethod] = useState<MethodFilter>("All");
   const [dateFilter, setDateFilter] = useState<DateFilter>("All");
 
+  const latestDateKey = useMemo(() => {
+    const keys = transactionsData
+      .map((t) => getDateKey(t.dateTime))
+      .filter(Boolean);
+    return keys.sort().at(-1) ?? "";
+  }, []);
+
   const filtered = useMemo(() => {
-    const text = search.toLowerCase();
-    const bySearch = transactionsData.filter((t) =>
-      [t.patient, t.phone, t.invoiceNo, t.agent].some((field) =>
-        field.toLowerCase().includes(text)
-      )
-    );
+    const text = search.trim().toLowerCase();
 
-    const byStatus = status === "All" ? bySearch : bySearch.filter((t) => t.status === status);
-    const byMethod = method === "All" ? byStatus : byStatus.filter((t) => t.payment === method);
+    const bySearch = !text
+      ? transactionsData
+      : transactionsData.filter((t) =>
+          [t.patient, t.phone, t.invoiceNo, t.agent].some((field) =>
+            field.toLowerCase().includes(text),
+          ),
+        );
 
-    if (dateFilter === "Today") {
-      const today = new Date().toISOString().slice(0, 10);
-      return byMethod.filter((t) => t.dateTime.startsWith(today));
-    }
-    return byMethod;
-  }, [search, status, method, dateFilter]);
+    const byMethod =
+      method === "All"
+        ? bySearch
+        : bySearch.filter((t) => t.payment === method);
+
+    const byDate =
+      dateFilter === "Today" && latestDateKey
+        ? byMethod.filter((t) => getDateKey(t.dateTime) === latestDateKey)
+        : byMethod;
+
+    return [...byDate].sort((a, b) => b.dateTime.localeCompare(a.dateTime));
+  }, [search, method, dateFilter, latestDateKey]);
 
   const stats = useMemo(() => {
-    const totalRevenue = transactionsData.reduce((sum, t) => sum + t.amount, 0);
-    const paid = transactionsData.filter((t) => t.status === "Paid").length;
-    const pendingAmount = transactionsData
-      .filter((t) => t.status === "Pending")
-      .reduce((sum, t) => sum + t.amount, 0);
-    const refundRequests = transactionsData.filter((t) => t.status === "Refund Requested").length;
-    return { totalRevenue, totalTransactions: transactionsData.length, paid, pendingAmount, refundRequests };
-  }, []);
+    const totalRevenue = filtered.reduce((sum, t) => sum + t.amount, 0);
+    return { totalRevenue, totalTransactions: filtered.length };
+  }, [filtered]);
+
+  const exportFilename = useMemo(() => {
+    const dateSuffix =
+      dateFilter === "Today" && latestDateKey ? latestDateKey : "all";
+    const methodSuffix = method === "All" ? "all" : method.toLowerCase();
+    return `transactions_${dateSuffix}_${methodSuffix}.csv`;
+  }, [dateFilter, latestDateKey, method]);
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
@@ -132,28 +141,21 @@ function Page() {
       />
 
       <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {[{
-            label: "Total Revenue",
-            value: formatNaira(stats.totalRevenue),
-          },
-          {
-            label: "Total Transactions",
-            value: stats.totalTransactions,
-          },
-          {
-            label: "Paid Transactions",
-            value: stats.paid,
-          },
-          {
-            label: "Pending Amount",
-            value: formatNaira(stats.pendingAmount),
-          },
-          {
-            label: "Refund Requests",
-            value: stats.refundRequests,
-          }].map((card) => (
-            <div key={card.label} className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[
+            {
+              label: "Total Revenue",
+              value: formatNaira(stats.totalRevenue),
+            },
+            {
+              label: "Total Transactions",
+              value: stats.totalTransactions,
+            },
+          ].map((card) => (
+            <div
+              key={card.label}
+              className="bg-white border border-gray-200 rounded-xl p-5"
+            >
               <p className="text-sm text-gray-600 font-medium">{card.label}</p>
               <h2 className="text-2xl font-bold mt-2">{card.value}</h2>
             </div>
@@ -175,21 +177,6 @@ function Page() {
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-wrap gap-3 items-center">
-              <div className="flex items-center gap-2">
-                <FiFilter className="text-gray-500" />
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as StatusFilter)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-                >
-                  <option value="All">All</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Refund Requested">Refund Requested</option>
-                  <option value="Refunded">Refunded</option>
-                </select>
-              </div>
-
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value as MethodFilter)}
@@ -231,27 +218,33 @@ function Page() {
                   <th className="p-3 font-semibold">Amount</th>
                   <th className="p-3 font-semibold">Method</th>
                   <th className="p-3 font-semibold">Agent</th>
-                  <th className="p-3 font-semibold">Status</th>
                   <th className="p-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((t) => (
                   <tr key={t.id} className="border-b border-gray-100">
-                    <td className="p-3 text-gray-700 whitespace-nowrap">{t.dateTime}</td>
-                    <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">{t.invoiceNo}</td>
+                    <td className="p-3 text-gray-700 whitespace-nowrap">
+                      {t.dateTime}
+                    </td>
+                    <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">
+                      {t.invoiceNo}
+                    </td>
                     <td className="p-3 text-gray-900 font-semibold whitespace-nowrap">
                       {t.patient}
                       <p className="text-xs text-gray-500">{t.phone}</p>
                     </td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">{t.revenueHead}</td>
-                    <td className="p-3 text-gray-900 font-semibold">{formatNaira(t.amount)}</td>
+                    <td className="p-3 text-gray-700 whitespace-nowrap">
+                      {t.revenueHead}
+                    </td>
+                    <td className="p-3 text-gray-900 font-semibold">
+                      {formatNaira(t.amount)}
+                    </td>
                     <td className="p-3">
                       <TagPill label={t.payment} />
                     </td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">{t.agent}</td>
-                    <td className="p-3 whitespace-nowrap">
-                      <StatusPill status={t.status} />
+                    <td className="p-3 text-gray-700 whitespace-nowrap">
+                      {t.agent}
                     </td>
                     <td className="p-3 text-right">
                       <button className="p-2 rounded-lg hover:bg-gray-100 border border-transparent hover:border-gray-200">
