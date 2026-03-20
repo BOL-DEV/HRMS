@@ -11,6 +11,8 @@ import AgentStatsCards from "@/components/AgentStatsCards";
 import { SortOption } from "@/libs/type";
 import { AgentStatus } from "@/libs/type";
 import FoAgentAct from "@/components/FoAgentAct";
+import { MdPending } from "react-icons/md";
+import { toast } from "react-hot-toast";
 
 function Page() {
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
@@ -113,15 +115,7 @@ function Page() {
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
-      <Header
-        title="Agents"
-        Subtitle="Manage agents and monitor performance"
-        actions={
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium md:block hidden">
-            + Add Agent
-          </button>
-        }
-      />
+      <Header title="Agents" Subtitle="Manage agents and monitor performance" />
 
       <div className="p-6 space-y-6">
         <AgentStatsCards />
@@ -143,12 +137,21 @@ function Page() {
                 {filtered.length} agents found
               </p>
             </div>
+
+            <button className="bg-blue-600 flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-blue-700">
+              <MdPending className="text-xl" /> Request for Agent
+            </button>
           </div>
 
           <AgentsTable
             rows={filtered}
             onViewProfile={(agent) =>
               setSelectedAgent(profilesById[agent.id] ?? agent)
+            }
+            onRequestSuspension={(agent) =>
+              toast.success(
+                `Suspension request submitted for ${agent.name} (local preview only).`,
+              )
             }
           />
         </div>

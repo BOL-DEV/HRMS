@@ -15,16 +15,7 @@ function Page() {
   const currentBalance = 3000000;
   const lastWalletCredit = 5000000;
 
-  // const amountTotal = transactions.reduce((sum, t) => sum + t.amount, 0);
 
-  // const currentBalance = transactions.reduce((balance, t) => {
-  //   if (t.status === "Paid") return balance + t.amount;
-  //   if (t.status === "Refund" || t.status === "Refunded") return balance - t.amount;
-  //   return balance;
-  // }, 0);
-
-  // const lastWalletCredit =
-  //   transactions.find((t) => t.status === "Paid")?.amount ?? 0;
 
   const stats = [
     {
@@ -38,7 +29,7 @@ function Page() {
       icon: <FiCreditCard className="text-xl" />,
     },
     {
-      title: "Amount",
+      title: "Disbursed Amount",
       value: formatNaira(amountTotal),
       icon: <FiInbox className="text-xl" />,
     },
@@ -57,6 +48,7 @@ function Page() {
       />
 
       <div className="p-6 space-y-6">
+        <TransactionActionBar />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {stats.map((s) => (
             <StatCard
@@ -69,8 +61,6 @@ function Page() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <TransactionActionBar />
-
           <TransactionList />
         </div>
       </div>

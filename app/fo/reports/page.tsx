@@ -360,7 +360,7 @@ function Page() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             {
               label: "Total Revenue",
@@ -371,22 +371,10 @@ function Page() {
               value: stats.totalTransactions || 16,
             },
             {
-              label: "Patients Served",
-              value: stats.patientsServed || 16,
-            },
-            {
               label: "Avg Transaction",
               value: stats.avgTransaction
                 ? formatNaira(Math.round(stats.avgTransaction))
                 : "₦127K",
-            },
-            {
-              label: "Refund Requests",
-              value: stats.refundRequests || 1,
-            },
-            {
-              label: "Pending Payments",
-              value: formatNaira(stats.pendingPayments || 180000),
             },
           ].map((card) => (
             <div

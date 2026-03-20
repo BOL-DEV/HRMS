@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import StatusPill from "@/components/StatusPill";
 import TagPill from "@/components/TagPill";
 import { TransactionRow } from "@/libs/type";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FiDownload, FiFilter, FiMoreVertical, FiSearch } from "react-icons/fi";
 
 type StatusFilter = "All" | TransactionRow["status"];
@@ -22,7 +22,6 @@ const transactionsData: TransactionItem[] = [
     phone: "+234 803 445 6789",
     invoiceNo: "INV-2024-0001",
     revenueHead: "Consultation",
-    department: "",
     amount: 45000,
     payment: "Cash",
     status: "Paid",
@@ -35,7 +34,6 @@ const transactionsData: TransactionItem[] = [
     phone: "+234 805 234 5678",
     invoiceNo: "INV-2024-0002",
     revenueHead: "Lab Test",
-    department: "",
     amount: 28000,
     payment: "Transfer",
     status: "Pending",
@@ -48,7 +46,6 @@ const transactionsData: TransactionItem[] = [
     phone: "+234 812 987 6543",
     invoiceNo: "INV-2024-0003",
     revenueHead: "Admission",
-    department: "",
     amount: 125000,
     payment: "POS",
     status: "Refund Requested",
@@ -61,7 +58,6 @@ const transactionsData: TransactionItem[] = [
     phone: "+234 816 543 2109",
     invoiceNo: "INV-2024-0004",
     revenueHead: "Scan",
-    department: "",
     amount: 65000,
     payment: "Cash",
     status: "Paid",
@@ -74,7 +70,6 @@ const transactionsData: TransactionItem[] = [
     phone: "+234 902 765 4321",
     invoiceNo: "INV-2024-0005",
     revenueHead: "Drugs",
-    department: "",
     amount: 35000,
     payment: "Transfer",
     status: "Refunded",

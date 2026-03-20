@@ -42,7 +42,7 @@ function Page() {
   ];
 
   return (
-    <div className="h-screen w-full bg-gray-100 overflow-y-auto">
+    <div className="h-screen w-full bg-gray-100">
       <Header
         title="Agent Dashboard"
         Subtitle="Track your daily transactions and revenue"
@@ -77,11 +77,10 @@ function Page() {
           ))}
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <RecentTransactions />
+          {/* <RecentTransactions /> */}
+          <RevenueTrend />
           <TopAgents />
         </div>
-
-        <RevenueTrend />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { TransactionRow } from "./type";
 import { AgentRow } from "./type";
+import { ReceiptRow } from "./type";
 
 export const transactions: TransactionRow[] = [
   {
@@ -8,7 +9,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567890",
     invoiceNo: "INV-2024-001",
     revenueHead: "Consultation",
-    department: "General Medicine",
+    despcription: "General consultation fee",
     amount: 250,
     payment: "Cash",
     status: "Paid",
@@ -20,7 +21,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567891",
     invoiceNo: "INV-2024-002",
     revenueHead: "Lab Test",
-    department: "Pathology",
+    despcription: "Blood test and analysis",
     amount: 350,
     payment: "Transfer",
     status: "Paid",
@@ -32,7 +33,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567892",
     invoiceNo: "INV-2024-003",
     revenueHead: "Admission",
-    department: "Surgery",
+    despcription: "Hospital admission fee",
     amount: 1500,
     payment: "POS",
     status: "Pending",
@@ -44,7 +45,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567893",
     invoiceNo: "INV-2024-004",
     revenueHead: "Scan",
-    department: "Radiology",
+    despcription: "MRI scan",
     amount: 150,
     payment: "Cash",
     status: "Paid",
@@ -56,7 +57,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567894",
     invoiceNo: "INV-2024-005",
     revenueHead: "Drugs",
-    department: "Pharmacy",
+    despcription: "Medication for treatment",
     amount: 200,
     payment: "Transfer",
     status: "Pending",
@@ -68,7 +69,7 @@ export const transactions: TransactionRow[] = [
     phone: "+1234567890",
     invoiceNo: "INV-2024-006",
     revenueHead: "Lab Test",
-    department: "Pathology",
+    despcription: "Urine t  est and analysis",
     amount: 500,
     payment: "Cash",
     status: "Refund",
@@ -136,5 +137,48 @@ export const agents: AgentRow[] = [
     refunds: 3,
     lastActive: "2024-02-15 10:30 AM",
     status: "Active",
+  },
+];
+
+export const seedReceipts: ReceiptRow[] = [
+  {
+    id: "r1",
+    invoiceNo: "INV-2024-001",
+    patientName: "John Anderson",
+    amount: 250,
+    paymentMethod: "Cash",
+    status: "Not Requested",
+  },
+  {
+    id: "r2",
+    invoiceNo: "INV-2024-002",
+    patientName: "Sarah Mitchell",
+    amount: 1500,
+    paymentMethod: "Insurance",
+    status: "Pending",
+    requestedAt: "2024-02-15 09:15 AM",
+    lastRequestReason: "Patient requested a copy of the receipt.",
+  },
+  {
+    id: "r3",
+    receiptId: "RCP-2024-003",
+    invoiceNo: "INV-2024-003",
+    patientName: "Robert Chen",
+    amount: 350,
+    paymentMethod: "POS",
+    status: "Approved",
+    requestedAt: "2024-02-14 10:05 AM",
+    issuedAt: "2024-02-14 02:45 PM",
+    lastRequestReason: "Receipt needed for reimbursement.",
+  },
+  {
+    id: "r4",
+    invoiceNo: "INV-2024-004",
+    patientName: "Emma Wilson",
+    amount: 150,
+    paymentMethod: "Transfer",
+    status: "Rejected",
+    requestedAt: "2024-02-14 09:40 AM",
+    lastRequestReason: "Incorrect invoice number on previous request.",
   },
 ];

@@ -24,7 +24,7 @@ function RevenueBarChart({ title, subtitle, data }: Props) {
         <p className="text-sm text-gray-600">{subtitle}</p>
       </div>
 
-      <div className="w-full h-80 p-10">
+      <div className="w-full h-120 lg:p-10 p-5">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
