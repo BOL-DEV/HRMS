@@ -29,12 +29,6 @@ const sidebarData = {
       active: false,
     },
     {
-      name: "Patients",
-      link: "/fo/patients",
-      label: <MdOutlinePeopleAlt className="inline mr-2" />,
-      active: false,
-    },
-    {
       name: "Transactions",
       link: "/fo/transactions",
       label: <GrDocumentCloud className="inline mr-2" />,

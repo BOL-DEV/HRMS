@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import StatusPill from "@/components/StatusPill";
 import TagPill from "@/components/TagPill";
 import { TransactionRow } from "@/libs/type";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FiDownload, FiFilter, FiMoreVertical, FiSearch } from "react-icons/fi";
 
 type StatusFilter = "All" | TransactionRow["status"];

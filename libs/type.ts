@@ -31,18 +31,20 @@ export interface PatientRow {
   status: PatientStatus;
 }
 
-type ReceiptStatus = "Paid" | "Pending" | "Refunded";
+type ReceiptStatus = "Not Requested" | "Pending" | "Approved" | "Rejected";
 type ReceiptPaymentMethod = "Cash" | "Transfer" | "POS" | "Insurance";
 
 export interface ReceiptRow {
   id: string;
-  receiptId: string;
+  receiptId?: string;
   invoiceNo: string;
   patientName: string;
   amount: number;
   paymentMethod: ReceiptPaymentMethod;
   status: ReceiptStatus;
-  dateIssued: string;
+  requestedAt?: string;
+  issuedAt?: string;
+  lastRequestReason?: string;
 }
 
 type PaymentMethod = "Cash" | "Transfer" | "POS";
@@ -53,7 +55,7 @@ export interface TransactionRow {
   phone: string;
   invoiceNo: string;
   revenueHead: string;
-  department: string;
+  despcription?: string;
   amount: number;
   payment: PaymentMethod;
   status: TransactionStatus;
@@ -101,6 +103,7 @@ export type SortOption = "newest" | "oldest" | "revenue";
 export interface AgentProfile {
   rows: AgentRow[];
   onViewProfile?: (row: AgentRow) => void;
+  onRequestSuspension?: (row: AgentRow) => void;
 }
 
 export interface NewTransactionForm {

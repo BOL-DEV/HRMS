@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import StatusPill from "@/components/StatusPill";
-import { FiEye, FiMoreVertical } from "react-icons/fi";
+import { FiEye, FiMoreVertical, FiSlash } from "react-icons/fi";
 import { AgentProfile } from "@/libs/type";
 import { formatUsd } from "@/libs/helper";
 
@@ -10,7 +10,7 @@ import { formatUsd } from "@/libs/helper";
 
 
 
-function AgentsTable({ rows, onViewProfile }: AgentProfile) {
+function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   
 
@@ -61,11 +61,18 @@ function AgentsTable({ rows, onViewProfile }: AgentProfile) {
 
                     {openMenu === row.id ? (
                       <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
-                        {[{
-                          label: "View Profile",
-                          icon: <FiEye className="text-gray-600" />,
-                          onClick: () => onViewProfile?.(row),
-                        }].map((item) => (
+                        {[
+                          {
+                            label: "View Profile",
+                            icon: <FiEye className="text-gray-600" />,
+                            onClick: () => onViewProfile?.(row),
+                          },
+                          {
+                            label: "Request Suspension",
+                            icon: <FiSlash className="text-gray-600" />,
+                            onClick: () => onRequestSuspension?.(row),
+                          },
+                        ].map((item) => (
                           <button
                             key={item.label}
                             onClick={() => {

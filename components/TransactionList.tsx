@@ -20,10 +20,9 @@ function TransactionList() {
             <th className="p-3 font-semibold">Phone</th>
             <th className="p-3 font-semibold">Invoice No</th>
             <th className="p-3 font-semibold">Revenue Head</th>
-            <th className="p-3 font-semibold">Department</th>
+            <th className="p-3 font-semibold">Description</th>
             <th className="p-3 font-semibold">Amount</th>
             <th className="p-3 font-semibold">Payment</th>
-            <th className="p-3 font-semibold">Status</th>
             <th className="p-3 font-semibold">Date/Time</th>
           </tr>
         </thead>
@@ -35,15 +34,12 @@ function TransactionList() {
               <td className="p-3 text-gray-700">{t.phone}</td>
               <td className="p-3 text-gray-700">{t.invoiceNo}</td>
               <td className="p-3 text-gray-700">{t.revenueHead}</td>
-              <td className="p-3 text-gray-700">{t.department}</td>
+              <td className="p-3 text-gray-700">{t.despcription}</td>
               <td className="p-3 text-gray-900 font-semibold">
                 {formatUsd(t.amount)}
               </td>
               <td className="p-3">
                 <TagPill label={t.payment} />
-              </td>
-              <td className="p-3">
-                <StatusPill status={t.status} />
               </td>
               <td className="p-3 text-gray-700">{t.dateTime}</td>
             </tr>

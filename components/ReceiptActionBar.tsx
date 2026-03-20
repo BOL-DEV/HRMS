@@ -17,9 +17,10 @@ function ReceiptActionBar() {
         <div className="flex flex-col sm:flex-row gap-4">
           <select className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium min-w-44">
             <option>All Statuses</option>
-            <option>Paid</option>
+            <option>Not Requested</option>
             <option>Pending</option>
-            <option>Refunded</option>
+            <option>Approved</option>
+            <option>Rejected</option>
           </select>
 
           <select className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium min-w-32">

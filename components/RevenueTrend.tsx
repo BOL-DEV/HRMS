@@ -18,11 +18,13 @@ import RevenueBarChart from './RevenueBarChart';
     //   value: item.value,
     // }));
     return (
-      <RevenueBarChart
-        title="Revenue Trend"
-        subtitle="Daily revenue performance"
-        data={revenueTrend}
-      />
+      <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl">
+        <RevenueBarChart
+          title="Revenue Trend"
+          subtitle="Daily revenue performance"
+          data={revenueTrend}
+        />
+      </div>
     );
   }
 

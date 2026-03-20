@@ -12,12 +12,13 @@ function TransactionActionBar() {
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">Department</p>
             <select className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm font-medium">
-              <option>All</option>
-              <option>Paid</option>
-              <option>Pending</option>
-              <option>Refunded</option>
+              <option>General Medicine</option>
+              <option>Pathology</option>
+              <option>Surgery</option>
+              <option>Radiology</option>
+              <option>Phamacy</option>
             </select>
           </div>
 
