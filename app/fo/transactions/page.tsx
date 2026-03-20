@@ -46,7 +46,6 @@ const transactionsData: TransactionItem[] = [
     phone: "+234 812 987 6543",
     invoiceNo: "INV-2024-0003",
     revenueHead: "Admission",
-    department: "",
     amount: 125000,
     payment: "POS",
     status: "Refund Requested",
