@@ -148,179 +148,295 @@ function Page() {
     ];
 
     return (
-        <div className="w-full bg-gray-50 min-h-screen">
-            <Header
-                title="Admin Dashboard"
-                Subtitle="Platform revenue, hospitals, agents, and transactions"
-            />
+      <div className="w-full bg-gray-50 min-h-screen dark:bg-slate-950">
+        <Header
+          title="Admin Dashboard"
+          Subtitle="Platform revenue, hospitals, agents, and transactions"
+        />
 
-            <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {stats.map((item) => (
-                        <StatCard
-                            key={item.title}
-                            title={item.title}
-                            value={item.value}
-                            icon={item.icon}
-                        />
-                    ))}
-                </div>
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {stats.map((item) => (
+              <StatCard
+                key={item.title}
+                title={item.title}
+                value={item.value}
+                icon={item.icon}
+              />
+            ))}
+          </div>
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="bg-white border border-gray-200 rounded-xl">
-                        <div className="p-5 border-b border-gray-200">
-                            <h2 className="text-xl font-bold">Revenue Trend</h2>
-                            <p className="text-sm text-gray-600">
-                                Monthly revenue across platform
-                            </p>
-                        </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="p-5 border-b border-gray-200 dark:border-slate-700">
+                <h2 className="text-xl font-bold">Revenue Trend</h2>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  Monthly revenue across platform
+                </p>
+              </div>
 
-                        <div className="w-full h-80 p-6">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={monthlyRevenue} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="month" />
-                                    <YAxis tickFormatter={(v) => v.toString()} />
-                                    <Tooltip
-                                        formatter={(value) => [new Intl.NumberFormat("en-US").format(Number(value)), "revenue"]}
-                                        labelFormatter={(label) => `${label}`}
-                                    />
-                                    <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="revenue"
-                                        name="revenue"
-                                        stroke="#2563EB"
-                                        strokeWidth={2}
-                                        dot={{ r: 4 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    <div className="bg-white border border-gray-200 rounded-xl">
-                        <div className="p-5 border-b border-gray-200">
-                            <h2 className="text-xl font-bold">Transactions by Payment Method</h2>
-                            <p className="text-sm text-gray-600">
-                                Distribution of payment methods
-                            </p>
-                        </div>
-
-                        <div className="w-full h-80 p-6">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={paymentMethods} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis tickFormatter={(v) => v.toString()} />
-                                    <Tooltip
-                                        formatter={(value) => [new Intl.NumberFormat("en-US").format(Number(value)), "transactions"]}
-                                        labelFormatter={(label) => `${label}`}
-                                    />
-                                    <Legend />
-                                    <Bar
-                                        dataKey="transactions"
-                                        name="transactions"
-                                        fill="#2563EB"
-                                        radius={[6, 6, 0, 0]}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <div className="bg-white border border-gray-200 rounded-xl">
-                        <div className="p-5 border-b border-gray-200">
-                            <h2 className="text-xl font-bold">Top Hospitals by Revenue</h2>
-                            <p className="text-sm text-gray-600">Highest performing hospitals</p>
-                        </div>
-
-                        <div className="w-full h-80 p-6">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={[...topHospitals].reverse().map((h) => ({ name: h.name, revenue: h.revenue }))}
-                                    layout="vertical"
-                                    margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" tickFormatter={(v) => v.toString()} />
-                                    <YAxis type="category" dataKey="name" width={150} />
-                                    <Tooltip formatter={(value) => [formatUsd(Number(value)), "revenue"]} />
-                                    <Bar dataKey="revenue" fill="#2563EB" radius={[0, 6, 6, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    <div className="bg-white border border-gray-200 rounded-xl">
-                        <div className="p-5 border-b border-gray-200">
-                            <h2 className="text-xl font-bold">Hospital Growth Trend</h2>
-                            <p className="text-sm text-gray-600">New hospitals onboarded</p>
-                        </div>
-
-                        <div className="w-full h-80 p-6">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={hospitalGrowth} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="month" />
-                                    <YAxis tickFormatter={(v) => v.toString()} />
-                                    <Tooltip formatter={(value) => [new Intl.NumberFormat("en-US").format(Number(value)), "hospitals"]} />
-                                    <Legend />
-                                    <Bar dataKey="hospitals" name="hospitals" fill="#2563EB" radius={[6, 6, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                    <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-3">
-                        <div>
-                            <h2 className="text-xl font-bold">Top Hospitals</h2>
-                            <p className="text-sm text-gray-600">Highest performing hospitals on the platform</p>
-                        </div>
-                        <button className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium">
-                            Export
-                        </button>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead>
-                                <tr className="text-left text-gray-600 bg-gray-100">
-                                    <th className="p-3 font-semibold">Hospital Name</th>
-                                    <th className="p-3 font-semibold">Revenue</th>
-                                    <th className="p-3 font-semibold">Transactions</th>
-                                    <th className="p-3 font-semibold">Agents</th>
-                                    <th className="p-3 font-semibold">Status</th>
-                                    <th className="p-3 font-semibold text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {topHospitals.map((row) => (
-                                    <tr key={row.name} className="border-b border-gray-100">
-                                        <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">{row.name}</td>
-                                        <td className="p-3 text-gray-900 whitespace-nowrap">{formatUsd(row.revenue)}</td>
-                                        <td className="p-3 text-gray-700">{new Intl.NumberFormat("en-US").format(row.transactions)}</td>
-                                        <td className="p-3 text-gray-700">{row.agents}</td>
-                                        <td className="p-3">
-                                            <StatusPill status={row.status} />
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            <button className="text-blue-700 font-semibold hover:underline">
-                                                View Details
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+              <div className="w-full h-80 p-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={monthlyRevenue}
+                    margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.15}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => v.toString()}
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [
+                        new Intl.NumberFormat("en-US").format(Number(value)),
+                        "revenue",
+                      ]}
+                      labelFormatter={(label) => `${label}`}
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      name="revenue"
+                      stroke="#2563EB"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="p-5 border-b border-gray-200 dark:border-slate-700">
+                <h2 className="text-xl font-bold">
+                  Transactions by Payment Method
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  Distribution of payment methods
+                </p>
+              </div>
+
+              <div className="w-full h-80 p-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={paymentMethods}
+                    margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.15}
+                    />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => v.toString()}
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [
+                        new Intl.NumberFormat("en-US").format(Number(value)),
+                        "transactions",
+                      ]}
+                      labelFormatter={(label) => `${label}`}
+                    />
+                    <Legend />
+                    <Bar
+                      dataKey="transactions"
+                      name="transactions"
+                      fill="#2563EB"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="p-5 border-b border-gray-200 dark:border-slate-700">
+                <h2 className="text-xl font-bold">Top Hospitals by Revenue</h2>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  Highest performing hospitals
+                </p>
+              </div>
+
+              <div className="w-full h-80 p-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[...topHospitals]
+                      .reverse()
+                      .map((h) => ({ name: h.name, revenue: h.revenue }))}
+                    layout="vertical"
+                    margin={{ top: 10, right: 20, left: 30, bottom: 10 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.15}
+                    />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(v) => v.toString()}
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      width={150}
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [
+                        formatUsd(Number(value)),
+                        "revenue",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="revenue"
+                      fill="#2563EB"
+                      radius={[0, 6, 6, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
+              <div className="p-5 border-b border-gray-200 dark:border-slate-700">
+                <h2 className="text-xl font-bold">Hospital Growth Trend</h2>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  New hospitals onboarded
+                </p>
+              </div>
+
+              <div className="w-full h-80 p-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={hospitalGrowth}
+                    margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.15}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => v.toString()}
+                      tick={{ fill: "currentColor" }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <Tooltip
+                      formatter={(value) => [
+                        new Intl.NumberFormat("en-US").format(Number(value)),
+                        "hospitals",
+                      ]}
+                    />
+                    <Legend />
+                    <Bar
+                      dataKey="hospitals"
+                      name="hospitals"
+                      fill="#2563EB"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden dark:border-slate-700 dark:bg-slate-900">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-3 dark:border-slate-700">
+              <div>
+                <h2 className="text-xl font-bold">Top Hospitals</h2>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  Highest performing hospitals on the platform
+                </p>
+              </div>
+              <button className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+                Export
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-600 bg-gray-100 dark:bg-slate-800 dark:text-slate-300">
+                    <th className="p-3 font-semibold">Hospital Name</th>
+                    <th className="p-3 font-semibold">Revenue</th>
+                    <th className="p-3 font-semibold">Transactions</th>
+                    <th className="p-3 font-semibold">Agents</th>
+                    <th className="p-3 font-semibold">Status</th>
+                    <th className="p-3 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topHospitals.map((row) => (
+                    <tr
+                      key={row.name}
+                      className="border-b border-gray-100 dark:border-slate-800"
+                    >
+                      <td className="p-3 font-semibold text-gray-900 whitespace-nowrap dark:text-slate-100">
+                        {row.name}
+                      </td>
+                      <td className="p-3 text-gray-900 whitespace-nowrap dark:text-slate-100">
+                        {formatUsd(row.revenue)}
+                      </td>
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {new Intl.NumberFormat("en-US").format(
+                          row.transactions,
+                        )}
+                      </td>
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {row.agents}
+                      </td>
+                      <td className="p-3">
+                        <StatusPill status={row.status} />
+                      </td>
+                      <td className="p-3 text-right">
+                        <button className="text-blue-700 font-semibold hover:underline dark:text-sky-300">
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
+      </div>
     );
 }
 

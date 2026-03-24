@@ -38,4 +38,29 @@ export interface AgentPerformanceRow {
   refunds: number;
   lastActive: string;
   status: "Active" | "Inactive";
-};
+}
+
+export function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+export function formatChartLabel(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
+    weekday: "short",
+  }).format(date);
+}

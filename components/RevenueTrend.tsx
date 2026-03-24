@@ -18,7 +18,7 @@ import RevenueBarChart from './RevenueBarChart';
     //   value: item.value,
     // }));
     return (
-      <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl">
+      <div className="xl:col-span-2">
         <RevenueBarChart
           title="Revenue Trend"
           subtitle="Daily revenue performance"

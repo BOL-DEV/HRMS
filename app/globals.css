@@ -1,22 +1,35 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 /* @import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities"; */
 
+html,
+body {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 @media print {
-    body * {
-      visibility: hidden;
-    }
-  
-    .print\:block,
-    .print\:block * {
-      visibility: visible;
-    }
-  
-    .print\:block {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-    }
+  body * {
+    visibility: hidden;
   }
+
+  .print\:block,
+  .print\:block * {
+    visibility: visible;
+  }
+
+  .print\:block {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

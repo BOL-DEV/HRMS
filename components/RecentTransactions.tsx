@@ -1,86 +1,103 @@
-import React from "react";
-import { Transaction } from "@/libs/type";
+import { formatCurrency } from "@/libs/helper";
+// import { Recent } from "@/libs/type";
 
-// interface Props {}
-const recentTransactions: Transaction[] = [
-  {
-    id: "t1",
-    patient: "John Anderson",
-    invoiceNo: "INV-2024-001",
-    revenueHead: "Consultation",
-    amount: 250,
-    dateTime: "2024-02-15 10:30 AM",
-  },
-  {
-    id: "t2",
-    patient: "Sarah Mitchell",
-    invoiceNo: "INV-2024-002",
-    revenueHead: "Surgery",
-    amount: 1500,
-    dateTime: "2024-02-15 09:15 AM",
-  },
-  {
-    id: "t3",
-    patient: "Robert Chen",
-    invoiceNo: "INV-2024-003",
-    revenueHead: "Lab Work",
-    amount: 350,
-    dateTime: "2024-02-14 02:45 PM",
-  },
-  {
-    id: "t4",
-    patient: "Emma Wilson",
-    invoiceNo: "INV-2024-004",
-    revenueHead: "X-Ray",
-    amount: 150,
-    dateTime: "2024-02-14 11:20 AM",
-  },
-  {
-    id: "t5",
-    patient: "Michael Brown",
-    invoiceNo: "INV-2024-005",
-    revenueHead: "Follow-up Visit",
-    amount: 200,
-    dateTime: "2024-02-13 03:50 PM",
-  },
-];
+type RecentTransactionRow = {
+  id: string;
+  patientName: string;
+  phoneNumber: string;
+  billDescription: string;
+  departmentName: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+};
 
-function RecentTransactions() {
+type Props = {
+  rows: RecentTransactionRow[];
+  isLoading?: boolean;
+  emptyMessage?: string;
+};
+
+function RecentTransactions({
+  rows,
+  isLoading = false,
+  emptyMessage = "No transactions found for this period.",
+}: Props) {
   return (
-    <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl">
-      <div className="p-5 flex items-start justify-between border-b border-gray-200">
+    <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
+      <div className="p-5 flex items-start justify-between border-b border-gray-200 dark:border-slate-700">
         <div>
           <h2 className="text-xl font-bold">Recent Transactions</h2>
-          <p className="text-sm text-gray-600">Latest transactions</p>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Latest agent transactionss
+          </p>
         </div>
       </div>
 
       <div className="p-5 overflow-x-auto">
         <table className="min-w-195 w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-600 bg-gray-100">
+            <tr className="text-left text-gray-600 bg-gray-100 dark:bg-slate-800 dark:text-slate-300">
               <th className="p-3 font-semibold">Patient</th>
-              <th className="p-3 font-semibold">Invoice No</th>
-              <th className="p-3 font-semibold">Revenue Head</th>
+              <th className="p-3 font-semibold">Phone</th>
+              <th className="p-3 font-semibold">Bill</th>
+              <th className="p-3 font-semibold">Department</th>
               <th className="p-3 font-semibold">Amount</th>
+              <th className="p-3 font-semibold">Status</th>
               <th className="p-3 font-semibold">Date/Time</th>
             </tr>
           </thead>
           <tbody>
-            {recentTransactions.map((tx) => (
-              <tr key={tx.id} className="border-b border-gray-100">
-                <td className="p-3 font-medium text-gray-900">{tx.patient}</td>
-                <td className="p-3 text-gray-700">{tx.invoiceNo}</td>
-                <td className="p-3 text-gray-700">{tx.revenueHead}</td>
-                <td className="p-3 text-gray-900 font-semibold">
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: "USD",
-                  }).format(tx.amount)}
+            {isLoading ? (
+              <tr>
+                <td
+                  className="p-4 text-gray-500 dark:text-slate-400"
+                  colSpan={7}
+                >
+                  Loading transactions...
                 </td>
-                <td className="p-3 text-gray-700">{tx.dateTime}</td>
               </tr>
-            ))}
+            ) : rows.length === 0 ? (
+              <tr>
+                <td
+                  className="p-4 text-gray-500 dark:text-slate-400"
+                  colSpan={7}
+                >
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              rows.map((tx) => (
+                <tr
+                  key={tx.id}
+                  className="border-b border-gray-100 dark:border-slate-800"
+                >
+                  <td className="p-3 font-medium text-gray-900 dark:text-slate-100">
+                    {tx.patientName}
+                  </td>
+                  <td className="p-3 text-gray-700 dark:text-slate-300">
+                    {tx.phoneNumber}
+                  </td>
+                  <td className="p-3 text-gray-700 dark:text-slate-300">
+                    {tx.billDescription}
+                  </td>
+                  <td className="p-3 text-gray-700 dark:text-slate-300">
+                    {tx.departmentName}
+                  </td>
+                  <td className="p-3 text-gray-900 font-semibold dark:text-slate-100">
+                    {formatCurrency(tx.amount)}
+                  </td>
+                  <td className="p-3">
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+                      {tx.status}
+                    </span>
+                  </td>
+                  <td className="p-3 text-gray-700 dark:text-slate-300">
+                    {tx.createdAt}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
