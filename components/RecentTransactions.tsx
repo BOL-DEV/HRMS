@@ -29,7 +29,7 @@ function RecentTransactions({
         <div>
           <h2 className="text-xl font-bold">Recent Transactions</h2>
           <p className="text-sm text-gray-600 dark:text-slate-400">
-            Latest agent transactions
+            Latest agent transactionss
           </p>
         </div>
       </div>
