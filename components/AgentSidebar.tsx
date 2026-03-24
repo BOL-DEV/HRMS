@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { FaRegChartBar } from "react-icons/fa";
-import { MdOutlinePeopleAlt } from "react-icons/md";
 import { GrDocumentCloud } from "react-icons/gr";
 // import { GrDocumentStore } from "react-icons/gr";
 import { BsReceipt } from "react-icons/bs";
@@ -64,7 +63,7 @@ const AgentSidebar = () => {
         ...link,
         active: pathname === link.link,
       })),
-    [pathname]
+    [pathname],
   );
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
@@ -77,9 +76,9 @@ const AgentSidebar = () => {
         aria-label={isOpen ? "Close navigation" : "Open navigation"}
       >
         {isOpen ? (
-          <IoMdClose className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-45 top-7 z-50" />
+          <IoMdClose className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-45 top-7 z-50 dark:bg-slate-800 dark:text-slate-200" />
         ) : (
-          <RxHamburgerMenu className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-4 top-5 z-50" />
+          <RxHamburgerMenu className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-4 top-5 z-50 dark:bg-slate-800 dark:text-slate-200" />
         )}
       </button>
 
