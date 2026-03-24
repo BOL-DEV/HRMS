@@ -25,7 +25,7 @@ const highlights = [
 export default function Page() {
   return (
     <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(45,212,191,0.2),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(249,115,22,0.18),_transparent_28%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.2),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.18),transparent_28%)]" />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-8 lg:px-10">
         <header className="flex items-center justify-between">
@@ -74,8 +74,8 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-2xl shadow-black/30 backdrop-blur">
-            <div className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-6">
+          <div className="rounded-4xl border border-white/10 bg-white/6 p-6 shadow-2xl shadow-black/30 backdrop-blur">
+            <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-orange-300">
@@ -95,7 +95,7 @@ export default function Page() {
                 {highlights.map((item) => (
                   <div
                     key={item.title}
-                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+                    className="rounded-2xl border border-white/10 bg-white/4 p-4"
                   >
                     <div className="flex items-start gap-4">
                       <div className="rounded-2xl bg-white/10 p-3 text-teal-300">

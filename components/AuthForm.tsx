@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { SubmitEvent, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import {
   FiArrowLeft,
@@ -59,7 +59,7 @@ export default function AuthForm() {
     [],
   );
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     loginMutation.mutate({
       email: email.trim(),
@@ -71,7 +71,7 @@ export default function AuthForm() {
     <main className="min-h-screen bg-[#f4efe6] text-slate-900">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
         <section className="relative hidden overflow-hidden bg-[#0f3d3e] px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(45,212,191,0.24),_transparent_34%),radial-gradient(circle_at_bottom_left,_rgba(251,146,60,0.2),_transparent_30%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(45,212,191,0.24),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(251,146,60,0.2),transparent_30%)]" />
 
           <div className="relative">
             <Link
@@ -108,7 +108,7 @@ export default function AuthForm() {
         </section>
 
         <section className="flex items-center justify-center px-6 py-10 sm:px-10">
-          <div className="w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,61,62,0.12)] sm:p-8">
+          <div className="w-full max-w-xl rounded-4xl border border-slate-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,61,62,0.12)] sm:p-8">
             <div className="mb-8 lg:hidden">
               <Link
                 href="/"
@@ -164,7 +164,9 @@ export default function AuthForm() {
                     type="button"
                     onClick={() => setShowPassword((current) => !current)}
                     className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 transition hover:text-slate-700"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? <FiEyeOff /> : <FiEye />}
                   </button>

@@ -6,7 +6,6 @@ import { applyTheme, getInitialTheme, type ThemeMode } from "@/libs/theme";
 
 function AppPre() {
   const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
-  const defaultRange = "This Month";
 
   useEffect(() => {
     applyTheme(theme, { persist: false });

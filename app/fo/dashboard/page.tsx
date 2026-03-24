@@ -188,6 +188,20 @@ function Page() {
   ).length;
   const posCount = transactions.filter((t) => t.payment === "POS").length;
 
+  const recentTransactions = [...transactions]
+    .slice(-6)
+    .reverse()
+    .map((t) => ({
+      id: t.id,
+      patientName: t.patient,
+      phoneNumber: t.phone,
+      billDescription: t.despcription || t.revenueHead,
+      departmentName: t.revenueHead,
+      amount: t.amount,
+      status: t.payment,
+      createdAt: t.dateTime,
+    }));
+
   const leaderboard = [...agents]
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
@@ -351,7 +365,7 @@ function Page() {
 
         <AgentPerformance />
 
-        <RecentTransactions />
+        <RecentTransactions rows={recentTransactions} />
       </div>
     </div>
   );
