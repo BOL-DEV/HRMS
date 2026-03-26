@@ -12,8 +12,10 @@ import {
   FiEye,
   FiEyeOff,
 } from "react-icons/fi";
-import { clearAgentTokens, storeAgentTokens } from "@/libs/auth";
-import { loginAgent } from "@/libs/agent-auth";
+import { clearAuthTokens, storeAgentTokens } from "@/libs/auth";
+import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
+import { getFoProfile } from "@/libs/fo-auth";
+import { ApiError } from "@/libs/api";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -31,7 +33,7 @@ export default function AuthForm() {
 
   const loginMutation = useMutation({
     mutationFn: loginAgent,
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const accessToken = response.data?.accessToken;
       const refreshToken = response.data?.refreshToken;
 
@@ -41,11 +43,32 @@ export default function AuthForm() {
       }
 
       storeAgentTokens({ accessToken, refreshToken });
-      toast.success(response.message || "Login successful.");
-      router.push("/agents/dashboard");
+
+      try {
+        await getFoProfile();
+        toast.success(response.message || "Login successful.");
+        router.push("/fo/dashboard");
+        return;
+      } catch (error) {
+        if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
+          clearAuthTokens();
+          toast.error(getErrorMessage(error));
+          return;
+        }
+      }
+
+      try {
+        await getAgentProfile();
+        toast.success(response.message || "Login successful.");
+        router.push("/agents/dashboard");
+        return;
+      } catch (error) {
+        clearAuthTokens();
+        toast.error(getErrorMessage(error));
+      }
     },
     onError: (error) => {
-      clearAgentTokens();
+      clearAuthTokens();
       toast.error(getErrorMessage(error));
     },
   });
@@ -53,8 +76,8 @@ export default function AuthForm() {
   const helperCards = useMemo(
     () => [
       "React Query handles the login mutation state",
-      "JWT tokens are stored after successful agent login",
-      "Agent users are redirected into protected agent routes",
+      "JWT tokens are stored after successful login",
+      "Users are redirected based on the role the backend accepts",
     ],
     [],
   );
@@ -83,14 +106,14 @@ export default function AuthForm() {
             </Link>
 
             <p className="mt-14 text-sm uppercase tracking-[0.35em] text-teal-200">
-              Agent access
+              Secure access
             </p>
             <h1 className="mt-5 max-w-xl text-5xl font-semibold leading-tight">
-              Login to the agent workspace
+              Login to your workspace
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-8 text-teal-50/85">
-              Sign in with your assigned agent account to process payments,
-              manage receipts, and access agent-only routes from the API.
+              Sign in with your assigned account and we will route you to the
+              correct dashboard for your role.
             </p>
           </div>
 
@@ -121,14 +144,14 @@ export default function AuthForm() {
 
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-[#0f766e]">
-                Agent access
+                Secure access
               </p>
               <h2 className="mt-4 text-3xl font-semibold text-slate-950">
-                Login to the agent workspace
+                Login to your workspace
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Use the backend login endpoint for agents. Account creation is
-                still handled by admins inside the platform.
+                Use the shared login endpoint. After authentication, the app
+                routes you to the correct dashboard for your role.
               </p>
             </div>
 

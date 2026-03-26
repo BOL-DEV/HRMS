@@ -50,3 +50,11 @@ export function clearAgentTokens() {
   removeCookie(ACCESS_TOKEN_KEY);
   removeCookie(REFRESH_TOKEN_KEY);
 }
+
+export function getAccessToken() {
+  return getAgentAccessToken();
+}
+
+export function clearAuthTokens() {
+  clearAgentTokens();
+}

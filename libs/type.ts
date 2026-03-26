@@ -382,3 +382,48 @@ export type AgentProfileResponse = {
     balance_updated_at: string;
   };
 };
+
+export type FoDashboardResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    periods: {
+      today: {
+        total_revenue: number;
+        transaction_count: number;
+      };
+      this_month: {
+        total_revenue: number;
+        transaction_count: number;
+      };
+      last_month: {
+        total_revenue: number;
+        transaction_count: number;
+      };
+      this_year: {
+        total_revenue: number;
+        transaction_count: number;
+      };
+    };
+  };
+};
+
+export type FoProfileResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    hospital_id: string;
+    hospital_code: string;
+    hospital_name: string;
+    role: "FO";
+    is_active: boolean;
+    last_activity: string;
+    created_at: string;
+  };
+};
