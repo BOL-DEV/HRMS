@@ -63,7 +63,7 @@ function Page() {
   const rows = useMemo<AgentRow[]>(() => {
     const agents = agentsQuery.data?.data.agents ?? [];
 
-    const mapped = agents.map((agent) => ({
+    const mapped: AgentRow[] = agents.map((agent) => ({
       id: agent.agent_id,
       name: agent.agent_name,
       email: agent.email,
