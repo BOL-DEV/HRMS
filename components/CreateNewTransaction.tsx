@@ -15,7 +15,7 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSuccess?: () => void | Promise<void>;
+  onSuccess?: () => unknown | Promise<unknown>;
 }
 
 function getInitialForm(): NewTransactionForm {
