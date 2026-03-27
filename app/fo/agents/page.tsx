@@ -1,11 +1,11 @@
 "use client";
 
 import Header from "@/components/Header";
-import AgentsTable from "@/components/AgentsTable";
 import AgentProfileModal, {
   AgentProfile,
 } from "@/components/AgentProfileModal";
 import CreateAgentModal from "@/components/CreateAgentModal";
+import FoAgentsListSection from "@/components/FoAgentsListSection";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AgentStatsCards from "@/components/AgentStatsCards";
@@ -25,7 +25,6 @@ import {
   FoAgentStatus,
   SortOption,
 } from "@/libs/type";
-import { FiUserPlus } from "react-icons/fi";
 
 function Page() {
   const router = useRouter();
@@ -154,31 +153,12 @@ function Page() {
           onSort={setSort}
         />
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold dark:text-slate-100">Agents</h2>
-              <p className="text-sm text-gray-600 dark:text-slate-400">
-                {rows.length} agents found
-              </p>
-            </div>
-
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              <FiUserPlus className="text-lg" /> Create Agent
-            </button>
-          </div>
-
-          <AgentsTable
-            rows={rows}
-            onViewProfile={(agent) => setSelectedAgent(agent)}
-            onRequestSuspension={(agent) =>
-              statusMutation.mutate(agent)
-            }
-          />
-        </div>
+        <FoAgentsListSection
+          rows={rows}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          onViewProfile={(agent) => setSelectedAgent(agent)}
+          onToggleStatus={(agent) => statusMutation.mutate(agent)}
+        />
       </div>
 
       {isCreateModalOpen ? (
