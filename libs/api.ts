@@ -76,4 +76,30 @@ export async function getJson<TResponse>(
   return (payload ?? {}) as TResponse;
 }
 
+export async function patchJson<TResponse>(
+  endpoint: string,
+  body: Record<string, unknown>,
+  options?: ApiRequestOptions,
+): Promise<TResponse> {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await parseJson<TResponse>(response);
+
+  if (!response.ok) {
+    throw new ApiError(
+      getErrorMessage(payload as ApiErrorPayload | null),
+      response.status,
+    );
+  }
+
+  return (payload ?? {}) as TResponse;
+}
+
 export { API_BASE_URL };

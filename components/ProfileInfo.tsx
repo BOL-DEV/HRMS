@@ -1,8 +1,10 @@
 import { formatCurrency, formatDateTime } from "@/libs/helper";
-import type { AgentProfileResponse } from "@/libs/type";
+import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
+
+type ProfileData = AgentProfileResponse["data"] | FoProfileResponse["data"];
 
 type Props = {
-  profile: AgentProfileResponse["data"];
+  profile: ProfileData;
 };
 
 function ProfileInfo({ profile }: Props) {
@@ -10,6 +12,8 @@ function ProfileInfo({ profile }: Props) {
   const initials =
     `${profile.first_name[0] ?? ""}${profile.last_name[0] ?? ""}`.toUpperCase() ||
     "AG";
+  const isAgentProfile = "balance" in profile;
+  const roleLabel = profile.role === "FO" ? "financial office" : "agent";
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
@@ -24,7 +28,7 @@ function ProfileInfo({ profile }: Props) {
               Profile Information
             </h2>
             <p className="text-sm text-gray-600 dark:text-slate-400">
-              Live account details from the agent profile endpoint
+              Live account details from the {roleLabel} profile endpoint
             </p>
 
             <div className="mt-4 space-y-1 text-sm text-gray-800 dark:text-slate-300">
@@ -38,7 +42,11 @@ function ProfileInfo({ profile }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-136">
+        <div
+          className={`grid grid-cols-1 gap-3 ${
+            isAgentProfile ? "sm:grid-cols-2 lg:w-136" : "sm:grid-cols-2 lg:w-112"
+          }`}
+        >
           <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
               Hospital
@@ -59,33 +67,49 @@ function ProfileInfo({ profile }: Props) {
               {profile.is_active ? "Active" : "Inactive"}
             </p>
             <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-              Agent ID: {profile.id}
+              {profile.role} ID: {profile.id}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              Wallet Balance
-            </p>
-            <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
-              {formatCurrency(profile.balance)}
-            </p>
-            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-              Last topup: {formatCurrency(profile.last_wallet_topup)}
-            </p>
-          </div>
+          {isAgentProfile ? (
+            <>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
+                  Wallet Balance
+                </p>
+                <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                  {formatCurrency(profile.balance)}
+                </p>
+                <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                  Last topup: {formatCurrency(profile.last_wallet_topup)}
+                </p>
+              </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              Last Wallet Update
-            </p>
-            <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
-              {formatDateTime(profile.balance_updated_at)}
-            </p>
-            <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-              Joined: {formatDateTime(profile.created_at)}
-            </p>
-          </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
+                  Last Wallet Update
+                </p>
+                <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                  {formatDateTime(profile.balance_updated_at)}
+                </p>
+                <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                  Joined: {formatDateTime(profile.created_at)}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:col-span-2">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
+                Last Activity
+              </p>
+              <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
+                {formatDateTime(profile.last_activity)}
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                Joined: {formatDateTime(profile.created_at)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </section>

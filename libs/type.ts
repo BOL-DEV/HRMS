@@ -64,6 +64,33 @@ export interface paymentMethodProps {
   data?: PaymentSlice[];
 }
 
+export interface RevenueChartDatum {
+  name: string;
+  value: number;
+}
+
+export interface AgentPerformanceRow {
+  id: string;
+  name: string;
+  totalTransactions: number;
+  totalRevenue: number;
+  pending: number;
+  refunds: number;
+  lastActive: string;
+  status: "Active" | "Inactive";
+}
+
+export interface RecentTransactionDisplayRow {
+  id: string;
+  patientName: string;
+  phoneNumber: string;
+  billDescription: string;
+  departmentName: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+}
+
 export interface RefundRequest {
   id: string;
   patient: string;
@@ -426,4 +453,234 @@ export type FoProfileResponse = {
     last_activity: string;
     created_at: string;
   };
+};
+
+export type FoAgentStatus = "active" | "suspended";
+
+export type FoAgentsSummary = {
+  total_agents: number;
+  active_agents: number;
+  suspended_agents: number;
+};
+
+export type FoAgentsFilters = {
+  search: string | null;
+  status: FoAgentStatus | null;
+};
+
+export type FoAgentListItem = {
+  agent_id: string;
+  agent_name: string;
+  email: string;
+  phone_number: string;
+  transaction_count: number;
+  revenue_made: number;
+  last_active: string;
+  status: FoAgentStatus;
+};
+
+export type FoAgentsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    summary: FoAgentsSummary;
+    filters: FoAgentsFilters;
+    agents: FoAgentListItem[];
+  };
+};
+
+export type UpdateFoAgentStatusPayload = {
+  status: FoAgentStatus;
+};
+
+export type UpdateFoAgentStatusResponse = {
+  status: number;
+  message: string;
+  data: {
+    agent_id: string;
+    agent_name: string;
+    email: string;
+    phone_number: string;
+    hospital_id: string;
+    status: FoAgentStatus;
+  };
+};
+
+export type FoReportPaymentType = "cash" | "transfer" | "pos";
+
+export type FoReportDepartmentBreakdownItem = {
+  department_id: string;
+  department_name: string;
+  transaction_count: number;
+  total_revenue: number;
+};
+
+export type FoReportPaymentMethodBreakdownItem = {
+  payment_type: FoReportPaymentType;
+  transaction_count: number;
+  total_revenue: number;
+};
+
+export type FoReportAgentBreakdownItem = {
+  agent_id: string;
+  agent_name: string;
+  transaction_count: number;
+  total_revenue: number;
+};
+
+export type FoDetailedReportItem = {
+  transaction_id: string;
+  receipt_no: string;
+  patient_name: string;
+  phone_number: string;
+  bill_description: string;
+  amount: number;
+  payment_type: FoReportPaymentType;
+  department_name: string;
+  agent_name: string;
+  created_at: string;
+};
+
+export type FoReportsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      start_date: string | null;
+      end_date: string | null;
+      departments: string[];
+      agents: string[];
+    };
+    summary_report: {
+      total_revenue: number;
+      transaction_count: number;
+      active_agents: number;
+      departments_count: number;
+      average_transaction_value: number;
+      lowest_transaction_value: number;
+      highest_transaction_value: number;
+    };
+    breakdowns: {
+      by_department: FoReportDepartmentBreakdownItem[];
+      by_payment_method: FoReportPaymentMethodBreakdownItem[];
+      by_agent: FoReportAgentBreakdownItem[];
+    };
+    detailed_report: FoDetailedReportItem[];
+  };
+};
+
+export type FoStatsTimePeriod =
+  | "today"
+  | "this_week"
+  | "this_month"
+  | "this_year";
+
+export type FoStatsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    time_period: FoStatsTimePeriod;
+    summary: {
+      total_revenue: number;
+      transaction_count: number;
+    };
+    leaderboard: Array<{
+      agent_id: string;
+      agent_name: string;
+      trxn_count: number;
+      revenue: number;
+    }>;
+    revenue_by_departments: Array<{
+      department_id: string;
+      department_name: string;
+      trxn_count: number;
+      revenue: number;
+    }>;
+    payment_methods: Array<{
+      payment_type: FoReportPaymentType;
+      trxn_count: number;
+      total_value: number;
+    }>;
+  };
+};
+
+export type FoReceiptFilter = "all" | "pending" | "approved" | "rejected";
+
+export type FoReceiptRequestStatus = "pending" | "approved" | "rejected";
+
+export type FoReceiptSummary = {
+  total_receipt_count: number;
+  pending_request: number;
+  approved: number;
+  rejected: number;
+};
+
+export type FoReceiptItem = {
+  requested_at: string;
+  receipt_id: string;
+  patient_name: string;
+  reason: string;
+  status: FoReceiptRequestStatus;
+};
+
+export type FoReceiptsResponse = {
+  status: number;
+  message: string;
+  data: {
+    summary: FoReceiptSummary;
+    filter: FoReceiptFilter;
+    receipts: FoReceiptItem[];
+  };
+};
+
+export type FoReceiptDecisionPayload = {
+  request_id: string;
+};
+
+export type FoReceiptDecisionResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    transaction_id: string;
+    agent_id: string;
+    status: FoReceiptRequestStatus;
+    approved_at: string;
+  };
+};
+
+export type CreateFoAgentPayload = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  password: string;
+};
+
+export type CreateFoAgentResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: "AGENT";
+    hospital_id: string;
+    is_active: boolean;
+  };
+};
+
+export type UpdatePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type UpdatePasswordResponse = {
+  status: number;
+  message: string;
+  data: null;
 };
