@@ -1,30 +1,20 @@
 "use client";
 
 import RevenueBarChart from "./RevenueBarChart";
+import { RevenueChartDatum } from "@/libs/type";
 
-// type DepartmentData = {
-//   name: string;
-//   value: number;
-// };
+type Props = {
+  data?: RevenueChartDatum[];
+};
 
-
-
-const departmentRevenue = [
-  { name: "Surgery", value: 45200 },
-  { name: "Cardiology", value: 33200 },
-  { name: "Neurology", value: 28800 },
-  { name: "Orthopedics", value: 25400 },
-  { name: "Pediatrics", value: 21400 },
-];
-
-
-function RevenueByDepartment() {
-    const data = departmentRevenue.map((dept) => ({
-        name: dept.name,
-        value: dept.value,
-    }));
+function RevenueByDepartment({ data = [] }: Props) {
   return (
-  <RevenueBarChart title="Revenue by Department" subtitle="Top performing departments" data={data} />
+    <RevenueBarChart
+      title="Revenue by Department"
+      subtitle="Top performing departments"
+      data={data}
+      emptyMessage="Department revenue data is not available from the current FO dashboard endpoint."
+    />
   );
 }
 

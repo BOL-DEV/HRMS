@@ -55,7 +55,7 @@ function Page() {
           <ProfileInfo profile={profileQuery.data.data} />
         ) : null}
 
-        <ChangePassword />
+        <ChangePassword workspaceLabel="agent workspace" />
         <AppPre />
       </div>
     </div>

@@ -1,216 +1,164 @@
 "use client";
 
+import FoReportsCharts from "@/components/FoReportsCharts";
+import FoReportsFilterPanel from "@/components/FoReportsFilterPanel";
+import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
+import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
+import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
 import Header from "@/components/Header";
-import TagPill from "@/components/TagPill";
-import { useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Cell,
-} from "recharts";
-import { FiDownload, FiTrendingUp } from "react-icons/fi";
-
-type PaymentMethod = "Cash" | "Transfer" | "POS";
-
-type Transaction = {
-  id: string;
-  invoice: string;
-  patient: string;
-  amount: number;
-  department: string;
-  revenueHead: string;
-  paymentMethod: PaymentMethod;
-  agent: string;
-  date: string; // YYYY-MM-DD
-};
-
-type RevenueBreakdown = {
-  revenueHead: string;
-  department: string;
-  transactions: number;
-  totalRevenue: number;
-};
-
-const formatNaira = (value: number) =>
-  new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 0,
-  }).format(value);
-
-const revenueTrend = [
-  { label: "Mon", value: 140000 },
-  { label: "Tue", value: 120000 },
-  { label: "Wed", value: 145000 },
-  { label: "Thu", value: 148000 },
-  { label: "Fri", value: 102000 },
-  { label: "Sat", value: 132000 },
-  { label: "Sun", value: 146000 },
-];
-
-const paymentMethodSummary = [
-  { name: "Cash", value: 180000 },
-  { name: "Transfer", value: 145000 },
-  { name: "POS", value: 155000 },
-];
-
-const departmentRevenue = [
-  { name: "Consultation", value: 185000 },
-  { name: "Lab", value: 370000 },
-  { name: "Scan", value: 490000 },
-  { name: "Pharmacy", value: 290000 },
-  { name: "Admission", value: 600000 },
-];
-
-const topAgents = [
-  { name: "Oluwaseun", value: 820000 },
-  { name: "Zainab", value: 610000 },
-  { name: "Amara", value: 560000 },
-  { name: "Chinedu", value: 230000 },
-  { name: "Hauwa", value: 260000 },
-];
-
-const breakdownTable: RevenueBreakdown[] = [
-  {
-    revenueHead: "Consultation",
-    department: "General Medicine",
-    transactions: 12,
-    totalRevenue: 185000,
-  },
-  {
-    revenueHead: "Lab Test",
-    department: "Laboratory",
-    transactions: 18,
-    totalRevenue: 370000,
-  },
-  {
-    revenueHead: "Scan",
-    department: "Radiology",
-    transactions: 14,
-    totalRevenue: 490000,
-  },
-  {
-    revenueHead: "Pharmacy",
-    department: "Pharmacy",
-    transactions: 13,
-    totalRevenue: 290000,
-  },
-  {
-    revenueHead: "Admission",
-    department: "Inpatient",
-    transactions: 11,
-    totalRevenue: 600000,
-  },
-];
-
-const transactionsData: Transaction[] = [
-  {
-    id: "tx1",
-    invoice: "INV-2024-0053",
-    patient: "Chioma Okonkwo",
-    amount: 220000,
-    department: "Admission",
-    revenueHead: "Admission",
-    paymentMethod: "Cash",
-    agent: "Zainab Mohammed",
-    date: "2024-03-17",
-  },
-  {
-    id: "tx2",
-    invoice: "INV-2024-0054",
-    patient: "Emeka Obi",
-    amount: 200000,
-    department: "Admission",
-    revenueHead: "Admission",
-    paymentMethod: "POS",
-    agent: "Zainab Mohammed",
-    date: "2024-03-13",
-  },
-  {
-    id: "tx3",
-    invoice: "INV-2024-0055",
-    patient: "Tunde Akinola",
-    amount: 175000,
-    department: "Scan",
-    revenueHead: "Scan",
-    paymentMethod: "Cash",
-    agent: "Oluwaseun Adeyemi",
-    date: "2024-03-16",
-  },
-  {
-    id: "tx4",
-    invoice: "INV-2024-0056",
-    patient: "Ngozi Eze",
-    amount: 165000,
-    department: "Scan",
-    revenueHead: "Scan",
-    paymentMethod: "Cash",
-    agent: "Oluwaseun Adeyemi",
-    date: "2024-03-18",
-  },
-  {
-    id: "tx5",
-    invoice: "INV-2024-0057",
-    patient: "Binta Ibrahim",
-    amount: 150000,
-    department: "Scan",
-    revenueHead: "Scan",
-    paymentMethod: "Transfer",
-    agent: "Oluwaseun Adeyemi",
-    date: "2024-03-14",
-  },
-];
+import { ApiError } from "@/libs/api";
+import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import { getFoAgents, getFoReports } from "@/libs/fo-auth";
+import { formatDateTime } from "@/libs/helper";
+import { FoReportPaymentType } from "@/libs/type";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { FiDownload } from "react-icons/fi";
 
 type DateRange = "Last 7 Days" | "Last 30 Days" | "This Year" | "All Time";
+type PaymentMethod = "Cash" | "Transfer" | "POS";
+
+function formatDateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function buildDateRange(range: DateRange) {
+  const today = new Date();
+
+  if (range === "All Time") {
+    return {};
+  }
+
+  const endDate = formatDateOnly(today);
+  const start = new Date(today);
+
+  if (range === "This Year") {
+    start.setMonth(0, 1);
+  } else {
+    start.setDate(today.getDate() - (range === "Last 7 Days" ? 6 : 29));
+  }
+
+  return {
+    startDate: formatDateOnly(start),
+    endDate,
+  };
+}
+
+function toMethodLabel(value: FoReportPaymentType): PaymentMethod {
+  if (value === "cash") return "Cash";
+  if (value === "transfer") return "Transfer";
+  return "POS";
+}
+
+function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
+  const csv = rows
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+        .join(","),
+    )
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 function Page() {
+  const router = useRouter();
+  const accessToken = getAccessToken();
+
   const [dateRange, setDateRange] = useState<DateRange>("Last 7 Days");
-  const [department, setDepartment] = useState<string>("All");
+  const [department, setDepartment] = useState("All");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "All">(
     "All",
   );
-  const [agent, setAgent] = useState<string>("All");
-  const [revenueHead, setRevenueHead] = useState<string>("All");
+  const [agent, setAgent] = useState("All");
+  const [billDescription, setBillDescription] = useState("All");
+  const [appliedFilters, setAppliedFilters] = useState({
+    dateRange: "Last 7 Days" as DateRange,
+    department: "All",
+    agent: "All",
+  });
 
-  const filteredTransactions = useMemo(() => {
-    const now = new Date("2024-03-18"); // anchor to mock data timeframe
+  const agentsQuery = useQuery({
+    queryKey: ["fo-agents-options"],
+    queryFn: () => getFoAgents(),
+    enabled: Boolean(accessToken),
+  });
 
-    const withinRange = (date: string) => {
-      if (dateRange === "All Time") return true;
-      const d = new Date(date + "T00:00:00");
-      if (dateRange === "This Year")
-        return d.getFullYear() === now.getFullYear();
-      const diff = now.getTime() - d.getTime();
-      const days = dateRange === "Last 7 Days" ? 7 : 30;
-      return diff <= days * 24 * 60 * 60 * 1000;
-    };
+  const reportsQuery = useQuery({
+    queryKey: ["fo-reports", appliedFilters],
+    queryFn: () =>
+      getFoReports({
+        ...buildDateRange(appliedFilters.dateRange),
+        departments:
+          appliedFilters.department === "All"
+            ? undefined
+            : [appliedFilters.department],
+        agents:
+          appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
+      }),
+    enabled: Boolean(accessToken),
+  });
 
-    return transactionsData.filter(
-      (t) =>
-        withinRange(t.date) &&
-        (department === "All" || t.department === department) &&
-        (paymentMethod === "All" || t.paymentMethod === paymentMethod) &&
-        (agent === "All" || t.agent === agent) &&
-        (revenueHead === "All" || t.revenueHead === revenueHead),
-    );
-  }, [agent, dateRange, department, paymentMethod, revenueHead]);
+  useEffect(() => {
+    if (!accessToken) {
+      router.replace("/login");
+    }
+  }, [accessToken, router]);
+
+  useEffect(() => {
+    const error =
+      reportsQuery.error instanceof ApiError
+        ? reportsQuery.error
+        : agentsQuery.error instanceof ApiError
+          ? agentsQuery.error
+          : null;
+
+    if (!error) {
+      return;
+    }
+
+    if (error.status === 401) {
+      clearAuthTokens();
+      router.replace("/login");
+    }
+  }, [agentsQuery.error, reportsQuery.error, router]);
+
+  const detailedReport = useMemo(
+    () => reportsQuery.data?.data.detailed_report ?? [],
+    [reportsQuery.data?.data.detailed_report],
+  );
+
+  const filteredTransactions = useMemo(
+    () =>
+      detailedReport.filter((item) => {
+        const matchesPayment =
+          paymentMethod === "All"
+            ? true
+            : toMethodLabel(item.payment_type) === paymentMethod;
+        const matchesBill =
+          billDescription === "All"
+            ? true
+            : item.bill_description === billDescription;
+
+        return matchesPayment && matchesBill;
+      }),
+    [billDescription, detailedReport, paymentMethod],
+  );
 
   const stats = useMemo(() => {
     const totalRevenue = filteredTransactions.reduce(
-      (sum, t) => sum + t.amount,
+      (sum, item) => sum + item.amount,
       0,
     );
     const totalTransactions = filteredTransactions.length;
-    const patientsServed = new Set(filteredTransactions.map((t) => t.patient))
-      .size;
     const avgTransaction = totalTransactions
       ? totalRevenue / totalTransactions
       : 0;
@@ -218,18 +166,167 @@ function Page() {
     return {
       totalRevenue,
       totalTransactions,
-      patientsServed,
       avgTransaction,
     };
   }, [filteredTransactions]);
 
+  const revenueTrendData = useMemo(() => {
+    const grouped = new Map<string, number>();
+
+    filteredTransactions.forEach((item) => {
+      const day = item.created_at.slice(0, 10);
+      grouped.set(day, (grouped.get(day) ?? 0) + item.amount);
+    });
+
+    return [...grouped.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, value]) => ({ label, value }));
+  }, [filteredTransactions]);
+
+  const paymentMethodSummary = useMemo(() => {
+    const grouped = new Map<PaymentMethod, number>();
+
+    filteredTransactions.forEach((item) => {
+      const label = toMethodLabel(item.payment_type);
+      grouped.set(label, (grouped.get(label) ?? 0) + item.amount);
+    });
+
+    return [...grouped.entries()].map(([name, value]) => ({ name, value }));
+  }, [filteredTransactions]);
+
+  const departmentRevenue = useMemo(() => {
+    const grouped = new Map<string, number>();
+
+    filteredTransactions.forEach((item) => {
+      grouped.set(
+        item.department_name,
+        (grouped.get(item.department_name) ?? 0) + item.amount,
+      );
+    });
+
+    return [...grouped.entries()].map(([name, value]) => ({ name, value }));
+  }, [filteredTransactions]);
+
+  const topAgents = useMemo(() => {
+    const grouped = new Map<string, number>();
+
+    filteredTransactions.forEach((item) => {
+      grouped.set(
+        item.agent_name,
+        (grouped.get(item.agent_name) ?? 0) + item.amount,
+      );
+    });
+
+    return [...grouped.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredTransactions]);
+
+  const breakdownTable = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        revenueHead: string;
+        department: string;
+        transactions: number;
+        totalRevenue: number;
+      }
+    >();
+
+    filteredTransactions.forEach((item) => {
+      const key = `${item.bill_description}::${item.department_name}`;
+      const current = grouped.get(key);
+
+      if (current) {
+        current.transactions += 1;
+        current.totalRevenue += item.amount;
+        return;
+      }
+
+      grouped.set(key, {
+        revenueHead: item.bill_description,
+        department: item.department_name,
+        transactions: 1,
+        totalRevenue: item.amount,
+      });
+    });
+
+    return [...grouped.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }, [filteredTransactions]);
+
+  const departmentOptions = useMemo(
+    () =>
+      (reportsQuery.data?.data.breakdowns.by_department ?? []).map((item) => ({
+        id: item.department_id,
+        name: item.department_name,
+      })),
+    [reportsQuery.data?.data.breakdowns.by_department],
+  );
+
+  const agentOptions = useMemo(
+    () =>
+      (agentsQuery.data?.data.agents ?? []).map((item) => ({
+        id: item.agent_id,
+        name: item.agent_name,
+      })),
+    [agentsQuery.data?.data.agents],
+  );
+
+  const billDescriptionOptions = useMemo(
+    () =>
+      Array.from(new Set(detailedReport.map((item) => item.bill_description))).sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    [detailedReport],
+  );
+
+  const handleGenerateReport = () => {
+    setAppliedFilters({
+      dateRange,
+      department,
+      agent,
+    });
+  };
+
+  const handleExportCsv = () => {
+    const rows = [
+      [
+        "Receipt No",
+        "Patient",
+        "Phone Number",
+        "Amount",
+        "Department",
+        "Bill Description",
+        "Payment Method",
+        "Agent",
+        "Created At",
+      ],
+      ...filteredTransactions.map((item) => [
+        item.receipt_no,
+        item.patient_name,
+        item.phone_number,
+        item.amount,
+        item.department_name,
+        item.bill_description,
+        toMethodLabel(item.payment_type),
+        item.agent_name,
+        formatDateTime(item.created_at),
+      ]),
+    ];
+
+    downloadCsv("fo-report.csv", rows);
+  };
+
   return (
-    <div className="w-full bg-white min-h-screen">
+    <div className="w-full min-h-screen bg-white dark:bg-slate-950">
       <Header
         title="Reports"
         Subtitle="Analyze hospital revenue and transaction performance"
         actions={
-          <button className="hidden md:inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50">
+          <button
+            onClick={handleExportCsv}
+            className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
             <FiDownload />
             Export Report
           </button>
@@ -237,315 +334,55 @@ function Page() {
       />
 
       <div className="p-6 space-y-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700">Date Range</p>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value as DateRange)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option>Last 7 Days</option>
-                <option>Last 30 Days</option>
-                <option>This Year</option>
-                <option>All Time</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700">Department</p>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option>All</option>
-                <option>General Medicine</option>
-                <option>Laboratory</option>
-                <option>Radiology</option>
-                <option>Pharmacy</option>
-                <option>Inpatient</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700">
-                Payment Method
-              </p>
-              <select
-                value={paymentMethod}
-                onChange={(e) =>
-                  setPaymentMethod(e.target.value as PaymentMethod | "All")
-                }
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option value="All">All Methods</option>
-                <option value="Cash">Cash</option>
-                <option value="Transfer">Transfer</option>
-                <option value="POS">POS</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700">Agent</p>
-              <select
-                value={agent}
-                onChange={(e) => setAgent(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option>All</option>
-                <option>Oluwaseun Adeyemi</option>
-                <option>Zainab Mohammed</option>
-                <option>Amara Okoro</option>
-                <option>Chinedu Nwankwo</option>
-                <option>Hauwa Musa</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700">Revenue Head</p>
-              <select
-                value={revenueHead}
-                onChange={(e) => setRevenueHead(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                <option>All</option>
-                <option>Consultation</option>
-                <option>Lab</option>
-                <option>Scan</option>
-                <option>Pharmacy</option>
-                <option>Admission</option>
-              </select>
-            </div>
+        {reportsQuery.error instanceof Error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {reportsQuery.error.message}
           </div>
+        ) : null}
 
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm">
-            <FiTrendingUp />
-            Generate Report
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            {
-              label: "Total Revenue",
-              value: formatNaira(stats.totalRevenue || 2000000),
-            },
-            {
-              label: "Total Transactions",
-              value: stats.totalTransactions || 16,
-            },
-            {
-              label: "Avg Transaction",
-              value: stats.avgTransaction
-                ? formatNaira(Math.round(stats.avgTransaction))
-                : "₦127K",
-            },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className="bg-white border border-gray-200 rounded-xl p-4"
-            >
-              <p className="text-sm text-gray-600 font-medium">{card.label}</p>
-              <h2 className="text-2xl font-bold mt-2">{card.value}</h2>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="text-lg font-bold mb-2">Revenue Trend</h2>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={revenueTrend}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="label" />
-                  <YAxis
-                    tickFormatter={(v) =>
-                      formatNaira(Number(v)).replace("₦", "₦")
-                    }
-                    width={70}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke="#2563EB"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+        {agentsQuery.error instanceof Error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {agentsQuery.error.message}
           </div>
+        ) : null}
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="text-lg font-bold mb-2">Payment Method Breakdown</h2>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={paymentMethodSummary}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis
-                    tickFormatter={(v) =>
-                      formatNaira(Number(v)).replace("₦", "₦")
-                    }
-                    width={70}
-                  />
-                  <Bar dataKey="value" fill="#22C55E" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
+        <FoReportsFilterPanel
+          dateRange={dateRange}
+          department={department}
+          paymentMethod={paymentMethod}
+          agent={agent}
+          billDescription={billDescription}
+          departmentOptions={departmentOptions}
+          agentOptions={agentOptions}
+          billDescriptionOptions={billDescriptionOptions}
+          onDateRangeChange={setDateRange}
+          onDepartmentChange={setDepartment}
+          onPaymentMethodChange={setPaymentMethod}
+          onAgentChange={setAgent}
+          onBillDescriptionChange={setBillDescription}
+          onGenerateReport={handleGenerateReport}
+        />
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="text-lg font-bold mb-2">Department Revenue</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={departmentRevenue}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={70}
-                    outerRadius={110}
-                    paddingAngle={2}
-                  >
-                    {departmentRevenue.map((entry, idx) => (
-                      <Cell
-                        key={entry.name}
-                        fill={
-                          [
-                            "#F59E0B",
-                            "#22C55E",
-                            "#6366F1",
-                            "#F97316",
-                            "#8B5CF6",
-                          ][idx % 5]
-                        }
-                      />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+        <FoReportsSummaryCards
+          isLoading={reportsQuery.isLoading}
+          totalRevenue={stats.totalRevenue}
+          totalTransactions={stats.totalTransactions}
+          averageTransaction={stats.avgTransaction}
+        />
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h2 className="text-lg font-bold mb-2">Top Agents by Revenue</h2>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={topAgents}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 30 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    interval={0}
-                    angle={-10}
-                    textAnchor="end"
-                    height={50}
-                  />
-                  <YAxis
-                    tickFormatter={(v) =>
-                      formatNaira(Number(v)).replace("₦", "₦")
-                    }
-                    width={70}
-                  />
-                  <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
+        <FoReportsCharts
+          revenueTrendData={revenueTrendData}
+          paymentMethodSummary={paymentMethodSummary}
+          departmentRevenue={departmentRevenue}
+          topAgents={topAgents}
+        />
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="text-lg font-bold mb-4">Detailed Revenue Breakdown</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-600 bg-gray-100">
-                  <th className="p-3 font-semibold">Revenue Head</th>
-                  <th className="p-3 font-semibold">Department</th>
-                  <th className="p-3 font-semibold">Transactions</th>
-                  <th className="p-3 font-semibold">Total Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {breakdownTable.map((row) => (
-                  <tr
-                    key={row.revenueHead}
-                    className="border-b border-gray-100"
-                  >
-                    <td className="p-3 font-semibold text-gray-900">
-                      {row.revenueHead}
-                    </td>
-                    <td className="p-3 text-gray-700">{row.department}</td>
-                    <td className="p-3 text-gray-700">{row.transactions}</td>
-                    <td className="p-3 font-semibold text-gray-900">
-                      {formatNaira(row.totalRevenue)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <FoReportsRevenueBreakdownTable rows={breakdownTable} />
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="text-lg font-bold mb-4">Top Transactions</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-600 bg-gray-100">
-                  <th className="p-3 font-semibold">Invoice No</th>
-                  <th className="p-3 font-semibold">Patient</th>
-                  <th className="p-3 font-semibold">Amount</th>
-                  <th className="p-3 font-semibold">Department</th>
-                  <th className="p-3 font-semibold">Payment Method</th>
-                  <th className="p-3 font-semibold">Agent</th>
-                  <th className="p-3 font-semibold">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.map((t) => (
-                  <tr key={t.id} className="border-b border-gray-100">
-                    <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">
-                      {t.invoice}
-                    </td>
-                    <td className="p-3 text-gray-900 font-semibold whitespace-nowrap">
-                      {t.patient}
-                    </td>
-                    <td className="p-3 font-semibold text-gray-900">
-                      {formatNaira(t.amount)}
-                    </td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">
-                      {t.department}
-                    </td>
-                    <td className="p-3">
-                      <TagPill label={t.paymentMethod} />
-                    </td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">
-                      {t.agent}
-                    </td>
-                    <td className="p-3 text-gray-700 whitespace-nowrap">
-                      {t.date}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <FoReportsTransactionsTable
+          rows={filteredTransactions}
+          toMethodLabel={toMethodLabel}
+        />
       </div>
     </div>
   );

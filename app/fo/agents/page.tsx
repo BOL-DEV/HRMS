@@ -1,124 +1,148 @@
 "use client";
 
 import Header from "@/components/Header";
-import AgentsTable from "@/components/AgentsTable";
 import AgentProfileModal, {
   AgentProfile,
 } from "@/components/AgentProfileModal";
-import { useMemo, useState } from "react";
-import { agents } from "@/libs/data";
+import CreateAgentModal from "@/components/CreateAgentModal";
+import FoAgentsListSection from "@/components/FoAgentsListSection";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import AgentStatsCards from "@/components/AgentStatsCards";
-import { SortOption } from "@/libs/type";
-import { AgentStatus } from "@/libs/type";
 import FoAgentAct from "@/components/FoAgentAct";
-import { MdPending } from "react-icons/md";
 import { toast } from "react-hot-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/libs/api";
+import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import {
+  createFoAgent,
+  getFoAgents,
+  updateFoAgentStatus,
+} from "@/libs/fo-auth";
+import {
+  AgentRow,
+  CreateFoAgentPayload,
+  FoAgentStatus,
+  SortOption,
+} from "@/libs/type";
 
 function Page() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const accessToken = getAccessToken();
   const [selectedAgent, setSelectedAgent] = useState<AgentProfile | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<AgentStatus | "All">("All");
+  const [status, setStatus] = useState<FoAgentStatus | "all">("all");
   const [sort, setSort] = useState<SortOption>("newest");
 
-  const filtered = useMemo(() => {
-    const text = search.toLowerCase();
-    const bySearch = agents.filter((a) =>
-      [a.name, a.email, a.phone].some((field) =>
-        field.toLowerCase().includes(text),
-      ),
-    );
+  const agentsQuery = useQuery({
+    queryKey: ["fo-agents", search, status],
+    queryFn: () => getFoAgents({ search, status }),
+    enabled: Boolean(accessToken),
+  });
 
-    const byStatus =
-      status === "All" ? bySearch : bySearch.filter((a) => a.status === status);
+  useEffect(() => {
+    if (!accessToken) {
+      router.replace("/login");
+    }
+  }, [accessToken, router]);
 
-    const sorted = [...byStatus].sort((a, b) => {
+  useEffect(() => {
+    if (!(agentsQuery.error instanceof ApiError)) {
+      return;
+    }
+
+    if (agentsQuery.error.status === 401) {
+      clearAuthTokens();
+      router.replace("/login");
+    }
+  }, [agentsQuery.error, router]);
+
+  const rows = useMemo<AgentRow[]>(() => {
+    const agents = agentsQuery.data?.data.agents ?? [];
+
+    const mapped: AgentRow[] = agents.map((agent) => ({
+      id: agent.agent_id,
+      name: agent.agent_name,
+      email: agent.email,
+      phone: agent.phone_number,
+      transactions: agent.transaction_count,
+      revenue: agent.revenue_made,
+      pending: 0,
+      refunds: 0,
+      lastActive: agent.last_active,
+      status: agent.status === "suspended" ? "Suspended" : "Active",
+    }));
+
+    return [...mapped].sort((a, b) => {
       if (sort === "revenue") return b.revenue - a.revenue;
       const dateA = new Date(a.lastActive).getTime();
       const dateB = new Date(b.lastActive).getTime();
       return sort === "newest" ? dateB - dateA : dateA - dateB;
     });
+  }, [agentsQuery.data?.data.agents, sort]);
 
-    return sorted;
-  }, [search, status, sort]);
+  const statusMutation = useMutation({
+    mutationFn: (agent: AgentRow) =>
+      updateFoAgentStatus(
+        agent.id,
+        agent.status === "Suspended" ? "active" : "suspended",
+      ),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({ queryKey: ["fo-agents"] });
+      setSelectedAgent((current) =>
+        current?.id === response.data.agent_id
+          ? {
+              ...current,
+              status:
+                response.data.status === "suspended" ? "Suspended" : "Active",
+            }
+          : current,
+      );
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "Unable to update agent status.";
+      toast.error(message);
+    },
+  });
 
-  const profilesById: Record<string, AgentProfile> = useMemo(
-    () => ({
-      a1: {
-        ...agents[0],
-        revenueTrend: [
-          { month: "Jan", amount: 6500 },
-          { month: "Feb", amount: 7200 },
-          { month: "Mar", amount: 8000 },
-          { month: "Apr", amount: 7600 },
-          { month: "May", amount: 8200 },
-          { month: "Jun", amount: 7800 },
-        ],
-        topPatients: [
-          { name: "Michael Brown", revenue: 5200 },
-          { name: "Sarah Mitchell", revenue: 4600 },
-        ],
-      },
-      a2: {
-        ...agents[1],
-        revenueTrend: [
-          { month: "Jan", amount: 3100 },
-          { month: "Feb", amount: 2800 },
-          { month: "Mar", amount: 2600 },
-          { month: "Apr", amount: 2400 },
-          { month: "May", amount: 2300 },
-          { month: "Jun", amount: 2100 },
-        ],
-        topPatients: [{ name: "Emma Wilson", revenue: 1900 }],
-      },
-      a3: {
-        ...agents[2],
-        revenueTrend: [
-          { month: "Jan", amount: 5400 },
-          { month: "Feb", amount: 5600 },
-          { month: "Mar", amount: 5800 },
-          { month: "Apr", amount: 6100 },
-          { month: "May", amount: 6400 },
-          { month: "Jun", amount: 6200 },
-        ],
-        topPatients: [
-          { name: "Robert Chen", revenue: 3300 },
-          { name: "James Anderson", revenue: 3200 },
-        ],
-      },
-      a4: {
-        ...agents[3],
-        revenueTrend: [
-          { month: "Jan", amount: 6000 },
-          { month: "Feb", amount: 6400 },
-          { month: "Mar", amount: 6700 },
-          { month: "Apr", amount: 6900 },
-          { month: "May", amount: 7100 },
-          { month: "Jun", amount: 7200 },
-        ],
-        topPatients: [{ name: "Jessica Taylor", revenue: 3500 }],
-      },
-      a5: {
-        ...agents[4],
-        revenueTrend: [
-          { month: "Jan", amount: 6800 },
-          { month: "Feb", amount: 7100 },
-          { month: "Mar", amount: 7400 },
-          { month: "Apr", amount: 7700 },
-          { month: "May", amount: 8000 },
-          { month: "Jun", amount: 7600 },
-        ],
-        topPatients: [{ name: "John Anderson", revenue: 4100 }],
-      },
-    }),
-    [],
-  );
+  const createAgentMutation = useMutation({
+    mutationFn: (payload: CreateFoAgentPayload) => createFoAgent(payload),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({ queryKey: ["fo-agents"] });
+      setIsCreateModalOpen(false);
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "Unable to create agent.";
+      toast.error(message);
+    },
+  });
+
+  const summary = agentsQuery.data?.data.summary;
 
   return (
-    <div className="w-full bg-gray-50 min-h-screen">
-      <Header title="Agents" Subtitle="Manage agents and monitor performance" />
+    <div className="w-full min-h-screen bg-gray-50 dark:bg-slate-950">
+      <Header
+        title="Agents"
+        Subtitle="Manage agents and monitor performance"
+      />
 
       <div className="p-6 space-y-6">
-        <AgentStatsCards />
+        {agentsQuery.error instanceof Error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {agentsQuery.error.message}
+          </div>
+        ) : null}
+
+        <AgentStatsCards
+          summary={summary}
+          isLoading={agentsQuery.isLoading && !summary}
+        />
 
         <FoAgentAct
           search={search}
@@ -129,33 +153,21 @@ function Page() {
           onSort={setSort}
         />
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-bold">Agents</h2>
-              <p className="text-sm text-gray-600">
-                {filtered.length} agents found
-              </p>
-            </div>
-
-            <button className="bg-blue-600 flex items-center gap-1.5 text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-blue-700">
-              <MdPending className="text-xl" /> Request for Agent
-            </button>
-          </div>
-
-          <AgentsTable
-            rows={filtered}
-            onViewProfile={(agent) =>
-              setSelectedAgent(profilesById[agent.id] ?? agent)
-            }
-            onRequestSuspension={(agent) =>
-              toast.success(
-                `Suspension request submitted for ${agent.name} (local preview only).`,
-              )
-            }
-          />
-        </div>
+        <FoAgentsListSection
+          rows={rows}
+          onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          onViewProfile={(agent) => setSelectedAgent(agent)}
+          onToggleStatus={(agent) => statusMutation.mutate(agent)}
+        />
       </div>
+
+      {isCreateModalOpen ? (
+        <CreateAgentModal
+          isSubmitting={createAgentMutation.isPending}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={(payload) => createAgentMutation.mutate(payload)}
+        />
+      ) : null}
 
       {selectedAgent ? (
         <AgentProfileModal

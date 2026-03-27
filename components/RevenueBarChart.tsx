@@ -1,5 +1,6 @@
 "use client";
 
+import { RevenueChartDatum } from "@/libs/type";
 import {
   Bar,
   BarChart,
@@ -13,10 +14,16 @@ import {
 interface Props {
   title?: string;
   subtitle?: string;
-  data: { name: string; value: number }[];
+  data: RevenueChartDatum[];
+  emptyMessage?: string;
 }
 
-function RevenueBarChart({ title, subtitle, data }: Props) {
+function RevenueBarChart({
+  title,
+  subtitle,
+  data,
+  emptyMessage = "No chart data available.",
+}: Props) {
   return (
     <div className=" bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
       <div className="p-5 border-b border-gray-200 dark:border-slate-700">
@@ -25,35 +32,41 @@ function RevenueBarChart({ title, subtitle, data }: Props) {
       </div>
 
       <div className="w-full h-120 lg:p-10 p-5">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
-          >
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="currentColor"
-              strokeOpacity={0.15}
-            />
-            <XAxis
-              dataKey="name"
-              tick={{ fill: "currentColor" }}
-              axisLine={{ stroke: "currentColor" }}
-              tickLine={{ stroke: "currentColor" }}
-            />
-            <YAxis
-              tickFormatter={(v) => v.toString()}
-              tick={{ fill: "currentColor" }}
-              axisLine={{ stroke: "currentColor" }}
-              tickLine={{ stroke: "currentColor" }}
-            />
-            <Tooltip
-              formatter={(value) => [value, "Revenue"]}
-              labelFormatter={(label) => `${label}`}
-            />
-            <Bar dataKey="value" fill="#2563EB" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {data.length === 0 ? (
+          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 px-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            {emptyMessage}
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={data}
+              margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="currentColor"
+                strokeOpacity={0.15}
+              />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: "currentColor" }}
+                axisLine={{ stroke: "currentColor" }}
+                tickLine={{ stroke: "currentColor" }}
+              />
+              <YAxis
+                tickFormatter={(v) => v.toString()}
+                tick={{ fill: "currentColor" }}
+                axisLine={{ stroke: "currentColor" }}
+                tickLine={{ stroke: "currentColor" }}
+              />
+              <Tooltip
+                formatter={(value) => [value, "Revenue"]}
+                labelFormatter={(label) => `${label}`}
+              />
+              <Bar dataKey="value" fill="#2563EB" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

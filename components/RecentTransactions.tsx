@@ -1,26 +1,17 @@
 import { formatCurrency } from "@/libs/helper";
-// import { Recent } from "@/libs/type";
-
-type RecentTransactionRow = {
-  id: string;
-  patientName: string;
-  phoneNumber: string;
-  billDescription: string;
-  departmentName: string;
-  amount: number;
-  status: string;
-  createdAt: string;
-};
+import { RecentTransactionDisplayRow } from "@/libs/type";
 
 type Props = {
-  rows: RecentTransactionRow[];
+  rows: RecentTransactionDisplayRow[];
   isLoading?: boolean;
+  subtitle?: string;
   emptyMessage?: string;
 };
 
 function RecentTransactions({
   rows,
   isLoading = false,
+  subtitle = "Latest transactions",
   emptyMessage = "No transactions found for this period.",
 }: Props) {
   return (
@@ -29,7 +20,7 @@ function RecentTransactions({
         <div>
           <h2 className="text-xl font-bold">Recent Transactions</h2>
           <p className="text-sm text-gray-600 dark:text-slate-400">
-            Latest agent transactionss
+            {subtitle}
           </p>
         </div>
       </div>

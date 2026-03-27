@@ -29,17 +29,6 @@ export function formatUsd(amount: number) {
   }).format(amount);
 }
 
-export interface AgentPerformanceRow {
-  id: string;
-  name: string;
-  totalTransactions: number;
-  totalRevenue: number;
-  pending: number;
-  refunds: number;
-  lastActive: string;
-  status: "Active" | "Inactive";
-}
-
 export function formatDateTime(value: string) {
   const date = new Date(value);
 
