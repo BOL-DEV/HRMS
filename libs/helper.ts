@@ -53,3 +53,63 @@ export function formatChartLabel(value: string) {
     weekday: "short",
   }).format(date);
 }
+
+function buildPrintableDocument(html: string) {
+  const trimmedHtml = html.trim();
+
+  if (trimmedHtml.toLowerCase().includes("<html")) {
+    return trimmedHtml;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Receipt</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    ${trimmedHtml}
+  </body>
+</html>`;
+}
+
+export function openPrintWindowFromHtml(html: string) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const printWindow = window.open("", "_blank", "width=900,height=700");
+
+  if (!printWindow) {
+    return false;
+  }
+
+  const printableDocument = buildPrintableDocument(html);
+
+  printWindow.document.open();
+  printWindow.document.write(printableDocument);
+  printWindow.document.close();
+
+  const triggerPrint = () => {
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  if (printWindow.document.readyState === "complete") {
+    window.setTimeout(triggerPrint, 250);
+  } else {
+    printWindow.addEventListener("load", () => window.setTimeout(triggerPrint, 250), {
+      once: true,
+    });
+  }
+
+  return true;
+}

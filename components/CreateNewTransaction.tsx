@@ -4,6 +4,7 @@ import { type ChangeEvent, type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import type { NewTransactionForm } from "@/libs/type";
+import { openPrintWindowFromHtml } from "@/libs/helper";
 import ConfirmNewTransaction from "./ConfirmNewTransaction";
 import NewTransactionModal from "./NewTransactionModal";
 import {
@@ -14,6 +15,7 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void | Promise<void>;
 }
 
 function getInitialForm(): NewTransactionForm {
@@ -29,21 +31,14 @@ function getInitialForm(): NewTransactionForm {
 }
 
 function printReceipt(receiptHTML: string) {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
+  const didOpenWindow = openPrintWindowFromHtml(receiptHTML);
 
-  if (!printWindow) {
+  if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");
-    return;
   }
-
-  printWindow.document.open();
-  printWindow.document.write(receiptHTML);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
 }
 
-function CreateNewTransaction({ open, onClose }: Props) {
+function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -63,11 +58,21 @@ function CreateNewTransaction({ open, onClose }: Props) {
 
   const paymentMutation = useMutation({
     mutationFn: processAgentPayment,
-    onSuccess: (response) => {
-      toast.success(response.message || "Payment processed successfully.");
-      queryClient.invalidateQueries({ queryKey: ["agent-dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["agent-receipts"] });
+    onSuccess: async (response) => {
+      toast.success(response.message || "Payment processed and receipt generated.");
+      queryClient.invalidateQueries({
+        queryKey: ["agent-dashboard"],
+        refetchType: "inactive",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["agent-transactions"],
+        refetchType: "inactive",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["agent-receipts"],
+        refetchType: "inactive",
+      });
+      await onSuccess?.();
       printReceipt(response.data.receipt.receiptHTML);
       setConfirmOpen(false);
       setForm(getInitialForm());

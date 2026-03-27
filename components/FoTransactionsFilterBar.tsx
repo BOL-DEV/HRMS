@@ -3,25 +3,28 @@
 import { FiDownload, FiSearch } from "react-icons/fi";
 
 type MethodFilter = "All" | "Cash" | "Transfer" | "POS";
-type DateFilter = "All" | "Today";
 
 type Props = {
   search: string;
   method: MethodFilter;
-  dateFilter: DateFilter;
+  startDate: string;
+  endDate: string;
   onSearchChange: (value: string) => void;
   onMethodChange: (value: MethodFilter) => void;
-  onDateFilterChange: (value: DateFilter) => void;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
   onExport: () => void;
 };
 
 function FoTransactionsFilterBar({
   search,
   method,
-  dateFilter,
+  startDate,
+  endDate,
   onSearchChange,
   onMethodChange,
-  onDateFilterChange,
+  onStartDateChange,
+  onEndDateChange,
   onExport,
 }: Props) {
   return (
@@ -51,14 +54,20 @@ function FoTransactionsFilterBar({
             <option value="POS">POS</option>
           </select>
 
-          <select
-            value={dateFilter}
-            onChange={(e) => onDateFilterChange(e.target.value as DateFilter)}
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
             className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            <option value="All">All Dates</option>
-            <option value="Today">Today</option>
-          </select>
+          />
+
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          />
         </div>
 
         <button

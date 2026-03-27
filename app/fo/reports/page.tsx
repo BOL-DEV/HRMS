@@ -16,33 +16,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { FiDownload } from "react-icons/fi";
 
-type DateRange = "Last 7 Days" | "Last 30 Days" | "This Year" | "All Time";
 type PaymentMethod = "Cash" | "Transfer" | "POS";
 
 function formatDateOnly(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function buildDateRange(range: DateRange) {
+function getRelativeDate(daysFromToday: number) {
   const today = new Date();
-
-  if (range === "All Time") {
-    return {};
-  }
-
-  const endDate = formatDateOnly(today);
-  const start = new Date(today);
-
-  if (range === "This Year") {
-    start.setMonth(0, 1);
-  } else {
-    start.setDate(today.getDate() - (range === "Last 7 Days" ? 6 : 29));
-  }
-
-  return {
-    startDate: formatDateOnly(start),
-    endDate,
-  };
+  today.setDate(today.getDate() + daysFromToday);
+  return formatDateOnly(today);
 }
 
 function toMethodLabel(value: FoReportPaymentType): PaymentMethod {
@@ -73,7 +56,8 @@ function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
 
-  const [dateRange, setDateRange] = useState<DateRange>("Last 7 Days");
+  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
+  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
   const [department, setDepartment] = useState("All");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "All">(
     "All",
@@ -81,7 +65,8 @@ function Page() {
   const [agent, setAgent] = useState("All");
   const [billDescription, setBillDescription] = useState("All");
   const [appliedFilters, setAppliedFilters] = useState({
-    dateRange: "Last 7 Days" as DateRange,
+    startDate: getRelativeDate(-6),
+    endDate: getRelativeDate(0),
     department: "All",
     agent: "All",
   });
@@ -96,7 +81,8 @@ function Page() {
     queryKey: ["fo-reports", appliedFilters],
     queryFn: () =>
       getFoReports({
-        ...buildDateRange(appliedFilters.dateRange),
+        startDate: appliedFilters.startDate,
+        endDate: appliedFilters.endDate,
         departments:
           appliedFilters.department === "All"
             ? undefined
@@ -282,7 +268,8 @@ function Page() {
 
   const handleGenerateReport = () => {
     setAppliedFilters({
-      dateRange,
+      startDate,
+      endDate,
       department,
       agent,
     });
@@ -347,7 +334,8 @@ function Page() {
         ) : null}
 
         <FoReportsFilterPanel
-          dateRange={dateRange}
+          startDate={startDate}
+          endDate={endDate}
           department={department}
           paymentMethod={paymentMethod}
           agent={agent}
@@ -355,7 +343,8 @@ function Page() {
           departmentOptions={departmentOptions}
           agentOptions={agentOptions}
           billDescriptionOptions={billDescriptionOptions}
-          onDateRangeChange={setDateRange}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
           onDepartmentChange={setDepartment}
           onPaymentMethodChange={setPaymentMethod}
           onAgentChange={setAgent}

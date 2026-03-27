@@ -163,6 +163,8 @@ function Page() {
             )
           }
           onNewTransaction={() => setOpenNewTransaction(true)}
+          onRefresh={() => transactionsQuery.refetch()}
+          isRefreshing={transactionsQuery.isFetching}
           onExport={() => window.print()}
         />
 
@@ -229,6 +231,7 @@ function Page() {
       <CreateNewTransaction
         open={openNewTransaction}
         onClose={() => setOpenNewTransaction(false)}
+        onSuccess={() => transactionsQuery.refetch()}
       />
     </div>
   );

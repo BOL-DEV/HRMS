@@ -2,7 +2,6 @@
 
 import { FiTrendingUp } from "react-icons/fi";
 
-type DateRange = "Last 7 Days" | "Last 30 Days" | "This Year" | "All Time";
 type PaymentMethod = "Cash" | "Transfer" | "POS";
 
 type Option = {
@@ -11,7 +10,8 @@ type Option = {
 };
 
 type Props = {
-  dateRange: DateRange;
+  startDate: string;
+  endDate: string;
   department: string;
   paymentMethod: PaymentMethod | "All";
   agent: string;
@@ -19,7 +19,8 @@ type Props = {
   departmentOptions: Option[];
   agentOptions: Option[];
   billDescriptionOptions: string[];
-  onDateRangeChange: (value: DateRange) => void;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
   onDepartmentChange: (value: string) => void;
   onPaymentMethodChange: (value: PaymentMethod | "All") => void;
   onAgentChange: (value: string) => void;
@@ -28,7 +29,8 @@ type Props = {
 };
 
 function FoReportsFilterPanel({
-  dateRange,
+  startDate,
+  endDate,
   department,
   paymentMethod,
   agent,
@@ -36,7 +38,8 @@ function FoReportsFilterPanel({
   departmentOptions,
   agentOptions,
   billDescriptionOptions,
-  onDateRangeChange,
+  onStartDateChange,
+  onEndDateChange,
   onDepartmentChange,
   onPaymentMethodChange,
   onAgentChange,
@@ -45,21 +48,30 @@ function FoReportsFilterPanel({
 }: Props) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 dark:border-slate-700 dark:bg-slate-900">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            Date Range
+            Start Date
           </p>
-          <select
-            value={dateRange}
-            onChange={(e) => onDateRangeChange(e.target.value as DateRange)}
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-            <option>This Year</option>
-            <option>All Time</option>
-          </select>
+          />
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            End Date
+          </p>
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          />
         </div>
 
         <div className="space-y-1">

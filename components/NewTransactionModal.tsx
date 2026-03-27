@@ -40,7 +40,7 @@ function NewTransactionModal({
             Create New Transaction
           </h2>
           <p className="text-sm text-gray-600 dark:text-slate-300">
-            Add a new patient transaction
+            Add a new patient transaction and generate the receipt immediately
           </p>
         </div>
 
@@ -169,7 +169,7 @@ function NewTransactionModal({
             type="submit"
             disabled={isSubmitting || isLoadingDepartments}
           >
-            {isSubmitting ? "Processing..." : "Create Transaction"}
+            {isSubmitting ? "Processing..." : "Create & Print Receipt"}
           </button>
         </div>
       </form>

@@ -247,7 +247,6 @@ function Page() {
         </div>
 
         <div className="flex flex-col mb-10 gap-6">
-          <RevenueTrend data={revenueTrendData} />
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
             <RevenueByDepartment data={revenueByDepartmentData} />
 
@@ -320,9 +319,8 @@ function Page() {
           </div>
         </div>
 
-        {/* <div className="grid grid-cols-1 gap-6"> */}
         <PaymentMethodBreakdown data={paymentMethodData} />
-        {/* </div> */}
+        <RevenueTrend data={revenueTrendData} />
 
         <AgentPerformance
           rows={[]}

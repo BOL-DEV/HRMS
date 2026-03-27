@@ -18,8 +18,8 @@ function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile)
               <th className="p-3 font-semibold">Phone</th>
               <th className="p-3 font-semibold">Transactions</th>
               <th className="p-3 font-semibold">Revenue</th>
-              <th className="p-3 font-semibold">Pending</th>
-              <th className="p-3 font-semibold">Refunds</th>
+              {/* <th className="p-3 font-semibold">Pending</th>
+              <th className="p-3 font-semibold">Refunds</th> */}
               <th className="p-3 font-semibold">Last Active</th>
               <th className="p-3 font-semibold">Status</th>
               <th className="p-3 font-semibold text-right">Actions</th>
@@ -56,8 +56,6 @@ function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile)
                   <td className="p-3 font-semibold text-blue-700 dark:text-blue-300">
                     {formatNaira(row.revenue)}
                   </td>
-                  <td className="p-3 text-gray-500 dark:text-slate-400">--</td>
-                  <td className="p-3 text-gray-500 dark:text-slate-400">--</td>
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
                     {formatDateTime(row.lastActive)}
                   </td>
@@ -68,7 +66,9 @@ function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile)
                     <div className="relative inline-block text-left">
                       <button
                         onClick={() =>
-                          setOpenMenu((prev) => (prev === row.id ? null : row.id))
+                          setOpenMenu((prev) =>
+                            prev === row.id ? null : row.id,
+                          )
                         }
                         className="rounded-lg border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
                         aria-haspopup="true"
@@ -82,7 +82,9 @@ function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile)
                           {[
                             {
                               label: "View Profile",
-                              icon: <FiEye className="text-gray-600 dark:text-slate-300" />,
+                              icon: (
+                                <FiEye className="text-gray-600 dark:text-slate-300" />
+                              ),
                               onClick: () => onViewProfile?.(row),
                             },
                             {
@@ -90,7 +92,9 @@ function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile)
                                 row.status === "Suspended"
                                   ? "Reactivate Agent"
                                   : "Suspend Agent",
-                              icon: <FiSlash className="text-gray-600 dark:text-slate-300" />,
+                              icon: (
+                                <FiSlash className="text-gray-600 dark:text-slate-300" />
+                              ),
                               onClick: () => onRequestSuspension?.(row),
                             },
                           ].map((item) => (

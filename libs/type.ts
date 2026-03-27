@@ -109,8 +109,8 @@ export interface AgentRow {
   phone: string;
   transactions: number;
   revenue: number;
-  pending: number;
-  refunds: number;
+  // pending: number;
+  // refunds: number;
   lastActive: string;
   status: AgentStatus;
 }

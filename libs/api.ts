@@ -32,14 +32,25 @@ export async function postJson<TResponse>(
   body: Record<string, unknown>,
   options?: ApiRequestOptions,
 ): Promise<TResponse> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new Error(
+      `Unable to reach the server at ${API_BASE_URL}${endpoint}. Please check your internet connection, API availability, or CORS configuration.`,
+      {
+        cause: error,
+      },
+    );
+  }
 
   const payload = await parseJson<TResponse>(response);
 
@@ -57,12 +68,23 @@ export async function getJson<TResponse>(
   endpoint: string,
   options?: ApiRequestOptions,
 ): Promise<TResponse> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: "GET",
-    headers: {
-      ...options?.headers,
-    },
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "GET",
+      headers: {
+        ...options?.headers,
+      },
+    });
+  } catch (error) {
+    throw new Error(
+      `Unable to reach the server at ${API_BASE_URL}${endpoint}. Please check your internet connection, API availability, or CORS configuration.`,
+      {
+        cause: error,
+      },
+    );
+  }
 
   const payload = await parseJson<TResponse>(response);
 
@@ -81,14 +103,25 @@ export async function patchJson<TResponse>(
   body: Record<string, unknown>,
   options?: ApiRequestOptions,
 ): Promise<TResponse> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new Error(
+      `Unable to reach the server at ${API_BASE_URL}${endpoint}. Please check your internet connection, API availability, or CORS configuration.`,
+      {
+        cause: error,
+      },
+    );
+  }
 
   const payload = await parseJson<TResponse>(response);
 

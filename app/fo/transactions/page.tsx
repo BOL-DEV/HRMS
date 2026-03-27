@@ -14,10 +14,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type MethodFilter = "All" | "Cash" | "Transfer" | "POS";
-type DateFilter = "All" | "Today";
 
-function getTodayString() {
-  return new Date().toISOString().slice(0, 10);
+function formatDateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getRelativeDate(daysFromToday: number) {
+  const today = new Date();
+  today.setDate(today.getDate() + daysFromToday);
+  return formatDateOnly(today);
 }
 
 function toMethodLabel(value: FoReportPaymentType): Exclude<MethodFilter, "All"> {
@@ -49,18 +54,16 @@ function Page() {
   const accessToken = getAccessToken();
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState<MethodFilter>("All");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("All");
-
-  const today = useMemo(() => getTodayString(), []);
+  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
+  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
 
   const transactionsQuery = useQuery({
-    queryKey: ["fo-transactions", dateFilter, today],
+    queryKey: ["fo-transactions", startDate, endDate],
     queryFn: () =>
-      getFoReports(
-        dateFilter === "Today"
-          ? { startDate: today, endDate: today }
-          : undefined,
-      ),
+      getFoReports({
+        startDate,
+        endDate,
+      }),
     enabled: Boolean(accessToken),
   });
 
@@ -183,10 +186,12 @@ function Page() {
         <FoTransactionsFilterBar
           search={search}
           method={method}
-          dateFilter={dateFilter}
+          startDate={startDate}
+          endDate={endDate}
           onSearchChange={setSearch}
           onMethodChange={setMethod}
-          onDateFilterChange={setDateFilter}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
           onExport={handleExport}
         />
 
