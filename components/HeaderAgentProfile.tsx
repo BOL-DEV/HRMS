@@ -8,6 +8,9 @@ import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { getAgentProfile } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
+
+type HeaderProfileResponse = AgentProfileResponse | FoProfileResponse;
 
 function useHydrated() {
   return useSyncExternalStore(
@@ -40,7 +43,8 @@ export default function HeaderAgentProfile() {
 
   const profileQuery = useQuery({
     queryKey: [section, "header-profile"],
-    queryFn: section === "fo" ? getFoProfile : getAgentProfile,
+    queryFn: async (): Promise<HeaderProfileResponse> =>
+      section === "fo" ? getFoProfile() : getAgentProfile(),
     enabled: Boolean(accessToken && section !== "default"),
     staleTime: 1000 * 60 * 5,
   });
