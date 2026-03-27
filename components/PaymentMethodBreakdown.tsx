@@ -1,10 +1,10 @@
 "use client";
 
-import type { SVGProps } from "react";
 import {
   Cell,
   Pie,
   PieChart,
+  type PieLabelRenderProps,
   ResponsiveContainer,
 } from "recharts";
 import { paymentMethodProps } from "@/libs/type";
@@ -23,25 +23,31 @@ function PaymentMethodBreakdown({
     y,
     textAnchor,
     dominantBaseline,
-  }: {
-    name: string;
-    value: number;
-    x: number;
-    y: number;
-    textAnchor: SVGProps<SVGTextElement>["textAnchor"];
-    dominantBaseline: SVGProps<SVGTextElement>["dominantBaseline"];
-  }) => (
-    <text
-      x={x}
-      y={y}
-      fill="currentColor"
-      textAnchor={textAnchor}
-      dominantBaseline={dominantBaseline}
-      className="text-xs"
-    >
-      {`${name} ${((value / total) * 100).toFixed(0)}%`}
-    </text>
-  );
+  }: PieLabelRenderProps) => {
+    if (
+      typeof name !== "string" ||
+      typeof value !== "number" ||
+      typeof x !== "number" ||
+      typeof y !== "number"
+    ) {
+      return null;
+    }
+
+    const percent = total > 0 ? ((value / total) * 100).toFixed(0) : "0";
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="currentColor"
+        textAnchor={textAnchor}
+        dominantBaseline={dominantBaseline}
+        className="text-xs"
+      >
+        {`${name} ${percent}%`}
+      </text>
+    );
+  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl min-h-[34rem] overflow-hidden flex flex-col dark:border-slate-700 dark:bg-slate-900">
