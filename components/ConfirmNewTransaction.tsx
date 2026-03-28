@@ -24,7 +24,7 @@ export default function ConfirmNewTransaction({
             Confirm Transaction
           </h3>
           <p className="text-sm text-gray-600 dark:text-slate-300">
-            Please review the details before submitting.
+            Please review the details before submitting and printing the receipt.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export default function ConfirmNewTransaction({
             type="button"
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Processing..." : "Confirm & Submit"}
+            {isSubmitting ? "Processing..." : "Confirm & Print Receipt"}
           </button>
         </div>
       </div>

@@ -14,10 +14,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type MethodFilter = "All" | "Cash" | "Transfer" | "POS";
-type DateFilter = "All" | "Today";
+const TRANSACTIONS_PER_PAGE = 15;
 
-function getTodayString() {
-  return new Date().toISOString().slice(0, 10);
+function formatDateOnly(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getRelativeDate(daysFromToday: number) {
+  const today = new Date();
+  today.setDate(today.getDate() + daysFromToday);
+  return formatDateOnly(today);
 }
 
 function toMethodLabel(value: FoReportPaymentType): Exclude<MethodFilter, "All"> {
@@ -49,18 +55,17 @@ function Page() {
   const accessToken = getAccessToken();
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState<MethodFilter>("All");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("All");
-
-  const today = useMemo(() => getTodayString(), []);
+  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
+  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
+  const [page, setPage] = useState(1);
 
   const transactionsQuery = useQuery({
-    queryKey: ["fo-transactions", dateFilter, today],
+    queryKey: ["fo-transactions", startDate, endDate],
     queryFn: () =>
-      getFoReports(
-        dateFilter === "Today"
-          ? { startDate: today, endDate: today }
-          : undefined,
-      ),
+      getFoReports({
+        startDate,
+        endDate,
+      }),
     enabled: Boolean(accessToken),
   });
 
@@ -126,6 +131,17 @@ function Page() {
     [filtered, method, search, summary],
   );
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filtered.length / TRANSACTIONS_PER_PAGE),
+  );
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedRows = useMemo(() => {
+    const startIndex = (currentPage - 1) * TRANSACTIONS_PER_PAGE;
+    return filtered.slice(startIndex, startIndex + TRANSACTIONS_PER_PAGE);
+  }, [currentPage, filtered]);
+
   const handleExport = () => {
     const rows = [
       [
@@ -183,18 +199,61 @@ function Page() {
         <FoTransactionsFilterBar
           search={search}
           method={method}
-          dateFilter={dateFilter}
-          onSearchChange={setSearch}
-          onMethodChange={setMethod}
-          onDateFilterChange={setDateFilter}
+          startDate={startDate}
+          endDate={endDate}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+          onMethodChange={(value) => {
+            setMethod(value);
+            setPage(1);
+          }}
+          onStartDateChange={(value) => {
+            setStartDate(value);
+            setPage(1);
+          }}
+          onEndDateChange={(value) => {
+            setEndDate(value);
+            setPage(1);
+          }}
           onExport={handleExport}
         />
 
         <FoTransactionsTable
-          rows={filtered}
+          rows={paginatedRows}
           isLoading={transactionsQuery.isLoading}
           toMethodLabel={toMethodLabel}
         />
+
+        {!transactionsQuery.isLoading && filtered.length > 0 ? (
+          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-sm text-gray-600 dark:text-slate-300">
+              Page {currentPage} of {totalPages}
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setPage((current) => Math.max(current - 1, 1))}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() =>
+                  setPage((current) => Math.min(current + 1, totalPages))
+                }
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

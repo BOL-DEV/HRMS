@@ -12,7 +12,11 @@ import {
   FiSend,
 } from "react-icons/fi";
 import TagPill from "@/components/TagPill";
-import { formatCurrency, formatDateTime } from "@/libs/helper";
+import {
+  formatCurrency,
+  formatDateTime,
+  openPrintWindowFromHtml,
+} from "@/libs/helper";
 import {
   printApprovedAgentReceipt,
   requestAgentReceiptReprint,
@@ -27,18 +31,11 @@ type Props = {
 };
 
 function printReceiptHtml(receiptHTML: string) {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
+  const didOpenWindow = openPrintWindowFromHtml(receiptHTML);
 
-  if (!printWindow) {
+  if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");
-    return;
   }
-
-  printWindow.document.open();
-  printWindow.document.write(receiptHTML);
-  printWindow.document.close();
-  printWindow.focus();
-  printWindow.print();
 }
 
 function getReprintTone(status: AgentReceiptItem["reprint_status"]) {

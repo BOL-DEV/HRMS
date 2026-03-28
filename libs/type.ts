@@ -109,15 +109,15 @@ export interface AgentRow {
   phone: string;
   transactions: number;
   revenue: number;
-  pending: number;
-  refunds: number;
+  // pending: number;
+  // refunds: number;
   lastActive: string;
   status: AgentStatus;
 }
 
 export type SortOption = "newest" | "oldest" | "revenue";
 
-export interface AgentProfile {
+export interface AgentsTableProps {
   rows: AgentRow[];
   onViewProfile?: (row: AgentRow) => void;
   onRequestSuspension?: (row: AgentRow) => void;
@@ -619,10 +619,12 @@ export type FoReceiptSummary = {
 };
 
 export type FoReceiptItem = {
-  requested_at: string;
-  receipt_id: string;
+  receipt_no: string;
+  request_id: string;
   patient_name: string;
   reason: string;
+  amount: number;
+  agent_email: string;
   status: FoReceiptRequestStatus;
 };
 

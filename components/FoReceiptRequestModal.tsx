@@ -1,7 +1,7 @@
 "use client";
 
 import StatusPill from "@/components/StatusPill";
-import { formatDateTime } from "@/libs/helper";
+import { formatNaira } from "@/libs/helper";
 import type { FoReceiptItem } from "@/libs/type";
 import { toReceiptStatus } from "@/components/FoReceiptsTable";
 
@@ -29,7 +29,7 @@ function FoReceiptRequestModal({
               Receipt Request
             </h3>
             <p className="text-sm text-gray-600 dark:text-slate-400">
-              Receipt ID: {receipt.receipt_id}
+              Receipt No: {receipt.receipt_no}
             </p>
           </div>
           <button
@@ -38,20 +38,12 @@ function FoReceiptRequestModal({
             aria-label="Close"
             type="button"
           >
-            ×
+            x
           </button>
         </div>
 
         <div className="space-y-4 p-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
-              <p className="text-sm text-gray-600 dark:text-slate-400">
-                Requested At
-              </p>
-              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-slate-100">
-                {formatDateTime(receipt.requested_at)}
-              </p>
-            </div>
             <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
               <p className="text-sm text-gray-600 dark:text-slate-400">
                 Patient
@@ -60,9 +52,25 @@ function FoReceiptRequestModal({
                 {receipt.patient_name}
               </p>
             </div>
+            <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
+                Amount
+              </p>
+              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-slate-100">
+                {formatNaira(receipt.amount)}
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
+                Agent Email
+              </p>
+              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-slate-100">
+                {receipt.agent_email}
+              </p>
+            </div>
             <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
               <p className="text-sm text-gray-600 dark:text-slate-400">
                 Status
@@ -71,14 +79,13 @@ function FoReceiptRequestModal({
                 <StatusPill status={toReceiptStatus(receipt.status)} />
               </div>
             </div>
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
-              <p className="text-sm text-gray-600 dark:text-slate-400">
-                Reason
-              </p>
-              <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
-                {receipt.reason}
-              </p>
-            </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
+            <p className="text-sm text-gray-600 dark:text-slate-400">Reason</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">
+              {receipt.reason}
+            </p>
           </div>
         </div>
 

@@ -1,12 +1,11 @@
 import AgentsTable from "@/components/AgentsTable";
-import type { AgentProfile } from "@/components/AgentProfileModal";
 import type { AgentRow } from "@/libs/type";
 import { FiUserPlus } from "react-icons/fi";
 
 type Props = {
   rows: AgentRow[];
   onOpenCreateModal: () => void;
-  onViewProfile: (agent: AgentProfile) => void;
+  onViewProfile: (agent: AgentRow) => void;
   onToggleStatus: (agent: AgentRow) => void;
 };
 
