@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import StatusPill from "@/components/StatusPill";
 import { FiEye, FiMoreVertical, FiSlash } from "react-icons/fi";
-import { AgentProfile } from "@/libs/type";
+import { AgentsTableProps } from "@/libs/type";
 import { formatDateTime, formatNaira } from "@/libs/helper";
 
-function AgentsTable({ rows, onViewProfile, onRequestSuspension }: AgentProfile) {
+function AgentsTable({
+  rows,
+  onViewProfile,
+  onRequestSuspension,
+}: AgentsTableProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   return (

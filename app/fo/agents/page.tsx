@@ -156,7 +156,13 @@ function Page() {
         <FoAgentsListSection
           rows={rows}
           onOpenCreateModal={() => setIsCreateModalOpen(true)}
-          onViewProfile={(agent) => setSelectedAgent(agent)}
+          onViewProfile={(agent) =>
+            setSelectedAgent({
+              ...agent,
+              pending: 0,
+              refunds: 0,
+            })
+          }
           onToggleStatus={(agent) => statusMutation.mutate(agent)}
         />
       </div>

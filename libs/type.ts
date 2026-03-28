@@ -117,7 +117,7 @@ export interface AgentRow {
 
 export type SortOption = "newest" | "oldest" | "revenue";
 
-export interface AgentProfile {
+export interface AgentsTableProps {
   rows: AgentRow[];
   onViewProfile?: (row: AgentRow) => void;
   onRequestSuspension?: (row: AgentRow) => void;
