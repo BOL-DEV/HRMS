@@ -92,7 +92,12 @@ function Page() {
     }
 
     return rows.filter((receipt) =>
-      [receipt.patient_name, receipt.receipt_id, receipt.reason].some((value) =>
+      [
+        receipt.patient_name,
+        receipt.receipt_no,
+        receipt.agent_email,
+        receipt.reason,
+      ].some((value) =>
         value.toLowerCase().includes(text),
       ),
     );
@@ -141,8 +146,8 @@ function Page() {
           <FoReceiptRequestModal
             receipt={viewing}
             isMutating={approveMutation.isPending || rejectMutation.isPending}
-            onApprove={() => approveMutation.mutate(viewing.receipt_id)}
-            onReject={() => rejectMutation.mutate(viewing.receipt_id)}
+            onApprove={() => approveMutation.mutate(viewing.request_id)}
+            onReject={() => rejectMutation.mutate(viewing.request_id)}
             onClose={() => setViewing(null)}
           />
         ) : null}

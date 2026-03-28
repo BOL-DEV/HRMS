@@ -231,7 +231,9 @@ function Page() {
       <CreateNewTransaction
         open={openNewTransaction}
         onClose={() => setOpenNewTransaction(false)}
-        onSuccess={() => transactionsQuery.refetch()}
+        onSuccess={async () => {
+          await transactionsQuery.refetch();
+        }}
       />
     </div>
   );

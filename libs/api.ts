@@ -44,12 +44,9 @@ export async function postJson<TResponse>(
       body: JSON.stringify(body),
     });
   } catch (error) {
-    throw new Error(
-      `Unable to reach the server at ${API_BASE_URL}${endpoint}. Please check your internet connection, API availability, or CORS configuration.`,
-      {
-        cause: error,
-      },
-    );
+    throw new Error("Failed to fetch.", {
+      cause: error,
+    });
   }
 
   const payload = await parseJson<TResponse>(response);
@@ -78,12 +75,9 @@ export async function getJson<TResponse>(
       },
     });
   } catch (error) {
-    throw new Error(
-      `Unable to reach the server at ${API_BASE_URL}${endpoint}. Please check your internet connection, API availability, or CORS configuration.`,
-      {
-        cause: error,
-      },
-    );
+    throw new Error("Failed to fetch.", {
+      cause: error,
+    });
   }
 
   const payload = await parseJson<TResponse>(response);
@@ -115,12 +109,9 @@ export async function patchJson<TResponse>(
       body: JSON.stringify(body),
     });
   } catch (error) {
-    throw new Error(
-      `Unable to reach the server at ${API_BASE_URL}${endpoint}. Please check your internet connection, API availability, or CORS configuration.`,
-      {
-        cause: error,
-      },
-    );
+    throw new Error("Failed to fetch.", {
+      cause: error,
+    });
   }
 
   const payload = await parseJson<TResponse>(response);

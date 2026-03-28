@@ -619,10 +619,12 @@ export type FoReceiptSummary = {
 };
 
 export type FoReceiptItem = {
-  requested_at: string;
-  receipt_id: string;
+  receipt_no: string;
+  request_id: string;
   patient_name: string;
   reason: string;
+  amount: number;
+  agent_email: string;
   status: FoReceiptRequestStatus;
 };
 
