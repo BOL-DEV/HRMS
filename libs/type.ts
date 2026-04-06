@@ -830,15 +830,17 @@ export type AdminHospitalTransactionsResponse = {
       has_previous: boolean;
       transactions_per_page: number;
     };
-    transactions: Array<{
-      date_time: string;
-      receipt_id: string;
-      patient_name: string;
-      revenue_head: string;
-      amount: number;
-      agent: string;
-    }>;
+    transactions: AdminHospitalTransactionItem[];
   };
+};
+
+export type AdminHospitalTransactionItem = {
+  date_time: string;
+  receipt_id: string;
+  patient_name: string;
+  revenue_head: string;
+  amount: number;
+  agent: string;
 };
 
 export type AdminHospitalActivityLog = {
