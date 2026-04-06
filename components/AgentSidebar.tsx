@@ -17,7 +17,7 @@ const sidebarData = {
     {
       name: "Dashboard",
       link: "/agents/dashboard",
-      label: <FaRegChartBar className="inline mr-2" />,
+      label: <FaRegChartBar className="inline" />,
       active: true,
     },
     // {
@@ -29,13 +29,13 @@ const sidebarData = {
     {
       name: "Transactions",
       link: "/agents/transactions",
-      label: <GrDocumentCloud className="inline mr-2" />,
+      label: <GrDocumentCloud className="inline" />,
       active: false,
     },
     {
       name: "Receipts",
       link: "/agents/receipts",
-      label: <BsReceipt className="inline mr-2" />,
+      label: <BsReceipt className="inline" />,
       active: false,
     },
     // {
@@ -47,7 +47,7 @@ const sidebarData = {
     {
       name: "Settings",
       link: "/agents/settings",
-      label: <IoSettingsOutline className="inline mr-2" />,
+      label: <IoSettingsOutline className="inline" />,
       active: false,
     },
   ],

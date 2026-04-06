@@ -16,7 +16,7 @@ export default function FoLayout({ children }: Props) {
     <div>
       <main className="flex">
         <FoSidebar />
-        {children}
+        <div className="flex-1 min-w-0">{children}</div>
       </main>
     </div>
   );

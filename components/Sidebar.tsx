@@ -1,4 +1,8 @@
-import React from 'react'
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import { FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
 import ThemeToggle from "./ThemeToggle";
 
 interface Props {
@@ -12,45 +16,169 @@ interface Props {
   isOpen?: boolean;
 }
 
-function Sidebar({ title, links, isOpen }: Props) {
+const SIDEBAR_PREF_KEY = "swiftrev.sidebar.desktop-pinned";
+const SIDEBAR_PREF_EVENT = "swiftrev-sidebar-pref-change";
+
+function getDesktopSidebarPinnedSnapshot() {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  try {
+    return window.localStorage.getItem(SIDEBAR_PREF_KEY) !== "collapsed";
+  } catch {
+    return true;
+  }
+}
+
+function subscribeToDesktopSidebarPreference(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === SIDEBAR_PREF_KEY) {
+      onStoreChange();
+    }
+  };
+
+  const handlePreferenceChange = () => {
+    onStoreChange();
+  };
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(SIDEBAR_PREF_EVENT, handlePreferenceChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(SIDEBAR_PREF_EVENT, handlePreferenceChange);
+  };
+}
+
+function Sidebar({ title, links, isOpen = false }: Props) {
+  const [isDesktopHovered, setIsDesktopHovered] = useState(false);
+  const isDesktopPinned = useSyncExternalStore(
+    subscribeToDesktopSidebarPreference,
+    getDesktopSidebarPinnedSnapshot,
+    () => true,
+  );
+
+  const isDesktopExpanded = useMemo(
+    () => isDesktopPinned || isDesktopHovered,
+    [isDesktopHovered, isDesktopPinned],
+  );
+
+  const handleDesktopToggle = () => {
+    const nextPinned = !isDesktopPinned;
+
+    try {
+      window.localStorage.setItem(
+        SIDEBAR_PREF_KEY,
+        nextPinned ? "pinned" : "collapsed",
+      );
+      window.dispatchEvent(new Event(SIDEBAR_PREF_EVENT));
+    } catch {
+      // ignore
+    }
+  };
+
   const mobileState = isOpen ? "translate-x-0" : "-translate-x-full";
+  const desktopRailWidthClass = isDesktopPinned ? "md:w-64" : "md:w-20";
+  const desktopPanelTransformClass =
+    isDesktopPinned || isDesktopHovered ? "md:translate-x-0" : "md:-translate-x-44";
 
   return (
-    <aside
-      className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-gray-200 bg-white shadow-sm transition-transform duration-200 dark:border-slate-800 dark:bg-slate-950 ${mobileState}  md:translate-x-0 md:shadow-none md:block md:sticky md:top-0 md:h-screen md:overflow-y-auto`}
+    <div
+      onMouseEnter={() => setIsDesktopHovered(true)}
+      onMouseLeave={() => setIsDesktopHovered(false)}
+      className={`fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 ease-out ${mobileState} ${desktopRailWidthClass} md:sticky md:top-0 md:h-screen md:translate-x-0 md:overflow-visible`}
     >
+      <aside
+        className={`h-full w-64 border-r border-gray-200 bg-white shadow-sm transition-transform duration-150 ease-out will-change-transform dark:border-slate-800 dark:bg-slate-950 ${desktopPanelTransformClass} md:overflow-x-hidden md:overflow-y-auto ${isDesktopPinned || isDesktopHovered ? "md:shadow-sm" : "md:shadow-none"}`}
+      >
       <div className="flex h-full flex-col">
-        <h1 className="border-b border-gray-200 p-8 text-xl font-bold text-gray-900 dark:border-slate-800 dark:text-slate-100">
-          {title}
-        </h1>
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 p-5 dark:border-slate-800">
+          <div className="relative min-w-0 flex-1 overflow-hidden">
+            <h1
+              className={`whitespace-nowrap text-xl font-bold text-gray-900 transition-all duration-150 ease-out dark:text-slate-100 ${
+                isDesktopExpanded
+                  ? "opacity-100 translate-x-0"
+                  : "md:-translate-x-2 md:opacity-0"
+              }`}
+            >
+              {title}
+            </h1>
+            <div
+              className={`pointer-events-none absolute text-xl font-bold text-gray-900 transition-all duration-150 ease-out dark:text-slate-100 ${
+                isDesktopExpanded
+                  ? "md:-translate-x-2 md:opacity-0"
+                  : "hidden md:block md:translate-x-0 md:opacity-100"
+              }`}
+            >
+              {title.charAt(0)}
+            </div>
+          </div>
 
-        <ul className="flex flex-col gap-2 p-2 pt-8">
+          <button
+            type="button"
+            onClick={handleDesktopToggle}
+            className="hidden rounded-lg border border-gray-200 bg-gray-50 p-2 text-gray-700 transition hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 md:inline-flex"
+            aria-label={
+              isDesktopPinned ? "Collapse sidebar" : "Pin sidebar open"
+            }
+            title={isDesktopPinned ? "Collapse sidebar" : "Pin sidebar open"}
+          >
+            {isDesktopPinned ? <FiChevronsLeft /> : <FiChevronsRight />}
+          </button>
+        </div>
+
+        <ul className="flex flex-col gap-2 p-2 pt-6">
           {links.map((link) => (
-            <a href={link.link} key={link.name}>
-              <li
-                className={`rounded-xl p-4 font-medium transition ${
+            <li key={link.name}>
+              <Link
+                href={link.link}
+                className={`flex items-center rounded-xl p-4 font-medium transition ${
                   link.active
                     ? "bg-blue-800 text-white hover:bg-blue-700"
                     : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
+                } ${isDesktopExpanded ? "justify-start gap-3" : "justify-center md:px-0"}`}
+                title={!isDesktopExpanded ? link.name : undefined}
               >
-                <span className="text-xl">{link.label}</span> {link.name}
-              </li>
-            </a>
+                <span className="text-xl shrink-0">{link.label}</span>
+                <span
+                  className={`overflow-hidden whitespace-nowrap transition-all duration-150 ease-out ${
+                    isDesktopExpanded
+                      ? "max-w-40 opacity-100 translate-x-0"
+                      : "max-w-0 md:-translate-x-2 md:opacity-0"
+                  }`}
+                >
+                  {link.name}
+                </span>
+              </Link>
+            </li>
           ))}
         </ul>
 
         <div className="mt-auto border-t border-gray-200 p-4 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+          <div
+            className={`flex items-center ${isDesktopExpanded ? "justify-between" : "justify-center"}`}
+          >
+            <span
+              className={`overflow-hidden whitespace-nowrap text-sm font-medium text-gray-700 transition-all duration-150 ease-out dark:text-slate-300 ${
+                isDesktopExpanded
+                  ? "max-w-20 opacity-100 translate-x-0"
+                  : "max-w-0 md:-translate-x-2 md:opacity-0"
+              }`}
+            >
               Theme
             </span>
             <ThemeToggle />
           </div>
         </div>
       </div>
-    </aside>
+      </aside>
+    </div>
   );
 }
 
-export default Sidebar
+export default Sidebar;

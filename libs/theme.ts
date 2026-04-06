@@ -1,6 +1,7 @@
 export type ThemeMode = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "swiftrev.theme";
+export const THEME_CHANGE_EVENT = "swiftrev-theme-change";
 
 export function normalizeTheme(value: string | null | undefined): ThemeMode | null {
   if (value === "dark" || value === "light") {
@@ -40,6 +41,48 @@ export function getInitialTheme(): ThemeMode {
   return getStoredTheme() ?? getSystemTheme();
 }
 
+export function getThemeSnapshot(): ThemeMode {
+  if (typeof document !== "undefined") {
+    const themeFromDom = normalizeTheme(
+      document.documentElement.dataset.theme ?? null,
+    );
+
+    if (themeFromDom) {
+      return themeFromDom;
+    }
+  }
+
+  return getInitialTheme();
+}
+
+export function getServerThemeSnapshot(): ThemeMode {
+  return "light";
+}
+
+export function subscribeToTheme(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === THEME_STORAGE_KEY) {
+      onStoreChange();
+    }
+  };
+
+  const handleThemeChange = () => {
+    onStoreChange();
+  };
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(THEME_CHANGE_EVENT, handleThemeChange);
+  };
+}
+
 export function applyTheme(theme: ThemeMode, options?: { persist?: boolean }): void {
   if (typeof document !== "undefined") {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -52,5 +95,9 @@ export function applyTheme(theme: ThemeMode, options?: { persist?: boolean }): v
     } catch {
       // ignore
     }
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }
 }
