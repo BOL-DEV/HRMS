@@ -1,5 +1,5 @@
 import { formatDateTime } from "@/libs/helper";
-import type { AdminHospitalActivityLogItem } from "@/libs/type";
+import type { AdminHospitalActivityLog } from "@/libs/type";
 import { FiClock } from "react-icons/fi";
 
 function formatAction(action: string) {
@@ -22,7 +22,7 @@ function formatMetadata(metadata: Record<string, unknown>) {
 }
 
 type Props = {
-  rows: AdminHospitalActivityLogItem[];
+  rows: AdminHospitalActivityLog[];
   isLoading?: boolean;
 };
 

@@ -841,6 +841,24 @@ export type AdminHospitalTransactionsResponse = {
   };
 };
 
+export type AdminHospitalActivityLog = {
+  log_id: string;
+  action: string;
+  actor: {
+    user_id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  target: {
+    type: string;
+    id: string;
+    label: string;
+  };
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
 export type AdminHospitalActivityLogsResponse = {
   status: number;
   message: string;
@@ -860,23 +878,7 @@ export type AdminHospitalActivityLogsResponse = {
       has_previous: boolean;
       logs_per_page: number;
     };
-    logs: Array<{
-      log_id: string;
-      action: string;
-      actor: {
-        user_id: string;
-        name: string;
-        email: string;
-        role: string;
-      };
-      target: {
-        type: string;
-        id: string;
-        label: string;
-      };
-      metadata: Record<string, unknown>;
-      created_at: string;
-    }>;
+    logs: AdminHospitalActivityLog[];
   };
 };
 
