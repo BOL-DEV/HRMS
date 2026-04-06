@@ -126,4 +126,69 @@ export async function patchJson<TResponse>(
   return (payload ?? {}) as TResponse;
 }
 
+export async function putJson<TResponse>(
+  endpoint: string,
+  body: Record<string, unknown>,
+  options?: ApiRequestOptions,
+): Promise<TResponse> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    throw new Error("Failed to fetch.", {
+      cause: error,
+    });
+  }
+
+  const payload = await parseJson<TResponse>(response);
+
+  if (!response.ok) {
+    throw new ApiError(
+      getErrorMessage(payload as ApiErrorPayload | null),
+      response.status,
+    );
+  }
+
+  return (payload ?? {}) as TResponse;
+}
+
+export async function deleteJson<TResponse>(
+  endpoint: string,
+  options?: ApiRequestOptions,
+): Promise<TResponse> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "DELETE",
+      headers: {
+        ...options?.headers,
+      },
+    });
+  } catch (error) {
+    throw new Error("Failed to fetch.", {
+      cause: error,
+    });
+  }
+
+  const payload = await parseJson<TResponse>(response);
+
+  if (!response.ok) {
+    throw new ApiError(
+      getErrorMessage(payload as ApiErrorPayload | null),
+      response.status,
+    );
+  }
+
+  return (payload ?? {}) as TResponse;
+}
+
 export { API_BASE_URL };

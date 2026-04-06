@@ -12,6 +12,7 @@ import {
   FiEye,
   FiEyeOff,
 } from "react-icons/fi";
+import { getAdminDashboard } from "@/libs/admin-auth";
 import { clearAuthTokens, storeAgentTokens } from "@/libs/auth";
 import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
@@ -43,6 +44,19 @@ export default function AuthForm() {
       }
 
       storeAgentTokens({ accessToken, refreshToken });
+
+      try {
+        await getAdminDashboard();
+        toast.success(response.message || "Login successful.");
+        router.push("/admin/dashboard");
+        return;
+      } catch (error) {
+        if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
+          clearAuthTokens();
+          toast.error(getErrorMessage(error));
+          return;
+        }
+      }
 
       try {
         await getFoProfile();
@@ -77,7 +91,7 @@ export default function AuthForm() {
     () => [
       "React Query handles the login mutation state",
       "JWT tokens are stored after successful login",
-      "Users are redirected based on the role the backend accepts",
+      "Admins, finance officers, and agents are redirected by accepted role checks",
     ],
     [],
   );
