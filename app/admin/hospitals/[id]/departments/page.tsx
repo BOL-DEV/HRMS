@@ -1,146 +1,227 @@
 "use client";
 
+import AdminHospitalDepartmentFormModal from "@/components/AdminHospitalDepartmentFormModal";
+import AdminHospitalDepartmentsSection from "@/components/AdminHospitalDepartmentsSection";
+import AdminHospitalDepartmentsSummaryCard from "@/components/AdminHospitalDepartmentsSummaryCard";
+import AdminPageError from "@/components/AdminPageError";
+import { ApiError } from "@/libs/api";
+import {
+  createAdminHospitalDepartment,
+  deleteAdminHospitalDepartment,
+  getAdminHospitalDepartments,
+  updateAdminHospitalDepartment,
+} from "@/libs/admin-auth";
+import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import type { AdminHospitalDepartmentItem } from "@/libs/type";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
-import { getHospitalById } from "@/libs/hospital";
+import { toast } from "react-hot-toast";
+
+type DepartmentRow = {
+  id: string | null;
+  name: string;
+};
+
+function normalizeDepartment(item: AdminHospitalDepartmentItem): DepartmentRow {
+  if (typeof item === "string") {
+    return {
+      id: null,
+      name: item,
+    };
+  }
+
+  return {
+    id: item.id ?? item.department_id ?? null,
+    name: item.name,
+  };
+}
 
 export default function HospitalDepartmentsPage() {
   const params = useParams<{ id: string }>();
-  const id = params?.id ?? "";
-  const hospital = id ? getHospitalById(id) : undefined;
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const accessToken = getAccessToken();
+  const hospitalId = params?.id ?? "";
+  const [search, setSearch] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] =
+    useState<DepartmentRow | null>(null);
 
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const departmentsQuery = useQuery({
+    queryKey: ["admin-hospital-departments", hospitalId, search],
+    queryFn: () => getAdminHospitalDepartments(hospitalId, { search }),
+    enabled: Boolean(accessToken && hospitalId),
+  });
 
   useEffect(() => {
-    setDepartments(hospital?.departmentsList ?? []);
-    setShowAdd(false);
-    setName("");
-    setMessage(null);
-  }, [hospital?.id]);
+    if (!accessToken) {
+      router.replace("/login");
+    }
+  }, [accessToken, router]);
 
-  const rows = useMemo(() => {
-    return [...departments].sort((a, b) => a.localeCompare(b));
-  }, [departments]);
-
-  const handleAddDepartment = () => {
-    const nextName = name.trim();
-    if (!nextName) {
-      setMessage("Enter a department name.");
+  useEffect(() => {
+    if (!(departmentsQuery.error instanceof ApiError)) {
       return;
     }
 
-    const exists = departments.some((d) => d.toLowerCase() === nextName.toLowerCase());
-    if (exists) {
-      setMessage("This department already exists.");
+    if (departmentsQuery.error.status === 401) {
+      clearAuthTokens();
+      router.replace("/login");
       return;
     }
 
-    setDepartments((prev) => [...prev, nextName]);
-    setName("");
-    setShowAdd(false);
-    setMessage("Department created (local preview only).");
-  };
+    if (departmentsQuery.error.status === 404) {
+      router.replace("/admin/hospitals");
+    }
+  }, [departmentsQuery.error, router]);
 
-  if (!hospital) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h2 className="text-xl font-bold">Hospital not found</h2>
-        <p className="text-sm text-gray-600">Check the hospital id in the URL.</p>
-      </div>
-    );
-  }
+  const createMutation = useMutation({
+    mutationFn: (name: string) =>
+      createAdminHospitalDepartment(hospitalId, { name }),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-departments", hospitalId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-overview", hospitalId],
+      });
+      setIsCreateOpen(false);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to create department.",
+      );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      departmentId,
+      name,
+    }: {
+      departmentId: string;
+      name: string;
+    }) => updateAdminHospitalDepartment(hospitalId, departmentId, { name }),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-departments", hospitalId],
+      });
+      setEditingDepartment(null);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update department.",
+      );
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (departmentId: string) =>
+      deleteAdminHospitalDepartment(hospitalId, departmentId),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-departments", hospitalId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-overview", hospitalId],
+      });
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to delete department.",
+      );
+    },
+  });
+
+  const departments = useMemo(
+    () =>
+      (departmentsQuery.data?.data.departments ?? [])
+        .map(normalizeDepartment)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [departmentsQuery.data?.data.departments],
+  );
+  const hasDepartmentIds = departments.some((department) => Boolean(department.id));
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-gray-200 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Departments</h2>
-            <p className="text-sm text-gray-600">Create and manage departments for this hospital</p>
-          </div>
+      {departmentsQuery.error instanceof Error ? (
+        <AdminPageError message={departmentsQuery.error.message} />
+      ) : null}
 
-          <button
-            onClick={() => {
-              setShowAdd((v) => !v);
-              setMessage(null);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
-            type="button"
-          >
-            Add New Department
-          </button>
-        </div>
+      <AdminHospitalDepartmentsSummaryCard
+        totalDepartments={departmentsQuery.data?.data.total_departments ?? 0}
+      />
 
-        {showAdd ? (
-          <div className="p-5 border-b border-gray-200 bg-gray-50">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-gray-800">Department Name</label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-2 w-full bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm"
-                  placeholder="e.g. Cardiology"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => {
-                    setShowAdd(false);
-                    setName("");
-                  }}
-                  className="bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-2 rounded-lg border border-gray-200"
-                  type="button"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddDepartment}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium"
-                  type="button"
-                >
-                  Create
-                </button>
-              </div>
+      <AdminHospitalDepartmentsSection
+        rows={departments}
+        search={search}
+        isLoading={departmentsQuery.isLoading && !departmentsQuery.data}
+        isDeleting={deleteMutation.isPending}
+        onSearchChange={setSearch}
+        onOpenCreateModal={() => setIsCreateOpen(true)}
+        onRename={setEditingDepartment}
+        onDelete={(departmentId) => deleteMutation.mutate(departmentId)}
+        footer={
+          !hasDepartmentIds && departments.length ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+              The backend is still returning some department entries without IDs, so
+              rename and delete actions are only shown for rows that include a real
+              department ID.
             </div>
-          </div>
-        ) : null}
+          ) : null
+        }
+      />
 
-        {message ? (
-          <div className="px-5 pt-5">
-            <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-              {message}
-            </div>
-          </div>
-        ) : null}
+      {isCreateOpen ? (
+        <AdminHospitalDepartmentFormModal
+          mode="create"
+          isSubmitting={createMutation.isPending}
+          onClose={() => setIsCreateOpen(false)}
+          onSubmit={(name) => {
+            if (!name) {
+              toast.error("Enter a department name.");
+              return;
+            }
 
-        <div className="p-5 overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-600 bg-gray-100">
-                <th className="p-3 font-semibold">Department</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length ? (
-                rows.map((d) => (
-                  <tr key={d} className="border-b border-gray-100 last:border-0">
-                    <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">{d}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="p-8 text-center text-gray-500">No departments yet</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            createMutation.mutate(name);
+          }}
+        />
+      ) : null}
+
+      {editingDepartment ? (
+        <AdminHospitalDepartmentFormModal
+          mode="edit"
+          initialName={editingDepartment.name}
+          isSubmitting={updateMutation.isPending}
+          onClose={() => setEditingDepartment(null)}
+          onSubmit={(name) => {
+            if (!editingDepartment.id) {
+              toast.error("Department ID is missing.");
+              return;
+            }
+
+            if (!name) {
+              toast.error("Enter a department name.");
+              return;
+            }
+
+            if (name === editingDepartment.name) {
+              toast("No changes to save.");
+              setEditingDepartment(null);
+              return;
+            }
+
+            updateMutation.mutate({
+              departmentId: editingDepartment.id,
+              name,
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

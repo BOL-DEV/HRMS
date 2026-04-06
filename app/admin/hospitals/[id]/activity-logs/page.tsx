@@ -1,63 +1,144 @@
 "use client";
 
-import { useMemo } from "react";
-import { useParams } from "next/navigation";
-import { FiClock } from "react-icons/fi";
-import { getHospitalById } from "@/libs/hospital";
+import AdminDateRangeFilterBar from "@/components/AdminDateRangeFilterBar";
+import AdminHospitalActivityTimeline from "@/components/AdminHospitalActivityTimeline";
+import AdminPageError from "@/components/AdminPageError";
+import AdminPaginationFooter from "@/components/AdminPaginationFooter";
+import { ApiError } from "@/libs/api";
+import { getAdminHospitalActivityLogs } from "@/libs/admin-auth";
+import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import { useQuery } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+const PAGE_LIMIT = 20;
 
 export default function HospitalActivityLogsPage() {
   const params = useParams<{ id: string }>();
-  const id = params?.id ?? "";
-  const hospital = id ? getHospitalById(id) : undefined;
+  const router = useRouter();
+  const accessToken = getAccessToken();
+  const hospitalId = params?.id ?? "";
 
-  const rows = useMemo(() => hospital?.activityLogsList ?? [], [hospital]);
+  const [startDateInput, setStartDateInput] = useState("");
+  const [endDateInput, setEndDateInput] = useState("");
+  const [appliedStartDate, setAppliedStartDate] = useState("");
+  const [appliedEndDate, setAppliedEndDate] = useState("");
+  const [page, setPage] = useState(1);
 
-  if (!hospital) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h2 className="text-xl font-bold">Hospital not found</h2>
-        <p className="text-sm text-gray-600">Check the hospital id in the URL.</p>
-      </div>
-    );
-  }
+  const logsQuery = useQuery({
+    queryKey: [
+      "admin-hospital-activity-logs",
+      hospitalId,
+      appliedStartDate,
+      appliedEndDate,
+      page,
+    ],
+    queryFn: () =>
+      getAdminHospitalActivityLogs(hospitalId, {
+        startDate: appliedStartDate || undefined,
+        endDate: appliedEndDate || undefined,
+        page,
+        limit: PAGE_LIMIT,
+      }),
+    enabled: Boolean(accessToken && hospitalId),
+  });
+
+  useEffect(() => {
+    if (!accessToken) {
+      router.replace("/login");
+    }
+  }, [accessToken, router]);
+
+  useEffect(() => {
+    if (!(logsQuery.error instanceof ApiError)) {
+      return;
+    }
+
+    if (logsQuery.error.status === 401) {
+      clearAuthTokens();
+      router.replace("/login");
+      return;
+    }
+
+    if (logsQuery.error.status === 404) {
+      router.replace("/admin/hospitals");
+    }
+  }, [logsQuery.error, router]);
+
+  const logsData = logsQuery.data?.data;
+  const pagination = logsData?.pagination;
+  const rows = logsData?.logs ?? [];
+
+  const dateRangeIsInvalid =
+    Boolean(startDateInput || endDateInput) &&
+    (!startDateInput || !endDateInput);
+
+  const applyFilters = () => {
+    if (dateRangeIsInvalid) {
+      return;
+    }
+
+    setAppliedStartDate(startDateInput);
+    setAppliedEndDate(endDateInput);
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setStartDateInput("");
+    setEndDateInput("");
+    setAppliedStartDate("");
+    setAppliedEndDate("");
+    setPage(1);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="p-5 border-b border-gray-200">
-          <h2 className="text-xl font-bold">Activity Timeline</h2>
-          <p className="text-sm text-gray-600">Audit log of all hospital actions and changes</p>
+      {logsQuery.error instanceof Error ? (
+        <AdminPageError message={logsQuery.error.message} />
+      ) : null}
+
+      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
+          Total Logs
+        </p>
+        <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-slate-100">
+          {pagination?.total_logs ?? 0}
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+            Activity Timeline
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-slate-400">
+            Audit log of hospital actions and changes
+          </p>
         </div>
 
-        <div className="p-5">
-          <div className="divide-y divide-blue-100">
-            {rows.length ? (
-              rows.map((r) => (
-                <div key={r.id} className="py-5 flex gap-4">
-                  <div className="pt-1">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
-                      <FiClock />
-                    </span>
-                  </div>
+        <AdminDateRangeFilterBar
+          startDate={startDateInput}
+          endDate={endDateInput}
+          onStartDateChange={setStartDateInput}
+          onEndDateChange={setEndDateInput}
+          onApply={applyFilters}
+          onClear={clearFilters}
+          isInvalid={dateRangeIsInvalid}
+        />
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900">{r.title}</p>
-                        <p className="text-sm text-gray-600 mt-1">By: {r.by}</p>
-                        <p className="text-sm text-gray-600 mt-2">{r.message}</p>
-                      </div>
+        <AdminHospitalActivityTimeline
+          rows={rows}
+          isLoading={logsQuery.isLoading && !logsQuery.data}
+        />
 
-                      <div className="shrink-0 text-sm text-gray-500">{r.timestamp}</div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="py-10 text-center text-gray-500">No activity logs</div>
-            )}
-          </div>
-        </div>
+        <AdminPaginationFooter
+          currentPage={pagination?.current_page ?? 1}
+          totalPages={pagination?.total_pages ?? 1}
+          hasPrevious={Boolean(pagination?.has_previous)}
+          hasNext={Boolean(pagination?.has_next)}
+          onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
+          onNext={() => setPage((current) => current + 1)}
+        />
       </div>
     </div>
   );

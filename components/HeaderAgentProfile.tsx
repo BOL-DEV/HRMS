@@ -37,6 +37,8 @@ export default function HeaderAgentProfile() {
 
   const section = pathname.startsWith("/fo")
     ? "fo"
+    : pathname.startsWith("/admin")
+      ? "admin"
     : pathname.startsWith("/agents")
       ? "agent"
       : "default";
@@ -60,7 +62,13 @@ export default function HeaderAgentProfile() {
   }, [profileQuery.data]);
 
   const fallbackLabel =
-    section === "fo" ? "Financial Office" : section === "agent" ? "Agent" : "User";
+    section === "fo"
+      ? "Financial Office"
+      : section === "admin"
+        ? "Admin"
+        : section === "agent"
+          ? "Agent"
+          : "User";
 
   const handleLogout = async () => {
     clearAuthTokens();

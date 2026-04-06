@@ -455,6 +455,555 @@ export type FoProfileResponse = {
   };
 };
 
+export type AdminDashboardResponse = {
+  status: number;
+  message: string;
+  data: {
+    summary: {
+      active_hospitals: number;
+      total_agents_across_hospitals: number;
+      total_hospitals: number;
+      total_platform_revenue: number;
+      total_transactions_made_by_agents: number;
+    };
+    revenueTrend: Array<{
+      month_key: string;
+      month_label: string;
+      revenue: number;
+      transaction_count: number;
+    }>;
+    transactionCountByPaymentMethod: Array<{
+      payment_type: string;
+      revenue: number;
+      transaction_count: number;
+    }>;
+    hospitalsByRevenueGenerated: Array<{
+      hospital_id: string;
+      hospital_name: string;
+      revenue: number;
+      transaction_count: number;
+    }>;
+    highestPerformingHospitals: Array<{
+      hospital_id: string;
+      hospital_name: string;
+      revenue: number;
+      transaction_count: number;
+      agent_count: number;
+      status: string;
+    }>;
+  };
+};
+
+export type AdminSystemLogsResponse = {
+  status: number;
+  message: string;
+  data: {
+    filters: {
+      start_date: string | null;
+      end_date: string | null;
+      page: number;
+      limit: number;
+    };
+    pagination: {
+      current_page: number;
+      total_pages: number;
+      total_logs: number;
+      has_next: boolean;
+      has_previous: boolean;
+      logs_per_page: number;
+    };
+    logs: Array<{
+      log_id: string;
+      event: string;
+      status: string;
+      user: {
+        user_id: string;
+        name: string;
+        email: string;
+        role: string;
+      };
+      metadata: Record<string, unknown>;
+      created_at: string;
+    }>;
+  };
+};
+
+export type AdminHospitalStatus = "active" | "suspended";
+
+export type AdminHospitalSummary = {
+  total_hospitals: number;
+  suspended_hospitals: number;
+  total_platform_revenue: number;
+};
+
+export type AdminHospitalsFilters = {
+  search: string | null;
+  hospital_name: string | null;
+  hospital_code: string | null;
+  hospital_status: AdminHospitalStatus | null;
+  sort: "newest" | "oldest" | null;
+};
+
+export type AdminHospitalListItem = {
+  hospital_id: string;
+  hospital_name: string;
+  hospital_code: string;
+  hospital_email: string;
+  phone: string;
+  agents: number;
+  fos: number;
+  transaction_count: number;
+  total_revenue: number;
+  status: AdminHospitalStatus;
+};
+
+export type AdminHospitalsResponse = {
+  status: number;
+  message: string;
+  data: {
+    summary: AdminHospitalSummary;
+    filters: AdminHospitalsFilters;
+    hospitals: AdminHospitalListItem[];
+  };
+};
+
+export type AdminHospitalOverviewResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital: {
+      hospital_id: string;
+      hospital_name: string;
+      hospital_code: string;
+      hospital_email: string;
+      hospital_phone: string;
+      address: string;
+      status: AdminHospitalStatus;
+    };
+    overview: {
+      total_revenue: number;
+      total_transactions: number;
+      total_agents: number;
+      total_departments: number;
+      pending_receipt_reprint: number;
+    };
+    revenue_trend: Array<{
+      date: string;
+      revenue: number;
+    }>;
+  };
+};
+
+export type AdminHospitalAgentStatus = "active" | "suspended";
+
+export type AdminHospitalAgentNameOption = {
+  agent_id: string;
+  agent_name: string;
+};
+
+export type AdminHospitalAgentListItem = {
+  agent_id: string;
+  agent_name: string;
+  email: string;
+  balance: number;
+  total_revenue_made: number;
+  status: AdminHospitalAgentStatus;
+};
+
+export type AdminHospitalAgentsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      search: string | null;
+    };
+    total_agents: number;
+    agent_name_list: AdminHospitalAgentNameOption[];
+    agents: AdminHospitalAgentListItem[];
+  };
+};
+
+export type CreateAdminHospitalAgentPayload = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  password: string;
+};
+
+export type CreateAdminHospitalAgentResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: "AGENT";
+    hospital_id: string;
+    is_active: boolean;
+  };
+};
+
+export type UpdateAdminHospitalAgentPayload = Partial<
+  CreateAdminHospitalAgentPayload & {
+    status: AdminHospitalAgentStatus;
+  }
+>;
+
+export type UpdateAdminHospitalAgentResponse = {
+  status: number;
+  message: string;
+  data: {
+    agent_id: string;
+    first_name: string;
+    last_name: string;
+    agent_name: string;
+    email: string;
+    phone: string;
+    hospital_id: string;
+    status: AdminHospitalAgentStatus;
+    updated_at: string;
+  };
+};
+
+export type AdminHospitalFoStatus = "active" | "suspended";
+
+export type AdminHospitalFoNameOption = {
+  fo_id: string;
+  fo_name: string;
+};
+
+export type AdminHospitalFoListItem = {
+  fo_id: string;
+  fo_name: string;
+  email: string;
+  phone: string;
+  status: AdminHospitalFoStatus;
+};
+
+export type AdminHospitalFosResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      search: string | null;
+    };
+    total_fos: number;
+    fo_name_list: AdminHospitalFoNameOption[];
+    fos: AdminHospitalFoListItem[];
+  };
+};
+
+export type CreateAdminHospitalFoPayload = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  password: string;
+};
+
+export type CreateAdminHospitalFoResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: "FO";
+    hospital_id: string;
+    is_active: boolean;
+  };
+};
+
+export type UpdateAdminHospitalFoPayload = Partial<
+  CreateAdminHospitalFoPayload & {
+    status: AdminHospitalFoStatus;
+  }
+>;
+
+export type UpdateAdminHospitalFoResponse = {
+  status: number;
+  message: string;
+  data: {
+    fo_id: string;
+    first_name: string;
+    last_name: string;
+    fo_name: string;
+    email: string;
+    phone: string;
+    hospital_id: string;
+    status: AdminHospitalFoStatus;
+    updated_at: string;
+  };
+};
+
+export type AdminHospitalDepartmentItem =
+  | string
+  | {
+      id?: string;
+      department_id?: string;
+      hospital_id?: string;
+      name: string;
+      is_active?: boolean;
+      is_deleted?: boolean;
+      created_at?: string;
+      updated_at?: string;
+    };
+
+export type AdminHospitalDepartmentsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      search: string | null;
+    };
+    total_departments: number;
+    departments: AdminHospitalDepartmentItem[];
+  };
+};
+
+export type CreateAdminHospitalDepartmentPayload = {
+  name: string;
+};
+
+export type CreateAdminHospitalDepartmentResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    hospital_id: string;
+    name: string;
+    is_active: boolean;
+    is_deleted: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+};
+
+export type UpdateAdminHospitalDepartmentPayload = {
+  name: string;
+};
+
+export type UpdateAdminHospitalDepartmentResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    hospital_id: string;
+    name: string;
+    is_active: boolean;
+    is_deleted: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+};
+
+export type DeleteAdminHospitalDepartmentResponse =
+  UpdateAdminHospitalDepartmentResponse;
+
+export type AdminHospitalTransactionsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      start_date: string | null;
+      end_date: string | null;
+      search: string | null;
+      page: number;
+      limit: number;
+    };
+    summary: {
+      total_revenue: number;
+      transaction_count: number;
+    };
+    pagination: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
+    };
+    transactions: AdminHospitalTransactionItem[];
+  };
+};
+
+export type AdminHospitalTransactionItem = {
+  date_time: string;
+  receipt_id: string;
+  patient_name: string;
+  revenue_head: string;
+  amount: number;
+  agent: string;
+};
+
+export type AdminHospitalActivityLog = {
+  log_id: string;
+  action: string;
+  actor: {
+    user_id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  target: {
+    type: string;
+    id: string;
+    label: string;
+  };
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type AdminHospitalActivityLogsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      start_date: string | null;
+      end_date: string | null;
+      page: number;
+      limit: number;
+    };
+    pagination: {
+      current_page: number;
+      total_pages: number;
+      total_logs: number;
+      has_next: boolean;
+      has_previous: boolean;
+      logs_per_page: number;
+    };
+    logs: AdminHospitalActivityLog[];
+  };
+};
+
+export type AdminReceiptFilter = "all" | "pending" | "approved" | "rejected";
+
+export type AdminReceiptRequestStatus = "pending" | "approved" | "rejected";
+
+export type AdminReceiptActionUser = {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
+export type AdminHospitalReceiptItem = {
+  request_id: string;
+  transaction_id: string;
+  receipt_no: string;
+  patient_name: string;
+  reason: string;
+  amount: number;
+  requested_at: string;
+  action_at: string | null;
+  agent_name: string;
+  agent_email: string;
+  status: AdminReceiptRequestStatus;
+  action_by: AdminReceiptActionUser | null;
+  approved_by: AdminReceiptActionUser | null;
+  rejected_by: AdminReceiptActionUser | null;
+};
+
+export type AdminHospitalReceiptsResponse = {
+  status: number;
+  message: string;
+  data: {
+    summary: {
+      total_receipt_count: number;
+      pending_request: number;
+      approved: number;
+      rejected: number;
+    };
+    filter: AdminReceiptFilter;
+    receipts: AdminHospitalReceiptItem[];
+  };
+};
+
+export type AdminReceiptDecisionPayload = {
+  request_id: string;
+};
+
+export type AdminReceiptDecisionResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    transaction_id: string;
+    agent_id: string;
+    status: AdminReceiptRequestStatus;
+    approved_at: string;
+  };
+};
+
+export type AdminAgentTopupPayload = {
+  agent_id: string;
+  hospital_id: string;
+  amount: number;
+};
+
+export type AdminAgentTopupResponse = {
+  status: number;
+  message: string;
+  data: {
+    updated_balance: number;
+  };
+};
+
+export type CreateAdminHospitalPayload = {
+  name: string;
+  logo_url: string;
+  address: string;
+  contact_email: string;
+  contact_phone: string;
+};
+
+export type CreateAdminHospitalResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    hospital_code: string;
+    name: string;
+    logo_url: string | null;
+    address: string;
+    contact_email: string;
+    contact_phone: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+};
+
+export type UpdateAdminHospitalPayload = Partial<
+  CreateAdminHospitalPayload & {
+    status: AdminHospitalStatus;
+  }
+>;
+
+export type UpdateAdminHospitalResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    hospital_code: string;
+    name: string;
+    logo_url: string | null;
+    address: string;
+    contact_email: string;
+    contact_phone: string;
+    is_active: boolean;
+    updated_at: string;
+  };
+};
+
 export type FoAgentStatus = "active" | "suspended";
 
 export type FoAgentsSummary = {
