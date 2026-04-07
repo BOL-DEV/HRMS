@@ -83,18 +83,19 @@ function Sidebar({ title, links, isOpen = false }: Props) {
   };
 
   const mobileState = isOpen ? "translate-x-0" : "-translate-x-full";
-  const desktopRailWidthClass = isDesktopPinned ? "md:w-64" : "md:w-20";
-  const desktopPanelTransformClass =
-    isDesktopPinned || isDesktopHovered ? "md:translate-x-0" : "md:-translate-x-44";
+  const desktopRailWidthClass =
+    isDesktopExpanded ? "md:w-64" : "md:w-20";
 
   return (
     <div
       onMouseEnter={() => setIsDesktopHovered(true)}
       onMouseLeave={() => setIsDesktopHovered(false)}
-      className={`fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 ease-out ${mobileState} ${desktopRailWidthClass} md:sticky md:top-0 md:h-screen md:translate-x-0 md:overflow-visible`}
+      className={`fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 ease-out ${mobileState} ${desktopRailWidthClass} md:sticky md:top-0 md:h-screen md:translate-x-0`}
     >
       <aside
-        className={`h-full w-64 border-r border-gray-200 bg-white shadow-sm transition-transform duration-150 ease-out will-change-transform dark:border-slate-800 dark:bg-slate-950 ${desktopPanelTransformClass} md:overflow-x-hidden md:overflow-y-auto ${isDesktopPinned || isDesktopHovered ? "md:shadow-sm" : "md:shadow-none"}`}
+        className={`h-full w-64 border-r border-gray-200 bg-white shadow-sm transition-[width] duration-150 ease-out dark:border-slate-800 dark:bg-slate-950 md:w-full md:overflow-x-hidden md:overflow-y-auto ${
+          isDesktopPinned || isDesktopHovered ? "md:shadow-sm" : "md:shadow-none"
+        }`}
       >
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 p-5 dark:border-slate-800">
@@ -132,19 +133,32 @@ function Sidebar({ title, links, isOpen = false }: Props) {
           </button>
         </div>
 
-        <ul className="flex flex-col gap-2 p-2 pt-6">
+        <ul
+          className={`flex flex-col gap-2 pt-6 ${
+            isDesktopExpanded ? "p-2" : "px-4 py-6 md:px-0"
+          }`}
+        >
           {links.map((link) => (
-            <li key={link.name}>
+            <li
+              key={link.name}
+              className={!isDesktopExpanded ? "md:flex md:justify-center" : undefined}
+            >
               <Link
                 href={link.link}
-                className={`flex items-center rounded-xl p-4 font-medium transition ${
+                className={`flex items-center rounded-xl font-medium transition ${
                   link.active
                     ? "bg-blue-800 text-white hover:bg-blue-700"
                     : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                } ${isDesktopExpanded ? "justify-start gap-3" : "justify-center md:px-0"}`}
+                } ${
+                  isDesktopExpanded
+                    ? "justify-start gap-3 p-4"
+                    : "justify-center p-4 md:mx-auto md:h-12 md:w-12 md:p-0"
+                }`}
                 title={!isDesktopExpanded ? link.name : undefined}
               >
-                <span className="text-xl shrink-0">{link.label}</span>
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center text-xl leading-none">
+                  {link.label}
+                </span>
                 <span
                   className={`overflow-hidden whitespace-nowrap transition-all duration-150 ease-out ${
                     isDesktopExpanded
