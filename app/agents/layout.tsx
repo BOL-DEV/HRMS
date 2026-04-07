@@ -16,7 +16,7 @@ export default function AgentLayout({ children }: Props) {
     <div>
       <main className="flex">
         <AgentSidebar />
-        {children}
+        <div className="flex-1 min-w-0">{children}</div>
       </main>
     </div>
   );

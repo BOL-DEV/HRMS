@@ -1,52 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { FiMoon, FiSun } from "react-icons/fi";
 import {
   applyTheme,
-  getInitialTheme,
-  normalizeTheme,
-  THEME_STORAGE_KEY,
-  type ThemeMode,
+  getServerThemeSnapshot,
+  getThemeSnapshot,
+  subscribeToTheme,
 } from "@/libs/theme";
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  );
 
-  const nextTheme = useMemo<ThemeMode>(
+  const nextTheme = useMemo(
     () => (theme === "dark" ? "light" : "dark"),
     [theme],
   );
 
-  useEffect(() => {
-    const themeFromDom = normalizeTheme(
-      document.documentElement.dataset.theme ?? null,
-    );
-    const resolved = themeFromDom ?? getInitialTheme();
-
-    setTheme(resolved);
-    applyTheme(resolved, { persist: false });
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key !== THEME_STORAGE_KEY) {
-        return;
-      }
-
-      const incoming = normalizeTheme(event.newValue);
-      if (!incoming) {
-        return;
-      }
-
-      setTheme(incoming);
-      applyTheme(incoming, { persist: false });
-    };
-
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
   const handleToggle = () => {
-    setTheme(nextTheme);
     applyTheme(nextTheme);
   };
 

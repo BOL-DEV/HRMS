@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { FiMoon, FiSun } from "react-icons/fi";
-import { applyTheme, getInitialTheme, type ThemeMode } from "@/libs/theme";
+import {
+  applyTheme,
+  getServerThemeSnapshot,
+  getThemeSnapshot,
+  subscribeToTheme,
+  type ThemeMode,
+} from "@/libs/theme";
 
 function AppPre() {
-  const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
-
-  useEffect(() => {
-    applyTheme(theme, { persist: false });
-  }, [theme]);
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot,
+  );
 
   const handleThemeToggle = (nextTheme: ThemeMode) => {
-    setTheme(nextTheme);
     applyTheme(nextTheme);
   };
 
