@@ -81,10 +81,9 @@ export interface AgentPerformanceRow {
 }
 
 export interface RecentTransactionDisplayRow {
-  id: string;
   patientName: string;
-  phoneNumber: string;
-  billDescription: string;
+  patientId: string;
+  billName: string;
   departmentName: string;
   amount: number;
   status: string;
@@ -124,13 +123,20 @@ export interface AgentsTableProps {
 }
 
 export type AgentPaymentType = "cash" | "transfer" | "pos";
+export type AgentRevenueType = "manual" | "automatic";
 
 export interface NewTransactionForm {
+  patientId: string;
   patientName: string;
   phoneNumber: string;
+  patientExists: boolean;
   departmentId: string;
   departmentName: string;
-  billDescription: string;
+  incomeHeadId: string;
+  incomeHeadName: string;
+  billItemId: string;
+  billItemName: string;
+  billName: string;
   amount: string;
   paymentType: AgentPaymentType;
 }
@@ -161,6 +167,12 @@ export type AgentLoginResponse = {
   data?: AgentTokens;
 };
 
+export type AuthRefreshResponse = {
+  status: number;
+  message: string;
+  data?: AgentTokens;
+};
+
 export type AgentDashboardPeriod = "today" | "yesterday" | "current_week";
 
 export type AgentDashboardStats = {
@@ -169,20 +181,18 @@ export type AgentDashboardStats = {
   last_wallet_topup: number;
   revenue_made: number;
   transaction_count: number;
+  payment_method_totals: Record<AgentPaymentType, number>;
   time_period: AgentDashboardPeriod;
 };
 
 export type AgentRecentTransaction = {
-  id: string;
   patient_name: string;
-  phone_number: string;
-  bill_description: string;
-  department_name: string;
-  amount: string | number;
+  patient_id: string;
+  bill_name: string;
+  department: string;
+  amount: number;
   status: string;
-  balance_before: string | number;
-  balance_after: string | number;
-  created_at: string;
+  date_time: string;
 };
 
 export type AgentDashboardResponse = {
@@ -208,6 +218,72 @@ export type AgentDepartmentsResponse = {
   status: number;
   message: string;
   data: AgentDepartment[];
+};
+
+export type AgentPaymentConfigResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    hospital_code: string;
+    hospital_name: string;
+    revenue_type: AgentRevenueType;
+    status: string;
+  };
+};
+
+export type AgentPatientLookupResponse = {
+  status: number;
+  message: string;
+  data: {
+    exists: boolean;
+    patient: null | {
+      id: string;
+      hospital_id: string;
+      patient_id: string;
+      patient_name: string;
+      phone_number: string;
+      created_at: string;
+      updated_at: string;
+    };
+  };
+};
+
+export type AgentIncomeHead = {
+  id: string;
+  hospital_id: string;
+  department_id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentIncomeHeadsResponse = {
+  status: number;
+  message: string;
+  data: AgentIncomeHead[];
+};
+
+export type AgentBillItem = {
+  bill_item_id: string;
+  hospital_id: string;
+  department_id: string;
+  income_head_id: string;
+  income_head_name: string;
+  name: string;
+  amount: number;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentBillItemsResponse = {
+  status: number;
+  message: string;
+  data: AgentBillItem[];
 };
 
 export type AgentTransactionsTimePeriod =
@@ -236,8 +312,8 @@ export type AgentTransactionHistoryItem = {
   receipt_no: string;
   patient_name: string;
   phone_number: string;
-  revenue_head: string;
-  bill_description: string;
+  department: string;
+  bill_name: string;
   amount: string | number;
   payment_type: string;
   status: string;
@@ -255,18 +331,21 @@ export type AgentTransactionsResponse = {
     summary: AgentTransactionsSummary;
     pagination: AgentTransactionsPagination;
     payment_type_filter: string;
-    revenue_head_filter: string;
+    department_filter: string;
     transactions: AgentTransactionHistoryItem[];
   };
 };
 
 export type ProcessPaymentPayload = {
+  patient_id: string;
   department_id: string;
-  patient_name: string;
-  phone_number: string;
-  bill_description: string;
-  amount: number;
-  payment_type: AgentPaymentType;
+  patient_name?: string;
+  phone_number?: string;
+  payment_type?: AgentPaymentType;
+  bill_item_id?: string;
+  income_head_id?: string;
+  bill_name?: string;
+  amount?: number;
 };
 
 export type ProcessPaymentResponse = {
@@ -275,10 +354,16 @@ export type ProcessPaymentResponse = {
   data: {
     transaction: {
       id: string;
+      agent_id: string;
+      hospital_id: string;
+      department_id: string;
+      income_head_id: string | null;
+      bill_item_id: string | null;
       receipt_no: string;
+      patient_id: string;
       patient_name: string;
       phone_number: string;
-      bill_description: string;
+      bill_name: string;
       amount: string | number;
       balance_before: string | number;
       balance_after: string | number;
@@ -299,7 +384,8 @@ export type ProcessPaymentResponse = {
 export type AgentReceiptSearchType =
   | "receipt_no"
   | "patient_name"
-  | "patient_phone";
+  | "patient_phone"
+  | "patient_id";
 
 export type AgentReceiptReprintStatus =
   | "no_request"
@@ -313,9 +399,11 @@ export type AgentReceiptItem = {
   id: string;
   receipt_no: string;
   patient_name: string;
+  patient_id: string;
   phone_number: string;
-  revenue_head: string;
-  bill_description: string;
+  department: string;
+  income_head: string;
+  bill_name: string;
   amount: number | string;
   payment_type: string;
   status: string;

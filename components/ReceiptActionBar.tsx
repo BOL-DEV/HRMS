@@ -38,6 +38,7 @@ function ReceiptActionBar({
           <option value="receipt_no">Receipt No</option>
           <option value="patient_name">Patient Name</option>
           <option value="patient_phone">Patient Phone</option>
+          <option value="patient_id">Patient ID</option>
         </select>
 
         <div className="flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 dark:bg-slate-900 dark:border-slate-800">

@@ -40,7 +40,7 @@ function Page() {
 
   return (
     <div className="min-h-screen w-full overflow-y-auto bg-gray-100 dark:bg-slate-950">
-      <Header title="Settings" Subtitle="Manage your account and preferences" />
+      <Header title="Profile" Subtitle="View your agent account and wallet details" />
 
       <div className="p-6 space-y-6">
         {profileQuery.error instanceof Error ? (

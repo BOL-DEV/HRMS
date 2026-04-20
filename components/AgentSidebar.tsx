@@ -45,7 +45,7 @@ const sidebarData = {
     //   active: false,
     // },
     {
-      name: "Settings",
+      name: "Profile",
       link: "/agents/settings",
       label: <IoSettingsOutline className="inline" />,
       active: false,
