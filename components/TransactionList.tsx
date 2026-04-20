@@ -6,8 +6,8 @@ type TransactionRow = {
   receiptNo: string;
   patientName: string;
   phoneNumber: string;
-  revenueHead: string;
-  billDescription: string;
+  department: string;
+  billName: string;
   amount: number;
   paymentType: string;
   status: string;
@@ -44,8 +44,8 @@ function TransactionList({
             <th className="p-3 font-semibold">Patient</th>
             <th className="p-3 font-semibold">Phone</th>
             <th className="p-3 font-semibold">Receipt No</th>
-            <th className="p-3 font-semibold">Revenue Head</th>
-            <th className="p-3 font-semibold">Description</th>
+            <th className="p-3 font-semibold">Department</th>
+            <th className="p-3 font-semibold">Bill Name</th>
             <th className="p-3 font-semibold">Amount</th>
             <th className="p-3 font-semibold">Payment</th>
             <th className="p-3 font-semibold">Status</th>
@@ -82,10 +82,10 @@ function TransactionList({
                   {t.receiptNo}
                 </td>
                 <td className="p-3 text-gray-700 dark:text-slate-200">
-                  {t.revenueHead}
+                  {t.department}
                 </td>
                 <td className="p-3 text-gray-700 dark:text-slate-200">
-                  {t.billDescription}
+                  {t.billName}
                 </td>
                 <td className="p-3 text-gray-900 dark:text-slate-100 font-semibold">
                   {formatCurrency(t.amount)}

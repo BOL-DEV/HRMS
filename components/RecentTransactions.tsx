@@ -30,7 +30,7 @@ function RecentTransactions({
           <thead>
             <tr className="text-left text-gray-600 bg-gray-100 dark:bg-slate-800 dark:text-slate-300">
               <th className="p-3 font-semibold">Patient</th>
-              <th className="p-3 font-semibold">Phone</th>
+              <th className="p-3 font-semibold">Patient ID</th>
               <th className="p-3 font-semibold">Bill</th>
               <th className="p-3 font-semibold">Department</th>
               <th className="p-3 font-semibold">Amount</th>
@@ -60,17 +60,17 @@ function RecentTransactions({
             ) : (
               rows.map((tx) => (
                 <tr
-                  key={tx.id}
+                  key={`${tx.patientId}-${tx.createdAt}-${tx.billName}`}
                   className="border-b border-gray-100 dark:border-slate-800"
                 >
                   <td className="p-3 font-medium text-gray-900 dark:text-slate-100">
                     {tx.patientName}
                   </td>
                   <td className="p-3 text-gray-700 dark:text-slate-300">
-                    {tx.phoneNumber}
+                    {tx.patientId}
                   </td>
                   <td className="p-3 text-gray-700 dark:text-slate-300">
-                    {tx.billDescription}
+                    {tx.billName}
                   </td>
                   <td className="p-3 text-gray-700 dark:text-slate-300">
                     {tx.departmentName}

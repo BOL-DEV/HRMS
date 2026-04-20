@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { paymentMethodProps } from "@/libs/type";
+import { formatCurrency } from "@/libs/helper";
 
 function PaymentMethodBreakdown({
   title = "Payment Method Breakdown",
@@ -59,8 +60,7 @@ function PaymentMethodBreakdown({
       <div className="flex flex-1 flex-col p-5 text-gray-900 dark:text-slate-100">
         {data.length === 0 ? (
           <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-gray-300 px-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
-            Payment method breakdown is not available from the current FO
-            dashboard endpoint.
+            Payment method totals are not available for the current response.
           </div>
         ) : (
           <>
@@ -96,7 +96,7 @@ function PaymentMethodBreakdown({
                   />
                   <span className="font-medium">{item.name}</span>
                   <span className="text-gray-500 dark:text-slate-400">
-                    {item.value}%
+                    {formatCurrency(item.value)}
                   </span>
                 </div>
               ))}

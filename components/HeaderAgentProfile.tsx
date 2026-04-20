@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { FaUser } from "react-icons/fa";
 import { FiChevronDown, FiLogOut } from "react-icons/fi";
-import { getAgentProfile } from "@/libs/agent-auth";
+import { getAgentProfile, logoutAgent } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
@@ -71,6 +71,10 @@ export default function HeaderAgentProfile() {
           : "User";
 
   const handleLogout = async () => {
+    try {
+      await logoutAgent();
+    } catch {}
+
     clearAuthTokens();
     setOpenMenu(false);
     await queryClient.cancelQueries({ queryKey: ["agent-profile"] });

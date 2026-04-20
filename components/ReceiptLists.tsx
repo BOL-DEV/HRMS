@@ -164,8 +164,11 @@ function ReceiptLists({
             <tr className="text-left text-gray-600 bg-gray-100 dark:text-slate-300 dark:bg-slate-950">
               <th className="p-3 font-semibold">Receipt No</th>
               <th className="p-3 font-semibold">Patient</th>
+              <th className="p-3 font-semibold">Patient ID</th>
               <th className="p-3 font-semibold">Phone</th>
-              <th className="p-3 font-semibold">Revenue Head</th>
+              <th className="p-3 font-semibold">Department</th>
+              <th className="p-3 font-semibold">Income Head</th>
+              <th className="p-3 font-semibold">Bill Name</th>
               <th className="p-3 font-semibold">Amount</th>
               <th className="p-3 font-semibold">Payment</th>
               <th className="p-3 font-semibold">Reprint Status</th>
@@ -177,13 +180,13 @@ function ReceiptLists({
           <tbody>
             {isLoading ? (
               <tr>
-                <td className="p-4 text-gray-500 dark:text-slate-400" colSpan={9}>
+                <td className="p-4 text-gray-500 dark:text-slate-400" colSpan={12}>
                   Loading receipts...
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td className="p-4 text-gray-500 dark:text-slate-400" colSpan={9}>
+                <td className="p-4 text-gray-500 dark:text-slate-400" colSpan={12}>
                   {emptyMessage}
                 </td>
               </tr>
@@ -196,8 +199,11 @@ function ReceiptLists({
                   <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {receipt.patient_name}
                   </td>
+                  <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.patient_id}</td>
                   <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.phone_number}</td>
-                  <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.revenue_head}</td>
+                  <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.department}</td>
+                  <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.income_head}</td>
+                  <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.bill_name}</td>
                   <td className="p-3 font-semibold text-blue-700 dark:text-sky-300">
                     {formatCurrency(Number(receipt.amount))}
                   </td>
@@ -358,15 +364,21 @@ function ReceiptLists({
                   </p>
                 </div>
                 <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                  <p className="text-sm text-gray-600 dark:text-slate-300">Patient ID</p>
+                  <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
+                    {viewing.patient_id}
+                  </p>
+                </div>
+                <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
                   <p className="text-sm text-gray-600 dark:text-slate-300">Phone</p>
                   <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                     {viewing.phone_number}
                   </p>
                 </div>
                 <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
-                  <p className="text-sm text-gray-600 dark:text-slate-300">Revenue Head</p>
+                  <p className="text-sm text-gray-600 dark:text-slate-300">Department</p>
                   <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
-                    {viewing.revenue_head}
+                    {viewing.department}
                   </p>
                 </div>
                 <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
@@ -378,9 +390,16 @@ function ReceiptLists({
               </div>
 
               <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
-                <p className="text-sm text-gray-600 dark:text-slate-300">Bill Description</p>
+                <p className="text-sm text-gray-600 dark:text-slate-300">Income Head</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
-                  {viewing.bill_description}
+                  {viewing.income_head}
+                </p>
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                <p className="text-sm text-gray-600 dark:text-slate-300">Bill Name</p>
+                <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
+                  {viewing.bill_name}
                 </p>
               </div>
 

@@ -88,7 +88,7 @@ function TransactionActionBar({
             onClick={onNewTransaction}
             type="button"
           >
-            <FiPlus className="text-lg" /> New Transaction
+            <FiPlus className="text-lg" /> Process Payment
           </button>
         </div>
 

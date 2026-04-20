@@ -42,6 +42,14 @@ export function getAgentAccessToken() {
   return getCookie(ACCESS_TOKEN_KEY);
 }
 
+export function getAgentRefreshToken() {
+  if (!canUseDocument()) {
+    return null;
+  }
+
+  return getCookie(REFRESH_TOKEN_KEY);
+}
+
 export function clearAgentTokens() {
   if (!canUseDocument()) {
     return;

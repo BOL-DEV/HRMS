@@ -22,7 +22,7 @@ function Page() {
   const [timePeriod, setTimePeriod] =
     useState<AgentTransactionsTimePeriod>("today");
   const [paymentType, setPaymentType] = useState("all");
-  const [revenueHead, setRevenueHead] = useState("all");
+  const [department, setDepartment] = useState("all");
   const [page, setPage] = useState(1);
   const accessToken = getAgentAccessToken();
 
@@ -37,14 +37,14 @@ function Page() {
       "agent-transactions",
       timePeriod,
       paymentType,
-      revenueHead,
+      department,
       page,
     ],
     queryFn: () =>
       getAgentTransactions({
         timePeriod,
         paymentType,
-        revenueHead,
+        department,
         page,
       }),
     enabled: Boolean(accessToken),
@@ -107,8 +107,8 @@ function Page() {
         receiptNo: transaction.receipt_no,
         patientName: transaction.patient_name,
         phoneNumber: transaction.phone_number,
-        revenueHead: transaction.revenue_head,
-        billDescription: transaction.bill_description,
+        department: transaction.department,
+        billName: transaction.bill_name,
         amount: Number(transaction.amount),
         paymentType: transaction.payment_type,
         status: transaction.status,
@@ -140,17 +140,17 @@ function Page() {
     <div className="min-h-screen w-full bg-gray-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto">
       <Header
         title="Transactions"
-        Subtitle="Create and manage patient payments"
+        Subtitle="Review processed payments, filters, and receipt history"
       />
 
       <div className="p-6 space-y-6">
         <TransactionActionBar
           departments={departments}
-          selectedDepartment={revenueHead}
+          selectedDepartment={department}
           selectedPaymentType={paymentType}
           selectedTimePeriod={timePeriod}
           onDepartmentChange={(value) =>
-            handleFilterChange(setRevenueHead, value)
+            handleFilterChange(setDepartment, value)
           }
           onPaymentTypeChange={(value) =>
             handleFilterChange(setPaymentType, value)

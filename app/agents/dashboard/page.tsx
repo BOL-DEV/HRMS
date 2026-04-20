@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import RecentTransactions from "@/components/RecentTransactions";
 import RevenueBarChart from "@/components/RevenueBarChart";
+import PaymentMethodBreakdown from "@/components/PaymentMethodBreakdown";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -96,14 +97,13 @@ function Page() {
   const recentTransactions = useMemo(
     () =>
       (dashboardQuery.data?.data.recent_transactions ?? []).map((item) => ({
-        id: item.id,
         patientName: item.patient_name,
-        phoneNumber: item.phone_number,
-        billDescription: item.bill_description,
-        departmentName: item.department_name,
+        patientId: item.patient_id,
+        billName: item.bill_name,
+        departmentName: item.department,
         amount: Number(item.amount),
         status: item.status,
-        createdAt: formatDateTime(item.created_at),
+        createdAt: formatDateTime(item.date_time),
       })),
     [dashboardQuery.data],
   );
@@ -112,7 +112,7 @@ function Page() {
     const grouped = new Map<string, number>();
 
     for (const item of dashboardQuery.data?.data.recent_transactions ?? []) {
-      const label = formatChartLabel(item.created_at);
+      const label = formatChartLabel(item.date_time);
       grouped.set(label, (grouped.get(label) ?? 0) + Number(item.amount));
     }
 
@@ -120,6 +120,20 @@ function Page() {
       name,
       value,
     }));
+  }, [dashboardQuery.data]);
+
+  const paymentMethodBreakdown = useMemo(() => {
+    const totals = dashboardQuery.data?.data.stats.payment_method_totals;
+
+    if (!totals) {
+      return [];
+    }
+
+    return [
+      { name: "Cash", value: totals.cash, color: "#0f766e" },
+      { name: "POS", value: totals.pos, color: "#f59e0b" },
+      { name: "Transfer", value: totals.transfer, color: "#2563eb" },
+    ];
   }, [dashboardQuery.data]);
 
   const statusMessage =
@@ -191,11 +205,19 @@ function Page() {
           isLoading={dashboardQuery.isLoading}
         />
 
-        <RevenueBarChart
-          title="Revenue Trend"
-          subtitle="Revenue grouped from the most recent transactions returned by the API"
-          data={revenueTrend}
-        />
+        <div className="grid gap-6 xl:grid-cols-2">
+          <RevenueBarChart
+            title="Revenue Trend"
+            subtitle="Revenue grouped from the latest dashboard transactions"
+            data={revenueTrend}
+          />
+
+          <PaymentMethodBreakdown
+            title="Payment Method Totals"
+            subtitle="Value collected by payment type for the selected period"
+            data={paymentMethodBreakdown}
+          />
+        </div>
       </div>
     </div>
   );
