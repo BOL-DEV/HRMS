@@ -6,7 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { FaUser } from "react-icons/fa";
 import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { getAgentProfile, logoutAgent } from "@/libs/agent-auth";
-import { getFoProfile } from "@/libs/fo-auth";
+import { logoutAdmin } from "@/libs/admin-auth";
+import { getFoProfile, logoutFo } from "@/libs/fo-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
 
@@ -47,7 +48,7 @@ export default function HeaderAgentProfile() {
     queryKey: [section, "header-profile"],
     queryFn: async (): Promise<HeaderProfileResponse> =>
       section === "fo" ? getFoProfile() : getAgentProfile(),
-    enabled: Boolean(accessToken && section !== "default"),
+    enabled: Boolean(accessToken && (section === "fo" || section === "agent")),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -72,7 +73,13 @@ export default function HeaderAgentProfile() {
 
   const handleLogout = async () => {
     try {
-      await logoutAgent();
+      if (section === "admin") {
+        await logoutAdmin();
+      } else if (section === "fo") {
+        await logoutFo();
+      } else {
+        await logoutAgent();
+      }
     } catch {}
 
     clearAuthTokens();

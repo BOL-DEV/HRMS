@@ -982,3 +982,11 @@ export async function createFoAgent(payload: CreateFoAgentPayload) {
     }),
   );
 }
+
+export async function logoutFo() {
+  return withFoSessionRetry((accessToken) =>
+    getJson<{ status: number; message: string; data: null }>("/api/auth/logout", {
+      headers: getFoAuthHeaders(accessToken),
+    }),
+  );
+}

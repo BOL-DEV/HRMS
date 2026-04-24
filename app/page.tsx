@@ -77,11 +77,11 @@ export default function Page() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_24%,rgba(255,255,255,0.95),transparent_15%),radial-gradient(circle_at_76%_70%,rgba(255,255,255,0.72),transparent_14%),radial-gradient(circle_at_26%_16%,rgba(122,180,215,0.34),transparent_22%)]" />
 
           <div className="absolute inset-0 opacity-55">
-            <div className="absolute -left-16 top-18 h-28 w-[72%] rotate-[11deg] rounded-full bg-white/70 shadow-[0_0_0_10px_rgba(255,255,255,0.12)]" />
-            <div className="absolute left-22 top-27 h-5 w-[61%] rotate-[11deg] rounded-full bg-slate-500/65" />
-            <div className="absolute left-[35%] top-[14%] h-52 w-52 rounded-full border-[18px] border-[#7bb8d8]/90 bg-white/70 shadow-[0_30px_80px_rgba(117,166,197,0.18)]" />
+            <div className="absolute -left-16 top-18 h-28 w-[72%] rotate-11 rounded-full bg-white/70 shadow-[0_0_0_10px_rgba(255,255,255,0.12)]" />
+            <div className="absolute left-22 top-27 h-5 w-[61%] rotate-11 rounded-full bg-slate-500/65" />
+            <div className="absolute left-[35%] top-[14%] h-52 w-52 rounded-full border-18 border-[#7bb8d8]/90 bg-white/70 shadow-[0_30px_80px_rgba(117,166,197,0.18)]" />
             <div className="absolute left-[44%] top-[23%] h-32 w-32 rounded-full bg-white/95 shadow-inner" />
-            <div className="absolute left-[26%] top-[43%] h-56 w-7 rotate-[28deg] rounded-full bg-slate-500/70" />
+            <div className="absolute left-[26%] top-[43%] h-56 w-7 rotate-28deg rounded-full bg-slate-500/70" />
             <div className="absolute left-[20%] top-[55%] h-26 w-26 rounded-full bg-[#83bddc]/90 shadow-[0_20px_50px_rgba(103,152,186,0.25)]" />
           </div>
 

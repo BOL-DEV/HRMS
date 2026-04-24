@@ -1,6 +1,7 @@
 "use client";
 
 import FoReportsCharts from "@/components/FoReportsCharts";
+import FoPatientReportTable from "@/components/FoPatientReportTable";
 import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
 import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
 import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
@@ -12,6 +13,7 @@ import type {
   FoDepartmentReportGroupedItem,
   FoDepartmentReportResponse,
   FoPatientReportResponse,
+  FoPatientReportTransaction,
   FoReportPaymentType,
   FoTransactionItem,
 } from "@/libs/type";
@@ -105,6 +107,14 @@ function extractTransactions(
   }
 
   return [];
+}
+
+function extractPatientRows(data?: Props["data"]): FoPatientReportTransaction[] {
+  if (!data) {
+    return [];
+  }
+
+  return (data as FoPatientReportResponse["data"]).report ?? [];
 }
 
 function buildGroupedRows(
@@ -272,6 +282,7 @@ function FoScopedReportWorkspace({
   data,
 }: Props) {
   const rows = extractTransactions(mode, data);
+  const patientRows = mode === "patient" ? extractPatientRows(data) : [];
   const stats = buildWorkspaceStats(mode, data, rows);
   const revenueTrend = buildRevenueTrend(rows);
   const paymentBreakdown = buildPaymentBreakdown(rows);
@@ -407,7 +418,11 @@ function FoScopedReportWorkspace({
 
         <FoReportsRevenueBreakdownTable rows={revenueBreakdownTable} />
 
-        {rows.length > 0 ? (
+        {mode === "patient" && patientRows.length > 0 ? (
+          <FoPatientReportTable rows={patientRows} />
+        ) : null}
+
+        {mode !== "patient" && rows.length > 0 ? (
           <FoReportsTransactionsTable rows={rows} toMethodLabel={toMethodLabel} />
         ) : null}
       </div>

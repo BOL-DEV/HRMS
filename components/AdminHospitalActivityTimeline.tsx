@@ -57,10 +57,10 @@ function AdminHospitalActivityTimeline({ rows, isLoading = false }: Props) {
                           {formatAction(log.action)}
                         </p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-                          By {log.actor.name} ({log.actor.role})
+                          Actor Role: {log.actor_role ?? "Unknown"}
                         </p>
                         <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
-                          Target: {log.target.type} - {log.target.label}
+                          Target: {log.target_type ?? "unknown"} - {log.target_label ?? "Unknown"}
                         </p>
                         <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
                           {formatMetadata(log.metadata)}
