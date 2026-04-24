@@ -5,7 +5,7 @@ import AdminDateRangeFilterBar from "@/components/AdminDateRangeFilterBar";
 import AdminPageError from "@/components/AdminPageError";
 import AdminPaginationFooter from "@/components/AdminPaginationFooter";
 import { ApiError } from "@/libs/api";
-import { getAdminSystemLogs } from "@/libs/admin-auth";
+import { getAdminReportsOptions, getAdminSystemLogs } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { formatDateTime } from "@/libs/helper";
 import { useQuery } from "@tanstack/react-query";
@@ -44,16 +44,36 @@ export default function Page() {
   const accessToken = getAccessToken();
   const [startDateInput, setStartDateInput] = useState("");
   const [endDateInput, setEndDateInput] = useState("");
+  const [hospitalIdInput, setHospitalIdInput] = useState("all");
+  const [roleInput, setRoleInput] = useState<"all" | "PLATFORM_ADMIN" | "FO" | "AGENT">("all");
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
+  const [appliedHospitalId, setAppliedHospitalId] = useState("all");
+  const [appliedRole, setAppliedRole] =
+    useState<"all" | "PLATFORM_ADMIN" | "FO" | "AGENT">("all");
   const [page, setPage] = useState(1);
 
+  const optionsQuery = useQuery({
+    queryKey: ["admin-system-log-options"],
+    queryFn: getAdminReportsOptions,
+    enabled: Boolean(accessToken),
+  });
+
   const logsQuery = useQuery({
-    queryKey: ["admin-system-logs", appliedStartDate, appliedEndDate, page],
+    queryKey: [
+      "admin-system-logs",
+      appliedStartDate,
+      appliedEndDate,
+      appliedHospitalId,
+      appliedRole,
+      page,
+    ],
     queryFn: () =>
       getAdminSystemLogs({
         startDate: appliedStartDate || undefined,
         endDate: appliedEndDate || undefined,
+        hospitalId: appliedHospitalId === "all" ? undefined : appliedHospitalId,
+        role: appliedRole,
         page,
         limit: PAGE_LIMIT,
       }),
@@ -67,15 +87,22 @@ export default function Page() {
   }, [accessToken, router]);
 
   useEffect(() => {
-    if (!(logsQuery.error instanceof ApiError)) {
+    const error =
+      logsQuery.error instanceof ApiError
+        ? logsQuery.error
+        : optionsQuery.error instanceof ApiError
+          ? optionsQuery.error
+          : null;
+
+    if (!error) {
       return;
     }
 
-    if (logsQuery.error.status === 401) {
+    if (error.status === 401) {
       clearAuthTokens();
       router.replace("/login");
     }
-  }, [logsQuery.error, router]);
+  }, [logsQuery.error, optionsQuery.error, router]);
 
   const logsData = logsQuery.data?.data;
   const pagination = logsData?.pagination;
@@ -92,16 +119,24 @@ export default function Page() {
 
     setAppliedStartDate(startDateInput);
     setAppliedEndDate(endDateInput);
+    setAppliedHospitalId(hospitalIdInput);
+    setAppliedRole(roleInput);
     setPage(1);
   };
 
   const clearFilters = () => {
     setStartDateInput("");
     setEndDateInput("");
+    setHospitalIdInput("all");
+    setRoleInput("all");
     setAppliedStartDate("");
     setAppliedEndDate("");
+    setAppliedHospitalId("all");
+    setAppliedRole("all");
     setPage(1);
   };
+
+  const hospitals = optionsQuery.data?.data.hospitals ?? [];
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
@@ -144,14 +179,48 @@ export default function Page() {
             isInvalid={dateRangeIsInvalid}
           />
 
+          <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-slate-700 md:flex-row md:items-center">
+            <select
+              value={hospitalIdInput}
+              onChange={(event) => setHospitalIdInput(event.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            >
+              <option value="all">All Hospitals</option>
+              {hospitals.map((hospital) => (
+                <option key={hospital.hospital_id} value={hospital.hospital_id}>
+                  {hospital.hospital_name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={roleInput}
+              onChange={(event) =>
+                setRoleInput(
+                  event.target.value as "all" | "PLATFORM_ADMIN" | "FO" | "AGENT",
+                )
+              }
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            >
+              <option value="all">All Roles</option>
+              <option value="PLATFORM_ADMIN">Platform Admin</option>
+              <option value="FO">FO</option>
+              <option value="AGENT">Agent</option>
+            </select>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
-                  <th className="p-3 font-semibold">Date/Time</th>
+                  <th className="p-3 font-semibold">Hospital</th>
+                  <th className="p-3 font-semibold">Username</th>
+                  <th className="p-3 font-semibold">Email</th>
+                  <th className="p-3 font-semibold">Role</th>
                   <th className="p-3 font-semibold">Event</th>
                   <th className="p-3 font-semibold">Status</th>
-                  <th className="p-3 font-semibold">User</th>
+                  <th className="p-3 font-semibold">Date/Time</th>
+                  <th className="p-3 font-semibold">Failure</th>
                   <th className="p-3 font-semibold">Metadata</th>
                 </tr>
               </thead>
@@ -162,7 +231,7 @@ export default function Page() {
                         key={index}
                         className="border-b border-gray-100 dark:border-slate-800"
                       >
-                        <td colSpan={5} className="p-3">
+                        <td colSpan={8} className="p-3">
                           <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
                         </td>
                       </tr>
@@ -171,7 +240,7 @@ export default function Page() {
                     ? (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={8}
                             className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
                           >
                             No system logs found for the current filters.
@@ -183,8 +252,17 @@ export default function Page() {
                           key={log.log_id}
                           className="border-b border-gray-100 dark:border-slate-800"
                         >
-                          <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
-                            {formatDateTime(log.created_at)}
+                          <td className="p-3 text-gray-700 dark:text-slate-300">
+                            {log.hospital?.hospital_name ?? "Platform"}
+                          </td>
+                          <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
+                            {log.username ?? log.user.name}
+                          </td>
+                          <td className="p-3 text-gray-700 dark:text-slate-300">
+                            {log.email ?? log.user.email}
+                          </td>
+                          <td className="p-3 text-gray-700 dark:text-slate-300">
+                            {log.role ?? log.user.role}
                           </td>
                           <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                             {formatEvent(log.event)}
@@ -196,14 +274,13 @@ export default function Page() {
                               {log.status}
                             </span>
                           </td>
+                          <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
+                            {formatDateTime(log.created_at)}
+                          </td>
                           <td className="p-3 text-gray-700 dark:text-slate-300">
-                            <p className="font-semibold text-gray-900 dark:text-slate-100">
-                              {log.user.name}
-                            </p>
-                            <p>{log.user.email}</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">
-                              {log.user.role}
-                            </p>
+                            {log.status === "failed"
+                              ? (log.failed_reason ?? "Unknown")
+                              : "-"}
                           </td>
                           <td className="p-3 text-gray-600 dark:text-slate-400">
                             {formatMetadata(log.metadata)}

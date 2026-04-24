@@ -55,7 +55,11 @@ const AdminSidebar = () => {
     () =>
       sidebarData.links.map((link) => ({
         ...link,
-        active: pathname === link.link,
+        active:
+          pathname === link.link ||
+          (link.link !== "/admin/dashboard" && pathname.startsWith(`${link.link}/`)) ||
+          (link.link === "/admin/hospitals" &&
+            pathname.startsWith("/admin/hospitals/")),
       })),
     [pathname],
   );

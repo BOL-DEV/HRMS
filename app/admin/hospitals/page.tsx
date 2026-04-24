@@ -28,6 +28,8 @@ function Page() {
   const queryClient = useQueryClient();
   const accessToken = getAccessToken();
   const [search, setSearch] = useState("");
+  const [hospitalName, setHospitalName] = useState("");
+  const [hospitalCode, setHospitalCode] = useState("");
   const [status, setStatus] = useState<AdminHospitalStatus | "all">("all");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -35,8 +37,15 @@ function Page() {
     useState<AdminHospitalListItem | null>(null);
 
   const hospitalsQuery = useQuery({
-    queryKey: ["admin-hospitals", search, status, sort],
-    queryFn: () => getAdminHospitals({ search, status, sort }),
+    queryKey: ["admin-hospitals", search, hospitalName, hospitalCode, status, sort],
+    queryFn: () =>
+      getAdminHospitals({
+        search,
+        hospitalName,
+        hospitalCode,
+        status,
+        sort,
+      }),
     enabled: Boolean(accessToken),
   });
 
@@ -156,9 +165,13 @@ function Page() {
 
         <AdminHospitalsFilters
           search={search}
+          hospitalName={hospitalName}
+          hospitalCode={hospitalCode}
           status={status}
           sort={sort}
           onSearchChange={setSearch}
+          onHospitalNameChange={setHospitalName}
+          onHospitalCodeChange={setHospitalCode}
           onStatusChange={setStatus}
           onSortChange={setSort}
         />

@@ -19,6 +19,14 @@ const tabs = [
     href: (id: string) => `/admin/hospitals/${id}/departments`,
   },
   {
+    label: "Income Heads",
+    href: (id: string) => `/admin/hospitals/${id}/income-heads`,
+  },
+  {
+    label: "Bill Items",
+    href: (id: string) => `/admin/hospitals/${id}/bill-items`,
+  },
+  {
     label: "Transactions",
     href: (id: string) => `/admin/hospitals/${id}/transactions`,
   },
@@ -29,6 +37,10 @@ const tabs = [
   {
     label: "Activity Logs",
     href: (id: string) => `/admin/hospitals/${id}/activity-logs`,
+  },
+  {
+    label: "Settings",
+    href: (id: string) => `/admin/hospitals/${id}/settings`,
   },
 ];
 

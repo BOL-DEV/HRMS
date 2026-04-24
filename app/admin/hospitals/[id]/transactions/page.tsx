@@ -5,11 +5,15 @@ import AdminPaginationFooter from "@/components/AdminPaginationFooter";
 import AdminHospitalTransactionsSection from "@/components/AdminHospitalTransactionsSection";
 import AdminHospitalTransactionsSummaryCards from "@/components/AdminHospitalTransactionsSummaryCards";
 import { ApiError } from "@/libs/api";
-import { getAdminHospitalTransactions } from "@/libs/admin-auth";
+import {
+  exportAdminHospitalTransactionsCsv,
+  getAdminHospitalTransactions,
+} from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 const PAGE_LIMIT = 15;
 
@@ -20,9 +24,21 @@ export default function HospitalTransactionsPage() {
   const hospitalId = params?.id ?? "";
 
   const [searchInput, setSearchInput] = useState("");
+  const [paymentMethodInput, setPaymentMethodInput] = useState<
+    "all" | "cash" | "transfer" | "pos"
+  >("all");
+  const [patientIdInput, setPatientIdInput] = useState("");
+  const [departmentInput, setDepartmentInput] = useState("");
+  const [agentInput, setAgentInput] = useState("");
   const [startDateInput, setStartDateInput] = useState("");
   const [endDateInput, setEndDateInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedPaymentMethod, setAppliedPaymentMethod] = useState<
+    "all" | "cash" | "transfer" | "pos"
+  >("all");
+  const [appliedPatientId, setAppliedPatientId] = useState("");
+  const [appliedDepartment, setAppliedDepartment] = useState("");
+  const [appliedAgent, setAppliedAgent] = useState("");
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
   const [page, setPage] = useState(1);
@@ -32,6 +48,10 @@ export default function HospitalTransactionsPage() {
       "admin-hospital-transactions",
       hospitalId,
       appliedSearch,
+      appliedPaymentMethod,
+      appliedPatientId,
+      appliedDepartment,
+      appliedAgent,
       appliedStartDate,
       appliedEndDate,
       page,
@@ -39,6 +59,11 @@ export default function HospitalTransactionsPage() {
     queryFn: () =>
       getAdminHospitalTransactions(hospitalId, {
         search: appliedSearch,
+        paymentMethod:
+          appliedPaymentMethod === "all" ? undefined : appliedPaymentMethod,
+        patientId: appliedPatientId || undefined,
+        department: appliedDepartment || undefined,
+        agent: appliedAgent || undefined,
         startDate: appliedStartDate || undefined,
         endDate: appliedEndDate || undefined,
         page,
@@ -81,6 +106,10 @@ export default function HospitalTransactionsPage() {
     }
 
     setAppliedSearch(searchInput.trim());
+    setAppliedPaymentMethod(paymentMethodInput);
+    setAppliedPatientId(patientIdInput.trim());
+    setAppliedDepartment(departmentInput.trim());
+    setAppliedAgent(agentInput.trim());
     setAppliedStartDate(startDateInput);
     setAppliedEndDate(endDateInput);
     setPage(1);
@@ -88,12 +117,39 @@ export default function HospitalTransactionsPage() {
 
   const clearFilters = () => {
     setSearchInput("");
+    setPaymentMethodInput("all");
+    setPatientIdInput("");
+    setDepartmentInput("");
+    setAgentInput("");
     setStartDateInput("");
     setEndDateInput("");
     setAppliedSearch("");
+    setAppliedPaymentMethod("all");
+    setAppliedPatientId("");
+    setAppliedDepartment("");
+    setAppliedAgent("");
     setAppliedStartDate("");
     setAppliedEndDate("");
     setPage(1);
+  };
+
+  const handleExport = () => {
+    exportAdminHospitalTransactionsCsv(hospitalId, {
+      search: appliedSearch || undefined,
+      paymentMethod:
+        appliedPaymentMethod === "all" ? undefined : appliedPaymentMethod,
+      patientId: appliedPatientId || undefined,
+      department: appliedDepartment || undefined,
+      agent: appliedAgent || undefined,
+      startDate: appliedStartDate || undefined,
+      endDate: appliedEndDate || undefined,
+      page,
+      limit: PAGE_LIMIT,
+    }).catch((error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to export transactions.",
+      );
+    });
   };
 
   const dateRangeIsInvalid =
@@ -115,15 +171,24 @@ export default function HospitalTransactionsPage() {
         <AdminHospitalTransactionsSection
           rows={rows}
           search={searchInput}
+          paymentMethod={paymentMethodInput}
+          patientId={patientIdInput}
+          department={departmentInput}
+          agent={agentInput}
           startDate={startDateInput}
           endDate={endDateInput}
           isLoading={transactionsQuery.isLoading && !transactionsQuery.data}
           isDateRangeInvalid={dateRangeIsInvalid}
           onSearchChange={setSearchInput}
+          onPaymentMethodChange={setPaymentMethodInput}
+          onPatientIdChange={setPatientIdInput}
+          onDepartmentChange={setDepartmentInput}
+          onAgentChange={setAgentInput}
           onStartDateChange={setStartDateInput}
           onEndDateChange={setEndDateInput}
           onApply={applyFilters}
           onClear={clearFilters}
+          onExport={handleExport}
         />
 
         <AdminPaginationFooter

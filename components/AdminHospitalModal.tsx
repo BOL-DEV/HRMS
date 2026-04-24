@@ -33,6 +33,7 @@ type FormState = {
   address: string;
   contact_email: string;
   contact_phone: string;
+  revenue_type: "manual" | "automatic";
   status: AdminHospitalStatus;
 };
 
@@ -43,6 +44,7 @@ function buildInitialForm(hospital?: AdminHospitalListItem | null): FormState {
     address: "",
     contact_email: hospital?.hospital_email ?? "",
     contact_phone: hospital?.phone ?? "",
+    revenue_type: hospital?.revenue_type ?? "automatic",
     status: hospital?.status ?? "active",
   };
 }
@@ -89,6 +91,7 @@ function AdminHospitalModal({
         address: trimmedAddress,
         contact_email: trimmedEmail,
         contact_phone: trimmedPhone,
+        revenue_type: form.revenue_type,
       });
       return;
     }
@@ -113,6 +116,10 @@ function AdminHospitalModal({
 
     if (trimmedPhone && trimmedPhone !== hospital?.phone) {
       payload.contact_phone = trimmedPhone;
+    }
+
+    if (form.revenue_type !== hospital?.revenue_type) {
+      payload.revenue_type = form.revenue_type;
     }
 
     if (form.status !== hospital?.status) {
@@ -173,6 +180,25 @@ function AdminHospitalModal({
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 required
               />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                Revenue Type
+              </span>
+              <select
+                value={form.revenue_type}
+                onChange={(event) =>
+                  updateField(
+                    "revenue_type",
+                    event.target.value as "manual" | "automatic",
+                  )
+                }
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              >
+                <option value="automatic">Automatic</option>
+                <option value="manual">Manual</option>
+              </select>
             </label>
 
             <label className="space-y-2">

@@ -23,6 +23,10 @@ function getRelativeDate(daysFromToday: number) {
   return formatDateOnly(today);
 }
 
+function isNumericPatientId(value: string) {
+  return /^\d+$/.test(value);
+}
+
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
@@ -76,14 +80,31 @@ function Page() {
       endDate={endDate}
       onStartDateChange={setStartDate}
       onEndDateChange={setEndDate}
-      onGenerate={() =>
+      onGenerate={() => {
+        const trimmedPatientId = patientId.trim();
+
+        if (!trimmedPatientId) {
+          toast.error("Enter a patient ID to generate the report.");
+          return;
+        }
+
+        if (!isNumericPatientId(trimmedPatientId)) {
+          toast.error("Patient ID must contain only numbers.");
+          return;
+        }
+
         setApplied({
-          patientId: patientId.trim(),
+          patientId: trimmedPatientId,
           startDate,
           endDate,
-        })
-      }
+        });
+      }}
       onExport={() =>
+        !applied.patientId
+          ? Promise.resolve(toast.error("Generate a patient report before exporting."))
+          : !isNumericPatientId(applied.patientId)
+            ? Promise.resolve(toast.error("Patient ID must contain only numbers."))
+            :
         exportFoPatientReportCsv({
           patientId: applied.patientId,
           startDate: applied.startDate,
@@ -95,6 +116,11 @@ function Page() {
         )
       }
       onPrint={() =>
+        !applied.patientId
+          ? Promise.resolve(toast.error("Generate a patient report before printing."))
+          : !isNumericPatientId(applied.patientId)
+            ? Promise.resolve(toast.error("Patient ID must contain only numbers."))
+            :
         printFoPatientReport({
           patientId: applied.patientId,
           startDate: applied.startDate,

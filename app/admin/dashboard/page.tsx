@@ -6,9 +6,9 @@ import AdminDashboardSummaryCards from "@/components/AdminDashboardSummaryCards"
 import AdminDashboardTopHospitalsTable from "@/components/AdminDashboardTopHospitalsTable";
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
-import { getAdminDashboard } from "@/libs/admin-auth";
+import { getAdminDashboard, getAdminReportsOptions } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
-import type { AdminDashboardResponse } from "@/libs/type";
+import type { AdminDashboardPeriod, AdminDashboardResponse } from "@/libs/type";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -41,12 +41,22 @@ function getStatusLabel(status: string) {
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
-  const [months, setMonths] = useState(6);
-  const [topLimit, setTopLimit] = useState(5);
+  const [months, setMonths] = useState<AdminDashboardPeriod>("last_6_months");
+  const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
+
+  const optionsQuery = useQuery({
+    queryKey: ["admin-dashboard-options"],
+    queryFn: getAdminReportsOptions,
+    enabled: Boolean(accessToken),
+  });
 
   const dashboardQuery = useQuery({
-    queryKey: ["admin-dashboard", months, topLimit],
-    queryFn: () => getAdminDashboard({ months, topLimit }),
+    queryKey: ["admin-dashboard", months, selectedHospitalIds],
+    queryFn: () =>
+      getAdminDashboard({
+        months,
+        hospitals: selectedHospitalIds.length ? selectedHospitalIds : undefined,
+      }),
     enabled: Boolean(accessToken),
   });
 
@@ -57,15 +67,22 @@ function Page() {
   }, [accessToken, router]);
 
   useEffect(() => {
-    if (!(dashboardQuery.error instanceof ApiError)) {
+    const error =
+      dashboardQuery.error instanceof ApiError
+        ? dashboardQuery.error
+        : optionsQuery.error instanceof ApiError
+          ? optionsQuery.error
+          : null;
+
+    if (!error) {
       return;
     }
 
-    if (dashboardQuery.error.status === 401) {
+    if (error.status === 401) {
       clearAuthTokens();
       router.replace("/login");
     }
-  }, [dashboardQuery.error, router]);
+  }, [dashboardQuery.error, optionsQuery.error, router]);
 
   const dashboardData: AdminDashboardResponse["data"] | undefined =
     dashboardQuery.data?.data;
@@ -119,6 +136,11 @@ function Page() {
     }));
   }, [dashboardData]);
 
+  const hospitalOptions = useMemo(
+    () => optionsQuery.data?.data.hospitals ?? [],
+    [optionsQuery.data?.data.hospitals],
+  );
+
   return (
     <div className="w-full min-h-screen bg-gray-50 dark:bg-slate-950">
       <Header
@@ -127,9 +149,10 @@ function Page() {
         actions={
           <AdminDashboardControls
             months={months}
-            topLimit={topLimit}
+            selectedHospitalIds={selectedHospitalIds}
+            hospitalOptions={hospitalOptions}
             onMonthsChange={setMonths}
-            onTopLimitChange={setTopLimit}
+            onHospitalSelectionChange={setSelectedHospitalIds}
           />
         }
       />
@@ -144,9 +167,10 @@ function Page() {
         <AdminDashboardControls
           mobile
           months={months}
-          topLimit={topLimit}
+          selectedHospitalIds={selectedHospitalIds}
+          hospitalOptions={hospitalOptions}
           onMonthsChange={setMonths}
-          onTopLimitChange={setTopLimit}
+          onHospitalSelectionChange={setSelectedHospitalIds}
         />
 
         <AdminDashboardSummaryCards

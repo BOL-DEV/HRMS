@@ -41,6 +41,18 @@ const sidebarData = {
       active: false,
     },
     {
+      name: "Departments",
+      link: "/fo/departments",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
+      name: "Income Heads",
+      link: "/fo/income-heads",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
       name: "Receipts",
       link: "/fo/receipts",
       label: <BsReceipt className="inline" />,
