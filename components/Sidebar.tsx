@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
+import { FiChevronDown, FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
 import ThemeToggle from "./ThemeToggle";
 
 interface Props {
@@ -12,6 +12,11 @@ interface Props {
     link: string;
     label: React.ReactNode;
     active?: boolean;
+    children?: {
+      name: string;
+      link: string;
+      active?: boolean;
+    }[];
   }[];
   isOpen?: boolean;
 }
@@ -57,6 +62,9 @@ function subscribeToDesktopSidebarPreference(onStoreChange: () => void) {
 
 function Sidebar({ title, links, isOpen = false }: Props) {
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
+  const [openGroups, setOpenGroups] = useState<
+    Record<string, boolean | undefined>
+  >({});
   const isDesktopPinned = useSyncExternalStore(
     subscribeToDesktopSidebarPreference,
     getDesktopSidebarPinnedSnapshot,
@@ -143,32 +151,124 @@ function Sidebar({ title, links, isOpen = false }: Props) {
               key={link.name}
               className={!isDesktopExpanded ? "md:flex md:justify-center" : undefined}
             >
-              <Link
-                href={link.link}
-                className={`flex items-center rounded-xl font-medium transition ${
-                  link.active
-                    ? "bg-blue-800 text-white hover:bg-blue-700"
-                    : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                } ${
-                  isDesktopExpanded
-                    ? "justify-start gap-3 p-4"
-                    : "justify-center p-4 md:mx-auto md:h-12 md:w-12 md:p-0"
-                }`}
-                title={!isDesktopExpanded ? link.name : undefined}
-              >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center text-xl leading-none">
-                  {link.label}
-                </span>
-                <span
-                  className={`overflow-hidden whitespace-nowrap transition-all duration-150 ease-out ${
-                    isDesktopExpanded
-                      ? "max-w-40 opacity-100 translate-x-0"
-                      : "max-w-0 md:-translate-x-2 md:opacity-0"
-                  }`}
-                >
-                  {link.name}
-                </span>
-              </Link>
+              <div className={isDesktopExpanded ? "w-full" : undefined}>
+                {link.children?.length ? (
+                  (() => {
+                    const isGroupOpen = link.active
+                      ? openGroups[link.name] !== false
+                      : openGroups[link.name] === true;
+
+                    return (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenGroups((prev) => ({
+                        ...prev,
+                        [link.name]: link.active
+                          ? prev[link.name] === false
+                            ? undefined
+                            : false
+                          : prev[link.name] === true
+                            ? undefined
+                            : true,
+                      }))
+                    }
+                    className={`flex w-full items-center rounded-xl font-medium transition ${
+                      link.active
+                        ? "bg-blue-800 text-white hover:bg-blue-700"
+                        : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                    } ${
+                      isDesktopExpanded
+                        ? "justify-start gap-3 p-4"
+                        : "justify-center p-4 md:mx-auto md:h-12 md:w-12 md:p-0"
+                    }`}
+                    title={!isDesktopExpanded ? link.name : undefined}
+                    aria-expanded={isGroupOpen}
+                    aria-controls={`sidebar-group-${link.name}`}
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-xl leading-none">
+                      {link.label}
+                    </span>
+                    <span
+                      className={`overflow-hidden whitespace-nowrap transition-all duration-150 ease-out ${
+                        isDesktopExpanded
+                          ? "max-w-40 opacity-100 translate-x-0"
+                          : "max-w-0 md:-translate-x-2 md:opacity-0"
+                      }`}
+                    >
+                      {link.name}
+                    </span>
+                    {isDesktopExpanded ? (
+                      <FiChevronDown
+                        className={`ml-auto text-base transition-transform ${
+                          isGroupOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    ) : null}
+                  </button>
+                    );
+                  })()
+                ) : (
+                  <Link
+                    href={link.link}
+                    className={`flex items-center rounded-xl font-medium transition ${
+                      link.active
+                        ? "bg-blue-800 text-white hover:bg-blue-700"
+                        : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                    } ${
+                      isDesktopExpanded
+                        ? "justify-start gap-3 p-4"
+                        : "justify-center p-4 md:mx-auto md:h-12 md:w-12 md:p-0"
+                    }`}
+                    title={!isDesktopExpanded ? link.name : undefined}
+                  >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center text-xl leading-none">
+                      {link.label}
+                    </span>
+                    <span
+                      className={`overflow-hidden whitespace-nowrap transition-all duration-150 ease-out ${
+                        isDesktopExpanded
+                          ? "max-w-40 opacity-100 translate-x-0"
+                          : "max-w-0 md:-translate-x-2 md:opacity-0"
+                      }`}
+                    >
+                      {link.name}
+                    </span>
+                  </Link>
+                )}
+
+                {(() => {
+                  if (!isDesktopExpanded || !link.children?.length) {
+                    return null;
+                  }
+
+                  const isGroupOpen = link.active
+                    ? openGroups[link.name] !== false
+                    : openGroups[link.name] === true;
+
+                  return isGroupOpen ? (
+                  <ul
+                    id={`sidebar-group-${link.name}`}
+                    className="mt-2 space-y-1 pl-11"
+                  >
+                    {link.children.map((child) => (
+                      <li key={child.link}>
+                        <Link
+                          href={child.link}
+                          className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
+                            child.active
+                              ? "bg-blue-50 text-blue-800 dark:bg-blue-500/15 dark:text-blue-200"
+                              : "text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                          }`}
+                        >
+                          {child.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  ) : null;
+                })()}
+              </div>
             </li>
           ))}
         </ul>

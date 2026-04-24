@@ -507,18 +507,22 @@ export type FoDashboardResponse = {
       today: {
         total_revenue: number;
         transaction_count: number;
+        active_agents?: number;
+      };
+      this_week: {
+        total_revenue: number;
+        transaction_count: number;
+        active_agents?: number;
       };
       this_month: {
         total_revenue: number;
         transaction_count: number;
-      };
-      last_month: {
-        total_revenue: number;
-        transaction_count: number;
+        active_agents?: number;
       };
       this_year: {
         total_revenue: number;
         transaction_count: number;
+        active_agents?: number;
       };
     };
   };
@@ -1127,6 +1131,119 @@ export type FoAgentsResponse = {
   };
 };
 
+export type FoDepartmentItem = {
+  department_id: string;
+  name: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  income_heads?: unknown[];
+  bill_items?: unknown[];
+};
+
+export type FoDepartmentsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      search: string | null;
+    };
+    total_departments: number;
+    departments: FoDepartmentItem[];
+  };
+};
+
+export type FoIncomeHeadItem = {
+  income_head_id: string;
+  hospital_id: string;
+  department_id: string;
+  department_name: string;
+  name: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FoIncomeHeadsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      department_id: string | null;
+      search: string | null;
+      include_inactive: boolean;
+    };
+    total_income_heads: number;
+    income_heads: FoIncomeHeadItem[];
+  };
+};
+
+export type FoBillItemStatus = "active" | "inactive" | "suspended";
+
+export type FoBillItem = {
+  bill_item_id: string;
+  hospital_id?: string;
+  department_id: string;
+  department_name?: string;
+  income_head_id: string;
+  income_head_name?: string;
+  name: string;
+  amount: number;
+  status?: FoBillItemStatus;
+  is_active?: boolean;
+  is_deleted?: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type FoBillItemsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      department_id: string | null;
+      income_head_id: string | null;
+      search: string | null;
+      include_inactive: boolean;
+    };
+    pagination: {
+      page: number;
+      limit: number;
+      total_bill_items: number;
+      total_pages: number;
+      has_previous_page: boolean;
+      has_next_page: boolean;
+      previous_page: number | null;
+      next_page: number | null;
+    };
+    bill_items: FoBillItem[];
+  };
+};
+
+export type CreateFoBillItemPayload = {
+  department_id: string;
+  income_head_id: string;
+  name: string;
+  amount: number;
+};
+
+export type UpdateFoBillItemPayload = Partial<
+  CreateFoBillItemPayload & {
+    status: FoBillItemStatus;
+  }
+>;
+
+export type FoBillItemMutationResponse = {
+  status: number;
+  message: string;
+  data: FoBillItem;
+};
+
 export type UpdateFoAgentStatusPayload = {
   status: FoAgentStatus;
 };
@@ -1179,6 +1296,53 @@ export type FoDetailedReportItem = {
   created_at: string;
 };
 
+export type FoTransactionItem = {
+  transaction_id: string;
+  date_time: string;
+  receipt_id: string;
+  patient_id: string;
+  patient_name: string;
+  department: string;
+  income_head: string;
+  bill_name: string;
+  payment_method: FoReportPaymentType;
+  amount: number;
+  agent: string;
+};
+
+export type FoTransactionsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      start_date: string | null;
+      end_date: string | null;
+      payment_method: FoReportPaymentType | null;
+      patient_id: string | null;
+      department: string | null;
+      agent: string | null;
+      search: string | null;
+      page: number;
+      limit: number;
+      export?: "csv" | null;
+    };
+    summary: {
+      total_revenue: number;
+      transaction_count: number;
+    };
+    pagination: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
+    };
+    transactions: FoTransactionItem[];
+  };
+};
+
 export type FoReportsResponse = {
   status: number;
   message: string;
@@ -1188,24 +1352,137 @@ export type FoReportsResponse = {
       start_date: string | null;
       end_date: string | null;
       departments: string[];
+      income_heads: string[];
       agents: string[];
+      payment_method: FoReportPaymentType | null;
+      page: number;
+      limit: number;
+      export: "csv" | null;
     };
-    summary_report: {
-      total_revenue: number;
-      transaction_count: number;
-      active_agents: number;
-      departments_count: number;
-      average_transaction_value: number;
-      lowest_transaction_value: number;
-      highest_transaction_value: number;
+    pagination: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
     };
-    breakdowns: {
-      by_department: FoReportDepartmentBreakdownItem[];
-      by_payment_method: FoReportPaymentMethodBreakdownItem[];
-      by_agent: FoReportAgentBreakdownItem[];
-    };
-    detailed_report: FoDetailedReportItem[];
+    transactions: FoTransactionItem[];
   };
+};
+
+export type FoPatientReportTransaction = {
+  patient_id: string;
+  patient_name: string;
+  department: string;
+  income_head: string;
+  bill_name: string;
+  amount: number;
+  agent_name: string;
+  date_time: string;
+};
+
+export type FoPatientReportResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    hospital_name: string;
+    hospital_code: string;
+    filters: {
+      patient_id: string;
+      start_date: string | null;
+      end_date: string | null;
+      show_all: boolean;
+    };
+    summary: {
+      transaction_count: number;
+      total_bill_amount: number;
+    };
+    report: FoPatientReportTransaction[];
+  };
+};
+
+export type FoDepartmentReportGroupedItem = {
+  department: string;
+  count: number;
+  amount: number;
+};
+
+export type FoDepartmentReportResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    hospital_name: string;
+    hospital_code: string;
+    filters: {
+      department: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      show_all: boolean;
+    };
+    summary:
+      | {
+          total_count: number;
+          total_amount: number;
+          departments_count: number;
+        }
+      | {
+          department: string;
+          count: number;
+          amount: number;
+        };
+    report?: FoDepartmentReportGroupedItem[];
+    transactions?: FoTransactionItem[];
+  };
+};
+
+export type FoAgentReportGroupedItem = {
+  agent_id: string;
+  agent: string;
+  count: number;
+  amount: number;
+};
+
+export type FoAgentReportResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    hospital_name: string;
+    hospital_code: string;
+    filters: {
+      agent_id: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      show_all: boolean;
+    };
+    summary:
+      | {
+          total_count: number;
+          total_amount: number;
+          agents_count: number;
+        }
+      | {
+          agent_id: string;
+          agent: string;
+          count: number;
+          amount: number;
+        };
+    report?: FoAgentReportGroupedItem[];
+    transactions?: FoTransactionItem[];
+  };
+};
+
+export type FoRevenueReportSummary = {
+  total_revenue: number;
+  transaction_count: number;
+  active_agents: number;
+  departments_count: number;
+  average_transaction_value: number;
+  lowest_transaction_value: number;
+  highest_transaction_value: number;
 };
 
 export type FoStatsTimePeriod =
@@ -1256,13 +1533,35 @@ export type FoReceiptSummary = {
 };
 
 export type FoReceiptItem = {
-  receipt_no: string;
   request_id: string;
+  transaction_id: string;
+  receipt_no: string;
   patient_name: string;
   reason: string;
   amount: number;
+  requested_at: string;
+  action_at: string | null;
+  agent_name: string;
   agent_email: string;
   status: FoReceiptRequestStatus;
+  action_by: {
+    user_id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  approved_by: {
+    user_id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  rejected_by: {
+    user_id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
 };
 
 export type FoReceiptsResponse = {

@@ -8,13 +8,20 @@ import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable"
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
-import { getFoAgents, getFoReports } from "@/libs/fo-auth";
-import { formatDateTime } from "@/libs/helper";
+import {
+  exportFoReportsCsv,
+  getFoAgents,
+  getFoDepartments,
+  getFoIncomeHeads,
+  getFoReports,
+  printFoReports,
+} from "@/libs/fo-auth";
 import { FoReportPaymentType } from "@/libs/type";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { FiDownload } from "react-icons/fi";
+import { FiDownload, FiPrinter } from "react-icons/fi";
+import { toast } from "react-hot-toast";
 
 type PaymentMethod = "Cash" | "Transfer" | "POS";
 
@@ -34,22 +41,13 @@ function toMethodLabel(value: FoReportPaymentType): PaymentMethod {
   return "POS";
 }
 
-function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
-  const csv = rows
-    .map((row) =>
-      row
-        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
-        .join(","),
-    )
-    .join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+function toMethodParam(
+  value: PaymentMethod | "All",
+): FoReportPaymentType | undefined {
+  if (value === "Cash") return "cash";
+  if (value === "Transfer") return "transfer";
+  if (value === "POS") return "pos";
+  return undefined;
 }
 
 function Page() {
@@ -63,17 +61,34 @@ function Page() {
     "All",
   );
   const [agent, setAgent] = useState("All");
-  const [billDescription, setBillDescription] = useState("All");
+  const [incomeHead, setIncomeHead] = useState("All");
   const [appliedFilters, setAppliedFilters] = useState({
     startDate: getRelativeDate(-6),
     endDate: getRelativeDate(0),
     department: "All",
+    paymentMethod: "All" as PaymentMethod | "All",
     agent: "All",
+    incomeHead: "All",
   });
 
   const agentsQuery = useQuery({
     queryKey: ["fo-agents-options"],
     queryFn: () => getFoAgents(),
+    enabled: Boolean(accessToken),
+  });
+
+  const departmentsQuery = useQuery({
+    queryKey: ["fo-departments-options"],
+    queryFn: () => getFoDepartments(),
+    enabled: Boolean(accessToken),
+  });
+
+  const incomeHeadsQuery = useQuery({
+    queryKey: ["fo-income-heads-options", department],
+    queryFn: () =>
+      getFoIncomeHeads({
+        departmentId: department === "All" ? undefined : department,
+      }),
     enabled: Boolean(accessToken),
   });
 
@@ -87,8 +102,13 @@ function Page() {
           appliedFilters.department === "All"
             ? undefined
             : [appliedFilters.department],
+        incomeHeads:
+          appliedFilters.incomeHead === "All"
+            ? undefined
+            : [appliedFilters.incomeHead],
         agents:
           appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
+        paymentMethod: toMethodParam(appliedFilters.paymentMethod),
       }),
     enabled: Boolean(accessToken),
   });
@@ -105,7 +125,11 @@ function Page() {
         ? reportsQuery.error
         : agentsQuery.error instanceof ApiError
           ? agentsQuery.error
-          : null;
+          : departmentsQuery.error instanceof ApiError
+            ? departmentsQuery.error
+            : incomeHeadsQuery.error instanceof ApiError
+              ? incomeHeadsQuery.error
+              : null;
 
     if (!error) {
       return;
@@ -115,11 +139,17 @@ function Page() {
       clearAuthTokens();
       router.replace("/login");
     }
-  }, [agentsQuery.error, reportsQuery.error, router]);
+  }, [
+    agentsQuery.error,
+    departmentsQuery.error,
+    incomeHeadsQuery.error,
+    reportsQuery.error,
+    router,
+  ]);
 
   const detailedReport = useMemo(
-    () => reportsQuery.data?.data.detailed_report ?? [],
-    [reportsQuery.data?.data.detailed_report],
+    () => reportsQuery.data?.data.transactions ?? [],
+    [reportsQuery.data?.data.transactions],
   );
 
   const filteredTransactions = useMemo(
@@ -128,15 +158,11 @@ function Page() {
         const matchesPayment =
           paymentMethod === "All"
             ? true
-            : toMethodLabel(item.payment_type) === paymentMethod;
-        const matchesBill =
-          billDescription === "All"
-            ? true
-            : item.bill_description === billDescription;
+            : toMethodLabel(item.payment_method) === paymentMethod;
 
-        return matchesPayment && matchesBill;
+        return matchesPayment;
       }),
-    [billDescription, detailedReport, paymentMethod],
+    [detailedReport, paymentMethod],
   );
 
   const stats = useMemo(() => {
@@ -160,7 +186,7 @@ function Page() {
     const grouped = new Map<string, number>();
 
     filteredTransactions.forEach((item) => {
-      const day = item.created_at.slice(0, 10);
+      const day = item.date_time.slice(0, 10);
       grouped.set(day, (grouped.get(day) ?? 0) + item.amount);
     });
 
@@ -173,7 +199,7 @@ function Page() {
     const grouped = new Map<PaymentMethod, number>();
 
     filteredTransactions.forEach((item) => {
-      const label = toMethodLabel(item.payment_type);
+      const label = toMethodLabel(item.payment_method);
       grouped.set(label, (grouped.get(label) ?? 0) + item.amount);
     });
 
@@ -185,8 +211,8 @@ function Page() {
 
     filteredTransactions.forEach((item) => {
       grouped.set(
-        item.department_name,
-        (grouped.get(item.department_name) ?? 0) + item.amount,
+        item.department,
+        (grouped.get(item.department) ?? 0) + item.amount,
       );
     });
 
@@ -197,10 +223,7 @@ function Page() {
     const grouped = new Map<string, number>();
 
     filteredTransactions.forEach((item) => {
-      grouped.set(
-        item.agent_name,
-        (grouped.get(item.agent_name) ?? 0) + item.amount,
-      );
+      grouped.set(item.agent, (grouped.get(item.agent) ?? 0) + item.amount);
     });
 
     return [...grouped.entries()]
@@ -220,7 +243,7 @@ function Page() {
     >();
 
     filteredTransactions.forEach((item) => {
-      const key = `${item.bill_description}::${item.department_name}`;
+      const key = `${item.income_head}::${item.department}`;
       const current = grouped.get(key);
 
       if (current) {
@@ -230,8 +253,8 @@ function Page() {
       }
 
       grouped.set(key, {
-        revenueHead: item.bill_description,
-        department: item.department_name,
+        revenueHead: item.income_head,
+        department: item.department,
         transactions: 1,
         totalRevenue: item.amount,
       });
@@ -242,11 +265,11 @@ function Page() {
 
   const departmentOptions = useMemo(
     () =>
-      (reportsQuery.data?.data.breakdowns.by_department ?? []).map((item) => ({
+      (departmentsQuery.data?.data.departments ?? []).map((item) => ({
         id: item.department_id,
-        name: item.department_name,
+        name: item.name,
       })),
-    [reportsQuery.data?.data.breakdowns.by_department],
+    [departmentsQuery.data?.data.departments],
   );
 
   const agentOptions = useMemo(
@@ -258,12 +281,13 @@ function Page() {
     [agentsQuery.data?.data.agents],
   );
 
-  const billDescriptionOptions = useMemo(
+  const incomeHeadOptions = useMemo(
     () =>
-      Array.from(new Set(detailedReport.map((item) => item.bill_description))).sort(
-        (a, b) => a.localeCompare(b),
-      ),
-    [detailedReport],
+      (incomeHeadsQuery.data?.data.income_heads ?? []).map((item) => ({
+        id: item.income_head_id,
+        name: item.name,
+      })),
+    [incomeHeadsQuery.data?.data.income_heads],
   );
 
   const handleGenerateReport = () => {
@@ -271,37 +295,58 @@ function Page() {
       startDate,
       endDate,
       department,
+      paymentMethod,
       agent,
+      incomeHead,
     });
   };
 
   const handleExportCsv = () => {
-    const rows = [
-      [
-        "Receipt No",
-        "Patient",
-        "Phone Number",
-        "Amount",
-        "Department",
-        "Bill Description",
-        "Payment Method",
-        "Agent",
-        "Created At",
-      ],
-      ...filteredTransactions.map((item) => [
-        item.receipt_no,
-        item.patient_name,
-        item.phone_number,
-        item.amount,
-        item.department_name,
-        item.bill_description,
-        toMethodLabel(item.payment_type),
-        item.agent_name,
-        formatDateTime(item.created_at),
-      ]),
-    ];
+    exportFoReportsCsv({
+      startDate: appliedFilters.startDate,
+      endDate: appliedFilters.endDate,
+      departments:
+        appliedFilters.department === "All"
+          ? undefined
+          : [appliedFilters.department],
+      incomeHeads:
+        appliedFilters.incomeHead === "All"
+          ? undefined
+          : [appliedFilters.incomeHead],
+      agents:
+        appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
+      paymentMethod: toMethodParam(appliedFilters.paymentMethod),
+      page: 1,
+      limit: 15,
+    }).catch((error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to export report.",
+      );
+    });
+  };
 
-    downloadCsv("fo-report.csv", rows);
+  const handlePrintReport = () => {
+    printFoReports({
+      startDate: appliedFilters.startDate,
+      endDate: appliedFilters.endDate,
+      departments:
+        appliedFilters.department === "All"
+          ? undefined
+          : [appliedFilters.department],
+      incomeHeads:
+        appliedFilters.incomeHead === "All"
+          ? undefined
+          : [appliedFilters.incomeHead],
+      agents:
+        appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
+      paymentMethod: toMethodParam(appliedFilters.paymentMethod),
+      page: 1,
+      limit: 15,
+    }).catch((error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to print report.",
+      );
+    });
   };
 
   return (
@@ -310,13 +355,24 @@ function Page() {
         title="Reports"
         Subtitle="Analyze hospital revenue and transaction performance"
         actions={
-          <button
-            onClick={handleExportCsv}
-            className="hidden md:inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <FiDownload />
-            Export Report
-          </button>
+          <div className="hidden items-center gap-2 md:flex">
+            <button
+              type="button"
+              onClick={handlePrintReport}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <FiPrinter />
+              Print
+            </button>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <FiDownload />
+              Export Report
+            </button>
+          </div>
         }
       />
 
@@ -333,22 +389,37 @@ function Page() {
           </div>
         ) : null}
 
+        {departmentsQuery.error instanceof Error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {departmentsQuery.error.message}
+          </div>
+        ) : null}
+
+        {incomeHeadsQuery.error instanceof Error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {incomeHeadsQuery.error.message}
+          </div>
+        ) : null}
+
         <FoReportsFilterPanel
           startDate={startDate}
           endDate={endDate}
           department={department}
           paymentMethod={paymentMethod}
           agent={agent}
-          billDescription={billDescription}
+          incomeHead={incomeHead}
           departmentOptions={departmentOptions}
           agentOptions={agentOptions}
-          billDescriptionOptions={billDescriptionOptions}
+          incomeHeadOptions={incomeHeadOptions}
           onStartDateChange={setStartDate}
           onEndDateChange={setEndDate}
-          onDepartmentChange={setDepartment}
+          onDepartmentChange={(value) => {
+            setDepartment(value);
+            setIncomeHead("All");
+          }}
           onPaymentMethodChange={setPaymentMethod}
           onAgentChange={setAgent}
-          onBillDescriptionChange={setBillDescription}
+          onIncomeHeadChange={setIncomeHead}
           onGenerateReport={handleGenerateReport}
         />
 
@@ -359,12 +430,14 @@ function Page() {
           averageTransaction={stats.avgTransaction}
         />
 
-        <FoReportsCharts
-          revenueTrendData={revenueTrendData}
-          paymentMethodSummary={paymentMethodSummary}
-          departmentRevenue={departmentRevenue}
-          topAgents={topAgents}
-        />
+        {filteredTransactions.length > 0 ? (
+          <FoReportsCharts
+            revenueTrendData={revenueTrendData}
+            paymentMethodSummary={paymentMethodSummary}
+            departmentRevenue={departmentRevenue}
+            topAgents={topAgents}
+          />
+        ) : null}
 
         <FoReportsRevenueBreakdownTable rows={breakdownTable} />
 
