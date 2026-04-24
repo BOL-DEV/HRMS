@@ -6,12 +6,12 @@ import FoTransactionsTable from "@/components/FoTransactionsTable";
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
-import { getFoReports } from "@/libs/fo-auth";
-import { formatDateTime } from "@/libs/helper";
+import { exportFoTransactionsCsv, getFoTransactions } from "@/libs/fo-auth";
 import { FoReportPaymentType } from "@/libs/type";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 
 type MethodFilter = "All" | "Cash" | "Transfer" | "POS";
 const TRANSACTIONS_PER_PAGE = 15;
@@ -32,22 +32,13 @@ function toMethodLabel(value: FoReportPaymentType): Exclude<MethodFilter, "All">
   return "POS";
 }
 
-function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
-  const csv = rows
-    .map((row) =>
-      row
-        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
-        .join(","),
-    )
-    .join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+function toMethodParam(
+  value: MethodFilter,
+): FoReportPaymentType | undefined {
+  if (value === "Cash") return "cash";
+  if (value === "Transfer") return "transfer";
+  if (value === "POS") return "pos";
+  return undefined;
 }
 
 function Page() {
@@ -60,11 +51,15 @@ function Page() {
   const [page, setPage] = useState(1);
 
   const transactionsQuery = useQuery({
-    queryKey: ["fo-transactions", startDate, endDate],
+    queryKey: ["fo-transactions", search, method, startDate, endDate, page],
     queryFn: () =>
-      getFoReports({
+      getFoTransactions({
         startDate,
         endDate,
+        search: search.trim() || undefined,
+        paymentMethod: toMethodParam(method),
+        page,
+        limit: TRANSACTIONS_PER_PAGE,
       }),
     enabled: Boolean(accessToken),
   });
@@ -86,89 +81,33 @@ function Page() {
     }
   }, [transactionsQuery.error, router]);
 
-  const detailedReport = useMemo(
-    () => transactionsQuery.data?.data.detailed_report ?? [],
-    [transactionsQuery.data?.data.detailed_report],
+  const transactions = useMemo(
+    () => transactionsQuery.data?.data.transactions ?? [],
+    [transactionsQuery.data?.data.transactions],
   );
-  const summary = transactionsQuery.data?.data.summary_report;
-
-  const filtered = useMemo(() => {
-    const text = search.trim().toLowerCase();
-
-    const bySearch = !text
-      ? detailedReport
-      : detailedReport.filter((item) =>
-          [
-            item.patient_name,
-            item.phone_number,
-            item.receipt_no,
-            item.agent_name,
-            item.department_name,
-            item.bill_description,
-          ].some((field) => field.toLowerCase().includes(text)),
-        );
-
-    const byMethod =
-      method === "All"
-        ? bySearch
-        : bySearch.filter((item) => toMethodLabel(item.payment_type) === method);
-
-    return [...byMethod].sort((a, b) => b.created_at.localeCompare(a.created_at));
-  }, [detailedReport, method, search]);
+  const pagination = transactionsQuery.data?.data.pagination;
 
   const stats = useMemo(
     () => ({
-      totalRevenue:
-        method === "All" && !search.trim()
-          ? summary?.total_revenue ?? 0
-          : filtered.reduce((sum, item) => sum + item.amount, 0,
-            ),
-      totalTransactions:
-        method === "All" && !search.trim()
-          ? summary?.transaction_count ?? 0
-          : filtered.length,
+      totalRevenue: transactions.reduce((sum, item) => sum + item.amount, 0),
+      totalTransactions: pagination?.total_transactions ?? transactions.length,
     }),
-    [filtered, method, search, summary],
+    [pagination?.total_transactions, transactions],
   );
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filtered.length / TRANSACTIONS_PER_PAGE),
-  );
-  const currentPage = Math.min(page, totalPages);
-
-  const paginatedRows = useMemo(() => {
-    const startIndex = (currentPage - 1) * TRANSACTIONS_PER_PAGE;
-    return filtered.slice(startIndex, startIndex + TRANSACTIONS_PER_PAGE);
-  }, [currentPage, filtered]);
 
   const handleExport = () => {
-    const rows = [
-      [
-        "Date/Time",
-        "Receipt No",
-        "Patient",
-        "Phone Number",
-        "Department",
-        "Bill Description",
-        "Amount",
-        "Method",
-        "Agent",
-      ],
-      ...filtered.map((item) => [
-        formatDateTime(item.created_at),
-        item.receipt_no,
-        item.patient_name,
-        item.phone_number,
-        item.department_name,
-        item.bill_description,
-        item.amount,
-        toMethodLabel(item.payment_type),
-        item.agent_name,
-      ]),
-    ];
-
-    downloadCsv("fo-transactions.csv", rows);
+    exportFoTransactionsCsv({
+      startDate,
+      endDate,
+      search: search.trim() || undefined,
+      paymentMethod: toMethodParam(method),
+      page,
+      limit: TRANSACTIONS_PER_PAGE,
+    }).catch((error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to export transactions.",
+      );
+    });
   };
 
   return (
@@ -177,7 +116,11 @@ function Page() {
         title="Transactions"
         Subtitle="Monitor and audit all hospital payment transactions"
         actions={
-          <button className="hidden rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white md:block">
+          <button
+            type="button"
+            onClick={handleExport}
+            className="hidden rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white md:block"
+          >
             Export CSV
           </button>
         }
@@ -221,21 +164,23 @@ function Page() {
         />
 
         <FoTransactionsTable
-          rows={paginatedRows}
+          rows={transactions}
           isLoading={transactionsQuery.isLoading}
           toMethodLabel={toMethodLabel}
         />
 
-        {!transactionsQuery.isLoading && filtered.length > 0 ? (
+        {!transactionsQuery.isLoading &&
+        transactions.length > 0 &&
+        pagination ? (
           <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
             <p className="text-sm text-gray-600 dark:text-slate-300">
-              Page {currentPage} of {totalPages}
+              Page {pagination.current_page} of {pagination.total_pages}
             </p>
 
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                disabled={currentPage === 1}
+                disabled={!pagination.has_previous}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               >
@@ -243,9 +188,11 @@ function Page() {
               </button>
               <button
                 type="button"
-                disabled={currentPage === totalPages}
+                disabled={!pagination.has_next}
                 onClick={() =>
-                  setPage((current) => Math.min(current + 1, totalPages))
+                  setPage((current) =>
+                    Math.min(current + 1, pagination.total_pages),
+                  )
                 }
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               >

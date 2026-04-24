@@ -113,3 +113,41 @@ export function openPrintWindowFromHtml(html: string) {
 
   return true;
 }
+
+export function downloadBlobFile(blob: Blob, filename: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}
+
+export function openPrintWindowFromBlob(blob: Blob) {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const printWindow = window.open(url, "_blank", "width=900,height=700");
+
+  if (!printWindow) {
+    window.URL.revokeObjectURL(url);
+    return false;
+  }
+
+  const cleanup = () => window.URL.revokeObjectURL(url);
+  printWindow.addEventListener("load", () => {
+    window.setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 250);
+  });
+  printWindow.addEventListener("beforeunload", cleanup, { once: true });
+
+  return true;
+}

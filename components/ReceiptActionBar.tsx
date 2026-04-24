@@ -68,13 +68,13 @@ function ReceiptActionBar({
           <option value="last_30_days">Last 30 Days</option>
         </select>
 
-        <button
+        {/* <button
           className="bg-white border border-gray-200 rounded-xl px-5 py-3 text-sm font-semibold flex items-center justify-center gap-2 min-w-32 hover:bg-gray-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-800"
           onClick={onExport}
           type="button"
         >
           <FiDownload className="text-lg" /> Export
-        </button>
+        </button> */}
       </div>
     </div>
   );

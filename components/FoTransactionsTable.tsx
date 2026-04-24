@@ -1,12 +1,12 @@
 import TagPill from "@/components/TagPill";
 import { formatDateTime, formatNaira } from "@/libs/helper";
-import type { FoDetailedReportItem, FoReportPaymentType } from "@/libs/type";
+import type { FoReportPaymentType, FoTransactionItem } from "@/libs/type";
 import { FiMoreVertical } from "react-icons/fi";
 
 type MethodFilter = "Cash" | "Transfer" | "POS";
 
 type Props = {
-  rows: FoDetailedReportItem[];
+  rows: FoTransactionItem[];
   isLoading?: boolean;
   toMethodLabel: (value: FoReportPaymentType) => MethodFilter;
 };
@@ -62,31 +62,31 @@ function FoTransactionsTable({
                   className="border-b border-gray-100 dark:border-slate-800"
                 >
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
-                    {formatDateTime(item.created_at)}
+                    {formatDateTime(item.date_time)}
                   </td>
                   <td className="whitespace-nowrap p-3 font-semibold text-gray-900 dark:text-slate-100">
-                    {item.receipt_no}
+                    {item.receipt_id}
                   </td>
                   <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {item.patient_name}
                     <p className="text-xs font-normal text-gray-500 dark:text-slate-400">
-                      {item.phone_number}
+                      Patient ID: {item.patient_id}
                     </p>
                   </td>
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
-                    {item.department_name}
+                    {item.department}
                   </td>
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
-                    {item.bill_description}
+                    {item.bill_name}
                   </td>
                   <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {formatNaira(item.amount)}
                   </td>
                   <td className="p-3">
-                    <TagPill label={toMethodLabel(item.payment_type)} />
+                    <TagPill label={toMethodLabel(item.payment_method)} />
                   </td>
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
-                    {item.agent_name}
+                    {item.agent}
                   </td>
                   <td className="p-3 text-right">
                     <button className="rounded-lg border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-slate-700 dark:hover:bg-slate-800">

@@ -1,11 +1,11 @@
 import TagPill from "@/components/TagPill";
 import { formatDateTime, formatNaira } from "@/libs/helper";
-import type { FoDetailedReportItem, FoReportPaymentType } from "@/libs/type";
+import type { FoReportPaymentType, FoTransactionItem } from "@/libs/type";
 
 type PaymentMethod = "Cash" | "Transfer" | "POS";
 
 type Props = {
-  rows: FoDetailedReportItem[];
+  rows: FoTransactionItem[];
   toMethodLabel: (value: FoReportPaymentType) => PaymentMethod;
 };
 
@@ -45,7 +45,7 @@ function FoReportsTransactionsTable({ rows, toMethodLabel }: Props) {
                   className="border-b border-gray-100 dark:border-slate-800"
                 >
                   <td className="p-3 font-semibold text-gray-900 whitespace-nowrap dark:text-slate-100">
-                    {item.receipt_no}
+                    {item.receipt_id}
                   </td>
                   <td className="p-3 text-gray-900 font-semibold whitespace-nowrap dark:text-slate-100">
                     {item.patient_name}
@@ -54,16 +54,16 @@ function FoReportsTransactionsTable({ rows, toMethodLabel }: Props) {
                     {formatNaira(item.amount)}
                   </td>
                   <td className="p-3 text-gray-700 whitespace-nowrap dark:text-slate-300">
-                    {item.department_name}
+                    {item.department}
                   </td>
                   <td className="p-3">
-                    <TagPill label={toMethodLabel(item.payment_type)} />
+                    <TagPill label={toMethodLabel(item.payment_method)} />
                   </td>
                   <td className="p-3 text-gray-700 whitespace-nowrap dark:text-slate-300">
-                    {item.agent_name}
+                    {item.agent}
                   </td>
                   <td className="p-3 text-gray-700 whitespace-nowrap dark:text-slate-300">
-                    {formatDateTime(item.created_at)}
+                    {formatDateTime(item.date_time)}
                   </td>
                 </tr>
               ))

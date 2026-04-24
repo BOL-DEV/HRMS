@@ -15,16 +15,16 @@ type Props = {
   department: string;
   paymentMethod: PaymentMethod | "All";
   agent: string;
-  billDescription: string;
+  incomeHead: string;
   departmentOptions: Option[];
   agentOptions: Option[];
-  billDescriptionOptions: string[];
+  incomeHeadOptions: Option[];
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onDepartmentChange: (value: string) => void;
   onPaymentMethodChange: (value: PaymentMethod | "All") => void;
   onAgentChange: (value: string) => void;
-  onBillDescriptionChange: (value: string) => void;
+  onIncomeHeadChange: (value: string) => void;
   onGenerateReport: () => void;
 };
 
@@ -34,16 +34,16 @@ function FoReportsFilterPanel({
   department,
   paymentMethod,
   agent,
-  billDescription,
+  incomeHead,
   departmentOptions,
   agentOptions,
-  billDescriptionOptions,
+  incomeHeadOptions,
   onStartDateChange,
   onEndDateChange,
   onDepartmentChange,
   onPaymentMethodChange,
   onAgentChange,
-  onBillDescriptionChange,
+  onIncomeHeadChange,
   onGenerateReport,
 }: Props) {
   return (
@@ -130,17 +130,17 @@ function FoReportsFilterPanel({
 
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            Bill Description
+            Income Head
           </p>
           <select
-            value={billDescription}
-            onChange={(e) => onBillDescriptionChange(e.target.value)}
+            value={incomeHead}
+            onChange={(e) => onIncomeHeadChange(e.target.value)}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
             <option value="All">All</option>
-            {billDescriptionOptions.map((item) => (
-              <option key={item} value={item}>
-                {item}
+            {incomeHeadOptions.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>

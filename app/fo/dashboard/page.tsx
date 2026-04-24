@@ -5,15 +5,18 @@ import PaymentMethodBreakdown from "@/components/PaymentMethodBreakdown";
 import RecentTransactions from "@/components/RecentTransactions";
 import RevenueByDepartment from "@/components/RevenueByDepartment";
 import RevenueTrend from "@/components/RevenueTrend";
-import AgentPerformance from "@/components/AgentPerformance";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { FiCalendar } from "react-icons/fi";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
-import { getFoDashboard, getFoStats } from "@/libs/fo-auth";
-import { formatCompactNumber, formatNaira } from "@/libs/helper";
+import { getFoDashboard, getFoStats, getFoTransactions } from "@/libs/fo-auth";
+import {
+  formatCompactNumber,
+  formatDateTime,
+  formatNaira,
+} from "@/libs/helper";
 import {
   FoStatsTimePeriod,
   RecentTransactionDisplayRow,
@@ -64,6 +67,32 @@ function StatsPeriodCard({
   );
 }
 
+function getDashboardPeriodValue(
+  periods:
+    | {
+        today: { total_revenue: number; transaction_count: number };
+        this_week: { total_revenue: number; transaction_count: number };
+        this_month: { total_revenue: number; transaction_count: number };
+        this_year: { total_revenue: number; transaction_count: number };
+      }
+    | undefined,
+  key: "today" | "this_week" | "this_month" | "this_year",
+) {
+  if (!periods) {
+    return {
+      total_revenue: 0,
+      transaction_count: 0,
+    };
+  }
+
+  return (
+    periods[key] ?? {
+      total_revenue: 0,
+      transaction_count: 0,
+    }
+  );
+}
+
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
@@ -78,6 +107,12 @@ function Page() {
   const statsQuery = useQuery({
     queryKey: ["fo-stats", statsPeriod],
     queryFn: () => getFoStats(statsPeriod),
+    enabled: Boolean(accessToken),
+  });
+
+  const recentTransactionsQuery = useQuery({
+    queryKey: ["fo-dashboard-recent-transactions"],
+    queryFn: () => getFoTransactions({ page: 1, limit: 5 }),
     enabled: Boolean(accessToken),
   });
 
@@ -109,20 +144,41 @@ function Page() {
     }
   }, [router, statsQuery.error]);
 
+  useEffect(() => {
+    if (!(recentTransactionsQuery.error instanceof ApiError)) {
+      return;
+    }
+
+    if (recentTransactionsQuery.error.status === 401) {
+      clearAuthTokens();
+      router.replace("/login");
+    }
+  }, [recentTransactionsQuery.error, router]);
+
   const periods = dashboardQuery.data?.data.periods;
   const statsData = statsQuery.data?.data;
+  const todayPeriod = getDashboardPeriodValue(periods, "today");
+  const weekPeriod = getDashboardPeriodValue(periods, "this_week");
+  const monthPeriod = getDashboardPeriodValue(periods, "this_month");
+  const yearPeriod = getDashboardPeriodValue(periods, "this_year");
 
   const revenueTrendData = useMemo<RevenueChartDatum[]>(
     () =>
       periods
         ? [
-            { name: "Today", value: periods.today.total_revenue },
-            { name: "This Month", value: periods.this_month.total_revenue },
-            { name: "Last Month", value: periods.last_month.total_revenue },
-            { name: "This Year", value: periods.this_year.total_revenue },
+            { name: "Today", value: todayPeriod.total_revenue },
+            { name: "This Week", value: weekPeriod.total_revenue },
+            { name: "This Month", value: monthPeriod.total_revenue },
+            { name: "This Year", value: yearPeriod.total_revenue },
           ]
         : [],
-    [periods],
+    [
+      monthPeriod.total_revenue,
+      periods,
+      todayPeriod.total_revenue,
+      weekPeriod.total_revenue,
+      yearPeriod.total_revenue,
+    ],
   );
 
   const revenueByDepartmentData = useMemo<RevenueChartDatum[]>(
@@ -136,7 +192,6 @@ function Page() {
 
   const paymentMethodData = useMemo(() => {
     const methods = statsData?.payment_methods ?? [];
-    const totalValue = methods.reduce((sum, item) => sum + item.total_value, 0);
     const colors = ["#2563EB", "#10B981", "#F59E0B", "#EF4444"];
 
     return methods.map((item, index) => ({
@@ -146,10 +201,7 @@ function Page() {
           : item.payment_type === "transfer"
             ? "Transfer"
             : "POS",
-      value:
-        totalValue === 0
-          ? 0
-          : Number(((item.total_value / totalValue) * 100).toFixed(1)),
+      value: item.total_value,
       color: colors[index % colors.length],
     }));
   }, [statsData?.payment_methods]);
@@ -166,8 +218,17 @@ function Page() {
   );
 
   const recentTransactions = useMemo<RecentTransactionDisplayRow[]>(
-    () => [],
-    [],
+    () =>
+      (recentTransactionsQuery.data?.data.transactions ?? []).map((item) => ({
+        patientName: item.patient_name,
+        patientId: item.patient_id,
+        billName: item.bill_name,
+        departmentName: item.department,
+        amount: item.amount,
+        status: item.payment_method.toUpperCase(),
+        createdAt: formatDateTime(item.date_time),
+      })),
+    [recentTransactionsQuery.data?.data.transactions],
   );
 
   return (
@@ -218,29 +279,29 @@ function Page() {
                 accentClassName="border-red-600"
                 revenueLabel="REVENUE (TODAY)"
                 transCountLabel="TRANSACTIONS (TODAY)"
-                revenue={periods.today.total_revenue}
-                transCount={periods.today.transaction_count}
+                revenue={todayPeriod.total_revenue}
+                transCount={todayPeriod.transaction_count}
               />
               <StatsPeriodCard
                 accentClassName="border-green-600"
-                revenueLabel="REVENUE (THIS MONTH)"
-                transCountLabel="TRANSACTIONS (THIS MONTH)"
-                revenue={periods.this_month.total_revenue}
-                transCount={periods.this_month.transaction_count}
+                revenueLabel="REVENUE (THIS WEEK)"
+                transCountLabel="TRANSACTIONS (THIS WEEK)"
+                revenue={weekPeriod.total_revenue}
+                transCount={weekPeriod.transaction_count}
               />
               <StatsPeriodCard
                 accentClassName="border-pink-900"
-                revenueLabel="REVENUE (LAST MONTH)"
-                transCountLabel="TRANSACTIONS (LAST MONTH)"
-                revenue={periods.last_month.total_revenue}
-                transCount={periods.last_month.transaction_count}
+                revenueLabel="REVENUE (THIS MONTH)"
+                transCountLabel="TRANSACTIONS (THIS MONTH)"
+                revenue={monthPeriod.total_revenue}
+                transCount={monthPeriod.transaction_count}
               />
               <StatsPeriodCard
                 accentClassName="border-yellow-600"
                 revenueLabel="REVENUE (THIS YEAR)"
                 transCountLabel="TRANSACTIONS (THIS YEAR)"
-                revenue={periods.this_year.total_revenue}
-                transCount={periods.this_year.transaction_count}
+                revenue={yearPeriod.total_revenue}
+                transCount={yearPeriod.transaction_count}
               />
             </>
           )}
@@ -248,7 +309,9 @@ function Page() {
 
         <div className="flex flex-col mb-10 gap-6">
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-            <RevenueByDepartment data={revenueByDepartmentData} />
+            {revenueByDepartmentData.length > 0 ? (
+              <RevenueByDepartment data={revenueByDepartmentData} />
+            ) : null}
 
             <div className="bg-white border border-gray-200 rounded-xl dark:border-slate-700 dark:bg-slate-900">
               <div className="p-5 flex items-start justify-between border-b border-gray-200 dark:border-slate-700">
@@ -319,20 +382,19 @@ function Page() {
           </div>
         </div>
 
-        <PaymentMethodBreakdown data={paymentMethodData} />
+        {paymentMethodData.length > 0 ? (
+          <PaymentMethodBreakdown data={paymentMethodData} />
+        ) : null}
         <RevenueTrend data={revenueTrendData} />
 
-        <AgentPerformance
-          rows={[]}
-          subtitle="Current month statistics"
-          emptyMessage="Agent performance data is not available from the current FO dashboard endpoint."
-        />
-
-        <RecentTransactions
-          rows={recentTransactions}
-          subtitle="Latest FO transactions"
-          emptyMessage="Recent transactions are not available from the current FO dashboard endpoint."
-        />
+        {recentTransactionsQuery.isLoading || recentTransactions.length > 0 ? (
+          <RecentTransactions
+            rows={recentTransactions}
+            isLoading={recentTransactionsQuery.isLoading}
+            subtitle="Latest FO transactions"
+            emptyMessage="No recent transactions are available right now."
+          />
+        ) : null}
       </div>
     </div>
   );

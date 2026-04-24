@@ -11,6 +11,7 @@ import { RxHamburgerMenu } from "react-icons/rx";
 import { useMemo, useState } from "react";
 import { IoMdClose } from "react-icons/io";
 import { TbReportMedical } from "react-icons/tb";
+import { PiFilesLight } from "react-icons/pi";
 
 const sidebarData = {
   title: "FO",
@@ -34,6 +35,12 @@ const sidebarData = {
       active: false,
     },
     {
+      name: "Bill Items",
+      link: "/fo/bill-items",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
       name: "Receipts",
       link: "/fo/receipts",
       label: <BsReceipt className="inline" />,
@@ -44,6 +51,28 @@ const sidebarData = {
       link: "/fo/reports",
       label: <TbReportMedical className="inline" />,
       active: false,
+      children: [
+        {
+          name: "Revenue Report",
+          link: "/fo/reports",
+          active: false,
+        },
+        {
+          name: "Patient Report",
+          link: "/fo/reports/patient",
+          active: false,
+        },
+        {
+          name: "Department Report",
+          link: "/fo/reports/department",
+          active: false,
+        },
+        {
+          name: "Agent Report",
+          link: "/fo/reports/agent",
+          active: false,
+        },
+      ],
     },
     {
       name: "Settings",
@@ -62,7 +91,14 @@ const FoSidebar = () => {
     () =>
       sidebarData.links.map((link) => ({
         ...link,
-        active: pathname === link.link,
+        active:
+          link.link === "/fo/reports"
+            ? pathname === "/fo/reports" || pathname.startsWith("/fo/reports/")
+            : pathname === link.link,
+        children: link.children?.map((child) => ({
+          ...child,
+          active: pathname === child.link,
+        })),
       })),
     [pathname]
   );

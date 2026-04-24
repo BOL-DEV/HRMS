@@ -106,7 +106,7 @@ function TransactionActionBar({
           </button>
         </div>
 
-        <div>
+        {/* <div>
           <button
             className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium px-5 py-3 rounded-xl flex items-center justify-center gap-2 border border-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border-slate-700"
             onClick={onExport}
@@ -114,7 +114,7 @@ function TransactionActionBar({
           >
             <FiDownload className="text-lg" /> Export
           </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );
