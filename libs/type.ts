@@ -67,6 +67,7 @@ export interface paymentMethodProps {
 export interface RevenueChartDatum {
   name: string;
   value: number;
+  color?: string;
 }
 
 export interface AgentPerformanceRow {

@@ -98,15 +98,15 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
     <div
       className={
         isEmbedded
-          ? "w-full rounded-[2rem] border border-slate-300/80 bg-white/88 p-5 shadow-[0_24px_80px_rgba(112,138,162,0.18)] backdrop-blur"
-          : "w-full max-w-xl rounded-4xl border border-slate-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,61,62,0.12)] sm:p-8"
+          ? "w-full rounded-[1.6rem] border border-white/55 bg-white/55 p-5 shadow-[0_24px_80px_rgba(112,138,162,0.14)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-900/45 dark:shadow-[0_24px_80px_rgba(2,6,23,0.4)]"
+          : "w-full max-w-xl rounded-4xl border border-slate-200 bg-white p-6 shadow-[0_30px_80px_rgba(15,61,62,0.12)] dark:border-slate-700 dark:bg-slate-900 sm:p-8"
       }
     >
       <div>
-        <p className="text-sm uppercase tracking-[0.3em] text-[#0f766e]">
+        <p className="text-sm uppercase tracking-[0.3em] text-[#0f766e] dark:text-emerald-300">
           Secure access
         </p>
-        <h2 className="mt-4 text-3xl font-semibold text-slate-950">
+        <h2 className="mt-4 text-3xl font-semibold text-slate-950 dark:text-white">
           Login to your workspace
         </h2>
    
@@ -114,13 +114,13 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
 
       <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">
+          <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
             Email address
           </span>
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-[#1779d2] focus:bg-white"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3 text-slate-950 outline-none transition focus:border-[#1779d2] focus:bg-white dark:border-slate-700 dark:bg-slate-950/70 dark:text-white dark:focus:border-sky-400 dark:focus:bg-slate-950"
             type="email"
             placeholder="you@hospital.com"
             required
@@ -128,14 +128,14 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">
+          <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
             Password
           </span>
           <div className="relative">
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 pr-12 outline-none transition focus:border-[#1779d2] focus:bg-white"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/90 px-4 py-3 pr-12 text-slate-950 outline-none transition focus:border-[#1779d2] focus:bg-white dark:border-slate-700 dark:bg-slate-950/70 dark:text-white dark:focus:border-sky-400 dark:focus:bg-slate-950"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               required
@@ -143,7 +143,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
             <button
               type="button"
               onClick={() => setShowPassword((current) => !current)}
-              className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 transition hover:text-slate-700"
+              className="absolute inset-y-0 right-0 flex items-center px-4 text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <FiEyeOff /> : <FiEye />}

@@ -1,23 +1,5 @@
-import { FiActivity, FiBriefcase, FiCrosshair, FiShield } from "react-icons/fi";
+import { FiCrosshair } from "react-icons/fi";
 import AuthLoginCard from "@/components/AuthLoginCard";
-
-const quickStats = [
-  {
-    label: "Secure Access",
-    value: "Role-based",
-    icon: <FiShield className="text-lg" />,
-  },
-  {
-    label: "Operations",
-    value: "Payments + Receipts",
-    icon: <FiBriefcase className="text-lg" />,
-  },
-  {
-    label: "Monitoring",
-    value: "Live Revenue",
-    icon: <FiActivity className="text-lg" />,
-  },
-];
 
 export default function Page() {
   return (
@@ -46,7 +28,7 @@ export default function Page() {
               A focused access point for admins, finance teams, and payment
               agents working across hospital revenue operations.
             </p>
-
+            {/* 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
               {quickStats.map((item) => (
                 <div
@@ -64,10 +46,33 @@ export default function Page() {
                   </p>
                 </div>
               ))}
-            </div>
+            </div> */}
 
             <div className="mt-8">
               <AuthLoginCard mode="embedded" />
+            </div>
+
+            <div className="mt-10 flex justify-center lg:hidden">
+              <div className="relative flex items-center gap-4">
+                <div className="relative h-20 w-20 shrink-0">
+                  <div className="absolute left-7 top-0 h-full w-4 rounded-full bg-sky-300/60" />
+                  <div className="absolute left-0 top-7 h-4 w-16 rounded-full bg-[#123f49]" />
+                  <div className="absolute left-0 top-[2.65rem] h-4 w-18 rounded-full bg-[#123f49]" />
+                  <div className="absolute left-0 top-[4.1rem] h-4 w-16 rounded-full bg-[#123f49]" />
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="rounded-[1.8rem] bg-[#123f49] px-7 py-4 shadow-[0_22px_50px_rgba(18,63,73,0.25)]">
+                    <span className="text-5xl font-black leading-none tracking-tight text-white">
+                      swift
+                    </span>
+                  </div>
+
+                  <span className="text-5xl font-black italic leading-none tracking-tight text-[#55b8b0]">
+                    Rev
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -109,21 +114,6 @@ export default function Page() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="absolute bottom-8 right-10  px-6 py-4 text-right backdrop-blur">
-            <p className="mt-4 text-sm text-slate-600">
-              Powered by{" "}
-              <span className="font-semibold text-slate-900">SwiftRev</span>
-            </p>
-            <a
-              href="https://www.swiftrevenue.me"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-block text-sm font-medium text-[#1779d2] transition hover:text-[#1169b8]"
-            >
-              www.swiftrevenue.me
-            </a>
           </div>
         </div>
       </section>
