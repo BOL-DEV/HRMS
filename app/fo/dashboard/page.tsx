@@ -55,12 +55,12 @@ function getDashboardPeriodValue(
   periods:
     | {
         today: { total_revenue: number; transaction_count: number };
-        this_week: { total_revenue: number; transaction_count: number };
+        last_month: { total_revenue: number; transaction_count: number };
         this_month: { total_revenue: number; transaction_count: number };
         this_year: { total_revenue: number; transaction_count: number };
       }
     | undefined,
-  key: "today" | "this_week" | "this_month" | "this_year",
+  key: "today" | "last_month" | "this_month" | "this_year",
 ) {
   if (!periods) {
     return {
@@ -130,7 +130,7 @@ function Page() {
   const statsData = statsQuery.data?.data;
 
   const todayPeriod = getDashboardPeriodValue(periods, "today");
-  const weekPeriod = getDashboardPeriodValue(periods, "this_week");
+  const lastMonthPeriod = getDashboardPeriodValue(periods, "last_month");
   const monthPeriod = getDashboardPeriodValue(periods, "this_month");
   const yearPeriod = getDashboardPeriodValue(periods, "this_year");
 
@@ -142,9 +142,9 @@ function Page() {
       ...summaryAccents[0],
     },
     {
-      label: "This Week",
-      revenue: weekPeriod.total_revenue,
-      transactions: weekPeriod.transaction_count,
+      label: "Last Month",
+      revenue: lastMonthPeriod.total_revenue,
+      transactions: lastMonthPeriod.transaction_count,
       ...summaryAccents[1],
     },
     {
@@ -164,7 +164,7 @@ function Page() {
   const revenueTrendData: RevenueChartDatum[] = periods
     ? [
         { name: "Today", value: todayPeriod.total_revenue, color: "#dc2626" },
-        { name: "This Week", value: weekPeriod.total_revenue, color: "#10b981" },
+        { name: "Last Month", value: lastMonthPeriod.total_revenue, color: "#10b981" },
         { name: "This Month", value: monthPeriod.total_revenue, color: "#ec4899" },
         { name: "This Year", value: yearPeriod.total_revenue, color: "#f59e0b" },
       ]

@@ -14,14 +14,14 @@ type Props = {
   initialValues?: {
     departmentId: string;
     name: string;
-    status: "active" | "inactive";
+    status: "active" | "suspended";
   };
   isSubmitting?: boolean;
   onClose: () => void;
   onSubmit: (values: {
     departmentId: string;
     name: string;
-    status: "active" | "inactive";
+    status: "active" | "suspended";
   }) => void;
 };
 
@@ -68,7 +68,7 @@ function AdminHospitalIncomeHeadFormModal({
               {title}
             </h3>
             <p className="text-sm text-gray-600 dark:text-slate-400">
-              Create or update income heads for this hospital.
+              Create or update income heads for this workspace.
             </p>
           </div>
 
@@ -137,13 +137,13 @@ function AdminHospitalIncomeHeadFormModal({
                 onChange={(event) =>
                   setForm((current) => ({
                     ...current,
-                    status: event.target.value as "active" | "inactive",
+                    status: event.target.value as "active" | "suspended",
                   }))
                 }
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               >
                 <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
               </select>
             </label>
           ) : null}

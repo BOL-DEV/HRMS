@@ -33,6 +33,7 @@ import type {
   AdminHospitalFosResponse,
   AdminHospitalDepartmentsResponse,
   AdminHospitalActivityLogsResponse,
+  AdminHospitalPatientSearchResponse,
   AdminHospitalTransactionsResponse,
   AdminHospitalOverviewResponse,
   AdminHospitalIncomeHeadsResponse,
@@ -262,16 +263,11 @@ async function printAdminDocument(endpoint: string) {
 
 export async function getAdminDashboard(params?: {
   months?: AdminDashboardPeriod;
-  hospitals?: string[];
 }) {
   const query = new URLSearchParams();
 
   if (params?.months) {
     query.set("months", params.months);
-  }
-
-  if (params?.hospitals?.length) {
-    query.set("hospitals", params.hospitals.join(","));
   }
 
   const suffix = query.toString() ? `?${query.toString()}` : "";
@@ -647,6 +643,31 @@ export async function getAdminHospitalTransactions(
 
   return adminGet<AdminHospitalTransactionsResponse>(
     `/api/admin/hospitals/${hospitalId}/transactions${suffix}`,
+  );
+}
+
+export async function getAdminHospitalPatientSearch(
+  hospitalId: string,
+  params: {
+    query?: string;
+    patientId?: string;
+    limit?: number;
+  },
+) {
+  const query = new URLSearchParams();
+
+  if (params.query?.trim()) {
+    query.set("query", params.query.trim());
+  } else if (params.patientId?.trim()) {
+    query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  return adminGet<AdminHospitalPatientSearchResponse>(
+    `/api/admin/hospitals/${hospitalId}/patients/search?${query.toString()}`,
   );
 }
 

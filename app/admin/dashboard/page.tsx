@@ -9,7 +9,7 @@ import DashboardSection from "@/components/dashboard/DashboardSection";
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import { ApiError } from "@/libs/api";
-import { getAdminDashboard, getAdminReportsOptions } from "@/libs/admin-auth";
+import { getAdminDashboard } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { formatCompactNumber, formatNaira } from "@/libs/helper";
 import type { AdminDashboardPeriod, AdminDashboardResponse, RevenueChartDatum } from "@/libs/type";
@@ -51,21 +51,10 @@ function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
   const [months, setMonths] = useState<AdminDashboardPeriod>("last_6_months");
-  const [selectedHospitalIds, setSelectedHospitalIds] = useState<string[]>([]);
-
-  const optionsQuery = useQuery({
-    queryKey: ["admin-dashboard-options"],
-    queryFn: getAdminReportsOptions,
-    enabled: Boolean(accessToken),
-  });
 
   const dashboardQuery = useQuery({
-    queryKey: ["admin-dashboard", months, selectedHospitalIds],
-    queryFn: () =>
-      getAdminDashboard({
-        months,
-        hospitals: selectedHospitalIds.length ? selectedHospitalIds : undefined,
-      }),
+    queryKey: ["admin-dashboard", months],
+    queryFn: () => getAdminDashboard({ months }),
     enabled: Boolean(accessToken),
   });
 
@@ -79,9 +68,7 @@ function Page() {
     const error =
       dashboardQuery.error instanceof ApiError
         ? dashboardQuery.error
-        : optionsQuery.error instanceof ApiError
-          ? optionsQuery.error
-          : null;
+        : null;
 
     if (!error) {
       return;
@@ -91,7 +78,7 @@ function Page() {
       clearAuthTokens();
       router.replace("/login");
     }
-  }, [dashboardQuery.error, optionsQuery.error, router]);
+  }, [dashboardQuery.error, router]);
 
   const dashboardData: AdminDashboardResponse["data"] | undefined =
     dashboardQuery.data?.data;
@@ -144,11 +131,6 @@ function Page() {
       value: item.revenue,
     }));
   }, [dashboardData]);
-
-  const hospitalOptions = useMemo(
-    () => optionsQuery.data?.data.hospitals ?? [],
-    [optionsQuery.data?.data.hospitals],
-  );
 
   const metricCards = [
     {
@@ -208,15 +190,12 @@ function Page() {
         <DashboardFilterBar
           eyebrow="Platform Overview"
           title="Revenue patterns across the network"
-          description="Filter the time window and hospital mix, then compare platform growth against hospital performance."
+          description="Filter the time window, then compare platform growth against hospital performance."
           accent="admin"
           actions={
             <AdminDashboardControls
               months={months}
-              selectedHospitalIds={selectedHospitalIds}
-              hospitalOptions={hospitalOptions}
               onMonthsChange={setMonths}
-              onHospitalSelectionChange={setSelectedHospitalIds}
             />
           }
         />
@@ -224,10 +203,7 @@ function Page() {
         <AdminDashboardControls
           mobile
           months={months}
-          selectedHospitalIds={selectedHospitalIds}
-          hospitalOptions={hospitalOptions}
           onMonthsChange={setMonths}
-          onHospitalSelectionChange={setSelectedHospitalIds}
         />
 
         {dashboardQuery.error instanceof Error ? (
@@ -268,7 +244,7 @@ function Page() {
         >
           <DashboardSection
             title="Revenue Trend"
-            subtitle="Monthly platform revenue across the selected hospital set"
+            subtitle="Monthly platform revenue across the network"
             accent="admin"
             className="h-full"
             contentClassName="h-[26rem] p-5"
@@ -277,7 +253,7 @@ function Page() {
               <div className="h-full animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800" />
             ) : monthlyRevenue.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
-                Revenue trend data is not available for the selected filters.
+                Revenue trend data is not available for the selected period.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -330,7 +306,7 @@ function Page() {
               <div className="h-80 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800" />
             ) : paymentMethods.length === 0 ? (
               <div className="flex h-80 items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
-                Payment method data is not available for the selected filters.
+                Payment method data is not available for the selected period.
               </div>
             ) : (
               <div className="h-80">
@@ -377,7 +353,7 @@ function Page() {
 
           <DashboardSection
             title="Hospital Ranking Snapshot"
-            subtitle="Revenue comparison across hospitals in view"
+            subtitle="Revenue comparison across hospitals on the platform"
             accent="admin"
             contentClassName="p-5"
           >
@@ -385,7 +361,7 @@ function Page() {
               <div className="h-80 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800" />
             ) : hospitalsByRevenue.length === 0 ? (
               <div className="flex h-80 items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
-                Hospital revenue data is not available for the selected filters.
+                Hospital revenue data is not available for the selected period.
               </div>
             ) : (
               <div className="space-y-3">

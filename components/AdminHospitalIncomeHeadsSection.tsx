@@ -15,7 +15,7 @@ type Props = {
 };
 
 function getIncomeHeadStatus(item: AdminHospitalIncomeHeadItem) {
-  return item.is_active ? "Active" : "Inactive";
+  return item.is_active ? "Active" : "Suspended";
 }
 
 function AdminHospitalIncomeHeadsSection({

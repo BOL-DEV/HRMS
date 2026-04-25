@@ -5,22 +5,13 @@ import type { AdminDashboardPeriod } from "@/libs/type";
 
 type Props = {
   months: AdminDashboardPeriod;
-  selectedHospitalIds: string[];
-  hospitalOptions: Array<{
-    hospital_id: string;
-    hospital_name: string;
-  }>;
   onMonthsChange: (value: AdminDashboardPeriod) => void;
-  onHospitalSelectionChange: (value: string[]) => void;
   mobile?: boolean;
 };
 
 function AdminDashboardControls({
   months,
-  selectedHospitalIds,
-  hospitalOptions,
   onMonthsChange,
-  onHospitalSelectionChange,
   mobile = false,
 }: Props) {
   const periodOptions: Array<{
@@ -47,24 +38,6 @@ function AdminDashboardControls({
         onChange={onMonthsChange}
         accent="admin"
       />
-
-      <select
-        multiple
-        value={selectedHospitalIds}
-        onChange={(event) => {
-          const nextSelection = Array.from(event.target.selectedOptions).map(
-            (option) => option.value,
-          );
-          onHospitalSelectionChange(nextSelection);
-        }}
-        className={`${mobile ? "w-full" : "min-w-64"} rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100`}
-      >
-        {hospitalOptions.map((hospital) => (
-          <option key={hospital.hospital_id} value={hospital.hospital_id}>
-            {hospital.hospital_name}
-          </option>
-        ))}
-      </select>
     </div>
   );
 }

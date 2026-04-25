@@ -1,18 +1,30 @@
 "use client";
 
+import AdminHospitalDepartmentFormModal from "@/components/AdminHospitalDepartmentFormModal";
 import AdminSearchField from "@/components/AdminSearchField";
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
-import { getFoDepartments } from "@/libs/fo-auth";
-import { useQuery } from "@tanstack/react-query";
+import {
+  createFoDepartment,
+  getFoDepartments,
+  updateFoDepartment,
+} from "@/libs/fo-auth";
+import { formatDateTime } from "@/libs/helper";
+import type { FoDepartmentItem } from "@/libs/type";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 
 export default function FoDepartmentsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const accessToken = getAccessToken();
   const [search, setSearch] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingDepartment, setEditingDepartment] =
+    useState<FoDepartmentItem | null>(null);
 
   const departmentsQuery = useQuery({
     queryKey: ["fo-departments-page", search],
@@ -37,6 +49,40 @@ export default function FoDepartmentsPage() {
     }
   }, [departmentsQuery.error, router]);
 
+  const createMutation = useMutation({
+    mutationFn: (name: string) => createFoDepartment({ name }),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({ queryKey: ["fo-departments-page"] });
+      setIsCreateOpen(false);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to create department.",
+      );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      departmentId,
+      name,
+    }: {
+      departmentId: string;
+      name: string;
+    }) => updateFoDepartment(departmentId, { name }),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({ queryKey: ["fo-departments-page"] });
+      setEditingDepartment(null);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update department.",
+      );
+    },
+  });
+
   const rows = useMemo(
     () => departmentsQuery.data?.data.departments ?? [],
     [departmentsQuery.data?.data.departments],
@@ -46,7 +92,16 @@ export default function FoDepartmentsPage() {
     <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
       <Header
         title="Departments"
-        Subtitle="Browse hospital departments available to the FO workspace"
+        Subtitle="Browse and manage hospital departments in the FO workspace"
+        actions={
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Add Department
+          </button>
+        }
       />
 
       <div className="space-y-6 p-6">
@@ -89,7 +144,7 @@ export default function FoDepartmentsPage() {
               Department Directory
             </h2>
             <p className="text-sm text-gray-600 dark:text-slate-400">
-              Read-only department list from the FO department endpoint.
+              Department list for the current FO hospital workspace.
             </p>
           </div>
 
@@ -101,6 +156,7 @@ export default function FoDepartmentsPage() {
                   <th className="p-3 font-semibold">Status</th>
                   <th className="p-3 font-semibold">Created</th>
                   <th className="p-3 font-semibold">Updated</th>
+                  <th className="p-3 font-semibold text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -108,7 +164,7 @@ export default function FoDepartmentsPage() {
                   <tr>
                     <td
                       className="p-4 text-gray-500 dark:text-slate-400"
-                      colSpan={4}
+                      colSpan={5}
                     >
                       Loading departments...
                     </td>
@@ -117,7 +173,7 @@ export default function FoDepartmentsPage() {
                   <tr>
                     <td
                       className="p-4 text-gray-500 dark:text-slate-400"
-                      colSpan={4}
+                      colSpan={5}
                     >
                       No departments found for the current search.
                     </td>
@@ -135,10 +191,19 @@ export default function FoDepartmentsPage() {
                         {department.is_active ? "Active" : "Inactive"}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
-                        {department.created_at}
+                        {formatDateTime(department.created_at)}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
-                        {department.updated_at}
+                        {formatDateTime(department.updated_at)}
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setEditingDepartment(department)}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -148,6 +213,48 @@ export default function FoDepartmentsPage() {
           </div>
         </div>
       </div>
+
+      {isCreateOpen ? (
+        <AdminHospitalDepartmentFormModal
+          mode="create"
+          isSubmitting={createMutation.isPending}
+          onClose={() => setIsCreateOpen(false)}
+          onSubmit={(name) => {
+            if (!name) {
+              toast.error("Enter a department name.");
+              return;
+            }
+
+            createMutation.mutate(name);
+          }}
+        />
+      ) : null}
+
+      {editingDepartment ? (
+        <AdminHospitalDepartmentFormModal
+          mode="edit"
+          initialName={editingDepartment.name}
+          isSubmitting={updateMutation.isPending}
+          onClose={() => setEditingDepartment(null)}
+          onSubmit={(name) => {
+            if (!name) {
+              toast.error("Enter a department name.");
+              return;
+            }
+
+            if (name === editingDepartment.name) {
+              toast("No changes to save.");
+              setEditingDepartment(null);
+              return;
+            }
+
+            updateMutation.mutate({
+              departmentId: editingDepartment.department_id,
+              name,
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

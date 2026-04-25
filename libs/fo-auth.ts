@@ -17,17 +17,22 @@ import {
   openPrintWindowFromHtml,
 } from "@/libs/helper";
 import type {
-  CreateFoBillItemPayload,
+  AuthRefreshResponse,
   CreateFoAgentPayload,
   CreateFoAgentResponse,
-  FoAgentsResponse,
+  CreateFoBillItemPayload,
+  CreateFoDepartmentPayload,
+  CreateFoIncomeHeadPayload,
+  FoAgentReportResponse,
   FoAgentStatus,
+  FoAgentsResponse,
   FoBillItemMutationResponse,
   FoBillItemsResponse,
   FoDashboardResponse,
-  FoDepartmentsResponse,
+  FoDepartmentMutationResponse,
   FoDepartmentReportResponse,
-  FoAgentReportResponse,
+  FoDepartmentsResponse,
+  FoIncomeHeadMutationResponse,
   FoIncomeHeadsResponse,
   FoPatientReportResponse,
   FoProfileResponse,
@@ -39,9 +44,10 @@ import type {
   FoStatsResponse,
   FoStatsTimePeriod,
   FoTransactionsResponse,
-  AuthRefreshResponse,
-  UpdateFoBillItemPayload,
   UpdateFoAgentStatusResponse,
+  UpdateFoBillItemPayload,
+  UpdateFoDepartmentPayload,
+  UpdateFoIncomeHeadPayload,
 } from "@/libs/type";
 
 function getFoAuthHeaders(accessToken?: string) {
@@ -234,7 +240,7 @@ function normalizeFoDashboardResponse(payload: unknown): FoDashboardResponse {
 
   const normalizedPeriods: FoDashboardResponse["data"]["periods"] = {
     today: normalizeFoDashboardPeriod(periodsRaw?.today),
-    this_week: normalizeFoDashboardPeriod(periodsRaw?.this_week),
+    last_month: normalizeFoDashboardPeriod(periodsRaw?.last_month),
     this_month: normalizeFoDashboardPeriod(periodsRaw?.this_month),
     this_year: normalizeFoDashboardPeriod(periodsRaw?.this_year),
   };
@@ -242,13 +248,12 @@ function normalizeFoDashboardResponse(payload: unknown): FoDashboardResponse {
   if (process.env.NODE_ENV !== "production" && periodsRaw) {
     const missingKeys = [
       periodsRaw.today ? null : "today",
-      periodsRaw.this_week ? null : "this_week",
+      periodsRaw.last_month ? null : "last_month",
       periodsRaw.this_month ? null : "this_month",
       periodsRaw.this_year ? null : "this_year",
     ].filter(Boolean);
 
     if (missingKeys.length) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[getFoDashboard] Backend payload is missing documented periods: ${missingKeys.join(
           ", ",
@@ -314,6 +319,29 @@ export async function getFoDepartments(search?: string) {
   );
 }
 
+export async function createFoDepartment(payload: CreateFoDepartmentPayload) {
+  return withFoSessionRetry((accessToken) =>
+    postJson<FoDepartmentMutationResponse>("/api/fo/departments", payload, {
+      headers: getFoAuthHeaders(accessToken),
+    }),
+  );
+}
+
+export async function updateFoDepartment(
+  departmentId: string,
+  payload: UpdateFoDepartmentPayload,
+) {
+  return withFoSessionRetry((accessToken) =>
+    patchJson<FoDepartmentMutationResponse>(
+      `/api/fo/departments/${departmentId}`,
+      payload,
+      {
+        headers: getFoAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
 export async function getFoIncomeHeads(params?: {
   departmentId?: string;
   search?: string;
@@ -334,6 +362,29 @@ export async function getFoIncomeHeads(params?: {
     getJson<FoIncomeHeadsResponse>(`/api/fo/income-heads${suffix}`, {
       headers: getFoAuthHeaders(accessToken),
     }),
+  );
+}
+
+export async function createFoIncomeHead(payload: CreateFoIncomeHeadPayload) {
+  return withFoSessionRetry((accessToken) =>
+    postJson<FoIncomeHeadMutationResponse>("/api/fo/income-heads", payload, {
+      headers: getFoAuthHeaders(accessToken),
+    }),
+  );
+}
+
+export async function updateFoIncomeHead(
+  incomeHeadId: string,
+  payload: UpdateFoIncomeHeadPayload,
+) {
+  return withFoSessionRetry((accessToken) =>
+    patchJson<FoIncomeHeadMutationResponse>(
+      `/api/fo/income-heads/${incomeHeadId}`,
+      payload,
+      {
+        headers: getFoAuthHeaders(accessToken),
+      },
+    ),
   );
 }
 
