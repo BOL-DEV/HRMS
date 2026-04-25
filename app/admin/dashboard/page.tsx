@@ -224,7 +224,7 @@ function Page() {
                 ))}
               </DashboardKpiGrid>
             ) : (
-              <DashboardKpiGrid className="xl:grid-cols-2">
+              <DashboardKpiGrid className="xl:grid-cols-2 auto-rows-fr">
                 {metricCards.map((item) => (
                   <StatCard
                     key={item.title}
@@ -232,6 +232,7 @@ function Page() {
                     value={item.value}
                     delta={item.delta}
                     icon={item.icon}
+                    variant="compact"
                     accentClassName={item.accentClassName}
                     iconClassName={item.iconClassName}
                     iconBackgroundClassName={item.iconBackgroundClassName}

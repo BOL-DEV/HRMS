@@ -5,6 +5,7 @@ import AdminHospitalAgentFormModal from "@/components/AdminHospitalAgentFormModa
 import AdminHospitalAgentsListSection from "@/components/AdminHospitalAgentsListSection";
 import AdminHospitalAgentsSummaryCards from "@/components/AdminHospitalAgentsSummaryCards";
 import AdminPageError from "@/components/AdminPageError";
+import JsonModal from "@/components/JsonModal";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalAgent,
@@ -36,6 +37,8 @@ export default function HospitalAgentsPage() {
   const [topupAgent, setTopupAgent] = useState<AdminHospitalAgentListItem | null>(
     null,
   );
+  const [viewingAgent, setViewingAgent] =
+    useState<AdminHospitalAgentListItem | null>(null);
 
   const agentsQuery = useQuery({
     queryKey: ["admin-hospital-agents", hospitalId, search],
@@ -194,6 +197,7 @@ export default function HospitalAgentsPage() {
               status: agent.status === "suspended" ? "active" : "suspended",
             },
           })}
+        onView={setViewingAgent}
       />
 
       {isCreateOpen ? (
@@ -231,6 +235,14 @@ export default function HospitalAgentsPage() {
               amount,
             });
           }}
+        />
+      ) : null}
+
+      {viewingAgent ? (
+        <JsonModal
+          title={`Agent Payload: ${viewingAgent.agent_name}`}
+          payload={viewingAgent}
+          onClose={() => setViewingAgent(null)}
         />
       ) : null}
     </div>

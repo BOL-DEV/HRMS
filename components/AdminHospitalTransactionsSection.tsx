@@ -15,7 +15,9 @@ type Props = {
   patientSuggestions?: AdminHospitalPatientSearchItem[];
   isPatientSuggestionsLoading?: boolean;
   department: string;
+  departmentOptions?: string[];
   agent: string;
+  agentOptions?: string[];
   startDate: string;
   endDate: string;
   isLoading?: boolean;
@@ -48,7 +50,9 @@ function AdminHospitalTransactionsSection({
   patientSuggestions = [],
   isPatientSuggestionsLoading = false,
   department,
+  departmentOptions = [],
   agent,
+  agentOptions = [],
   startDate,
   endDate,
   isLoading = false,
@@ -131,19 +135,31 @@ function AdminHospitalTransactionsSection({
             ) : null}
           </div>
 
-          <input
+          <select
             value={department}
             onChange={(event) => onDepartmentChange(event.target.value)}
-            placeholder="Department"
             className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          />
+          >
+            <option value="">All Departments</option>
+            {departmentOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
 
-          <input
+          <select
             value={agent}
             onChange={(event) => onAgentChange(event.target.value)}
-            placeholder="Agent"
             className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          />
+          >
+            <option value="">All Agents</option>
+            {agentOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
 
           <select
             value={paymentMethod}

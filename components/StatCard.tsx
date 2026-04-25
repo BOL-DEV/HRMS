@@ -10,6 +10,7 @@ interface Props {
   iconClassName?: string;
   iconBackgroundClassName?: string;
   valueClassName?: string;
+  variant?: "default" | "compact";
 }
 
 function StatCard({
@@ -22,6 +23,7 @@ function StatCard({
   iconClassName,
   iconBackgroundClassName,
   valueClassName,
+  variant = "default",
 }: Props) {
   const deltaClassName =
     deltaTone === "positive"
@@ -32,26 +34,26 @@ function StatCard({
 
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white p-5 flex items-start justify-between shadow-[0_14px_35px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 ${accentClassName ?? ""}`}
+      className={`rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 ${variant === "compact" ? "p-4" : "p-5"} flex items-start justify-between ${accentClassName ?? ""}`}
     >
       <div>
-        <p className="text-sm text-gray-600 font-medium dark:text-slate-400">
+        <p className={`${variant === "compact" ? "text-xs" : "text-sm"} text-gray-600 font-semibold tracking-wide dark:text-slate-400`}>
           {title}
         </p>
         <h2
-          className={`mt-2 text-3xl font-bold text-gray-900 dark:text-slate-100 ${valueClassName ?? ""}`}
+          className={`mt-2 ${variant === "compact" ? "text-2xl" : "text-3xl"} font-black tracking-tight text-gray-900 dark:text-slate-100 ${valueClassName ?? ""}`}
         >
           {value}
         </h2>
         {delta ? (
-          <p className={`text-sm font-medium mt-2 ${deltaClassName}`}>
+          <p className={`${variant === "compact" ? "text-xs" : "text-sm"} font-medium mt-2 ${deltaClassName}`}>
             {delta}
           </p>
         ) : null}
       </div>
 
       <div
-        className={`rounded-xl p-3 bg-blue-100 text-blue-600 dark:bg-sky-500/15 dark:text-sky-300 ${iconBackgroundClassName ?? ""} ${iconClassName ?? ""}`}
+        className={`rounded-2xl ${variant === "compact" ? "p-2.5" : "p-3"} bg-blue-100 text-blue-600 dark:bg-sky-500/15 dark:text-sky-300 ${iconBackgroundClassName ?? ""} ${iconClassName ?? ""}`}
       >
         {icon}
       </div>

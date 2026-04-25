@@ -703,6 +703,7 @@ export type AdminHospitalOverviewResponse = {
       total_revenue: number;
       total_transactions: number;
       total_agents: number;
+      total_fos: number;
       total_departments: number;
       pending_receipt_reprint: number;
     };
@@ -726,6 +727,8 @@ export type AdminHospitalAgentListItem = {
   email: string;
   balance: number;
   total_revenue_made: number;
+  total_topup: number;
+  last_wallet_topup: number;
   status: AdminHospitalAgentStatus;
 };
 

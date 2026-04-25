@@ -25,6 +25,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
 const PAGE_SIZE = 30;
+const BILL_ITEMS_MANUAL_HOSPITAL_HINT = "automatic revenue type";
 
 function getStatusValue(item: FoBillItem): "active" | "inactive" | "suspended" {
   if (item.status === "suspended") {
@@ -87,6 +88,11 @@ function Page() {
     enabled: Boolean(accessToken),
   });
 
+  const isManualHospital =
+    billItemsQuery.error instanceof ApiError &&
+    billItemsQuery.error.status === 400 &&
+    billItemsQuery.error.message.toLowerCase().includes(BILL_ITEMS_MANUAL_HOSPITAL_HINT);
+
   useEffect(() => {
     if (!accessToken) {
       router.replace("/login");
@@ -112,6 +118,7 @@ function Page() {
     if (error.status === 401) {
       clearAuthTokens();
       router.replace("/login");
+      return;
     }
   }, [
     billItemsQuery.error,
@@ -231,6 +238,23 @@ function Page() {
           : modalIncomeHeadsQuery.error instanceof Error
             ? modalIncomeHeadsQuery.error.message
             : null;
+
+  if (isManualHospital) {
+    return (
+      <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+        <Header
+          title="Bill Items"
+          Subtitle="Bill items are only available for hospitals on automatic revenue type"
+        />
+
+        <div className="space-y-6 p-6">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+            This hospital is configured for manual revenue type, so bill item management is disabled here.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">

@@ -7,6 +7,8 @@ import AdminHospitalTransactionsSummaryCards from "@/components/AdminHospitalTra
 import { ApiError } from "@/libs/api";
 import {
   exportAdminHospitalTransactionsCsv,
+  getAdminHospitalAgents,
+  getAdminHospitalDepartments,
   getAdminHospitalPatientSearch,
   getAdminHospitalTransactions,
 } from "@/libs/admin-auth";
@@ -89,6 +91,18 @@ export default function HospitalTransactionsPage() {
     enabled: Boolean(accessToken && hospitalId && deferredPatientId && patientIdIsNumeric),
   });
 
+  const departmentsQuery = useQuery({
+    queryKey: ["admin-hospital-transactions-departments", hospitalId],
+    queryFn: () => getAdminHospitalDepartments(hospitalId),
+    enabled: Boolean(accessToken && hospitalId),
+  });
+
+  const agentsQuery = useQuery({
+    queryKey: ["admin-hospital-transactions-agents", hospitalId],
+    queryFn: () => getAdminHospitalAgents(hospitalId),
+    enabled: Boolean(accessToken && hospitalId),
+  });
+
   useEffect(() => {
     if (!accessToken) {
       router.replace("/login");
@@ -101,6 +115,10 @@ export default function HospitalTransactionsPage() {
         ? transactionsQuery.error
         : patientSearchQuery.error instanceof ApiError
           ? patientSearchQuery.error
+          : departmentsQuery.error instanceof ApiError
+            ? departmentsQuery.error
+            : agentsQuery.error instanceof ApiError
+              ? agentsQuery.error
           : null;
 
     if (!error) {
@@ -116,7 +134,13 @@ export default function HospitalTransactionsPage() {
     if (error.status === 404) {
       router.replace("/admin/hospitals");
     }
-  }, [patientSearchQuery.error, router, transactionsQuery.error]);
+  }, [
+    agentsQuery.error,
+    departmentsQuery.error,
+    patientSearchQuery.error,
+    router,
+    transactionsQuery.error,
+  ]);
 
   const transactionsData = transactionsQuery.data?.data;
   const pagination = transactionsData?.pagination;
@@ -180,6 +204,18 @@ export default function HospitalTransactionsPage() {
     Boolean(startDateInput || endDateInput) &&
     (!startDateInput || !endDateInput);
 
+  const departmentOptions = useMemo(() => {
+    const raw = departmentsQuery.data?.data.departments ?? [];
+    const names = raw.map((item) => (typeof item === "string" ? item : item.name));
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [departmentsQuery.data?.data.departments]);
+
+  const agentOptions = useMemo(() => {
+    const raw = agentsQuery.data?.data.agent_name_list ?? [];
+    const names = raw.map((item) => item.agent_name);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [agentsQuery.data?.data.agent_name_list]);
+
   return (
     <div className="space-y-6">
       {transactionsQuery.error instanceof Error ? (
@@ -200,7 +236,9 @@ export default function HospitalTransactionsPage() {
           patientSuggestions={patientSearchQuery.data?.data.patients ?? []}
           isPatientSuggestionsLoading={patientSearchQuery.isLoading}
           department={departmentInput}
+          departmentOptions={departmentOptions}
           agent={agentInput}
+          agentOptions={agentOptions}
           startDate={startDateInput}
           endDate={endDateInput}
           isLoading={transactionsQuery.isLoading && !transactionsQuery.data}
