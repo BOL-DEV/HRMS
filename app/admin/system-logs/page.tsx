@@ -21,17 +21,6 @@ function formatEvent(event: string) {
     .join(" ");
 }
 
-function formatMetadata(metadata: Record<string, unknown>) {
-  const entries = Object.entries(metadata);
-
-  if (!entries.length) {
-    return "No extra metadata";
-  }
-
-  return entries
-    .map(([key, value]) => `${key}: ${String(value)}`)
-    .join(" | ");
-}
 
 function getStatusTone(status: string) {
   return status.toLowerCase() === "success"
@@ -197,7 +186,11 @@ export default function Page() {
               value={roleInput}
               onChange={(event) =>
                 setRoleInput(
-                  event.target.value as "all" | "PLATFORM_ADMIN" | "FO" | "AGENT",
+                  event.target.value as
+                    | "all"
+                    | "PLATFORM_ADMIN"
+                    | "FO"
+                    | "AGENT",
                 )
               }
               className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
@@ -221,72 +214,68 @@ export default function Page() {
                   <th className="p-3 font-semibold">Status</th>
                   <th className="p-3 font-semibold">Date/Time</th>
                   <th className="p-3 font-semibold">Failure</th>
-                  <th className="p-3 font-semibold">Metadata</th>
                 </tr>
               </thead>
               <tbody>
-                {logsQuery.isLoading && !logsQuery.data
-                  ? Array.from({ length: 6 }).map((_, index) => (
-                      <tr
-                        key={index}
-                        className="border-b border-gray-100 dark:border-slate-800"
-                      >
-                        <td colSpan={8} className="p-3">
-                          <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
-                        </td>
-                      </tr>
-                    ))
-                  : rows.length === 0
-                    ? (
-                        <tr>
-                          <td
-                            colSpan={8}
-                            className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
-                          >
-                            No system logs found for the current filters.
-                          </td>
-                        </tr>
-                      )
-                    : rows.map((log) => (
-                        <tr
-                          key={log.log_id}
-                          className="border-b border-gray-100 dark:border-slate-800"
+                {logsQuery.isLoading && !logsQuery.data ? (
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <tr
+                      key={index}
+                      className="border-b border-gray-100 dark:border-slate-800"
+                    >
+                      <td colSpan={8} className="p-3">
+                        <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
+                      </td>
+                    </tr>
+                  ))
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
+                    >
+                      No system logs found for the current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((log) => (
+                    <tr
+                      key={log.log_id}
+                      className="border-b border-gray-100 dark:border-slate-800"
+                    >
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {log.hospital?.hospital_name ?? "Platform"}
+                      </td>
+                      <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
+                        {log.username ?? log.user.name}
+                      </td>
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {log.email ?? log.user.email}
+                      </td>
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {log.role ?? log.user.role}
+                      </td>
+                      <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
+                        {formatEvent(log.event)}
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(log.status)}`}
                         >
-                          <td className="p-3 text-gray-700 dark:text-slate-300">
-                            {log.hospital?.hospital_name ?? "Platform"}
-                          </td>
-                          <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
-                            {log.username ?? log.user.name}
-                          </td>
-                          <td className="p-3 text-gray-700 dark:text-slate-300">
-                            {log.email ?? log.user.email}
-                          </td>
-                          <td className="p-3 text-gray-700 dark:text-slate-300">
-                            {log.role ?? log.user.role}
-                          </td>
-                          <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
-                            {formatEvent(log.event)}
-                          </td>
-                          <td className="p-3">
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusTone(log.status)}`}
-                            >
-                              {log.status}
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
-                            {formatDateTime(log.created_at)}
-                          </td>
-                          <td className="p-3 text-gray-700 dark:text-slate-300">
-                            {log.status === "failed"
-                              ? (log.failed_reason ?? "Unknown")
-                              : "-"}
-                          </td>
-                          <td className="p-3 text-gray-600 dark:text-slate-400">
-                            {formatMetadata(log.metadata)}
-                          </td>
-                        </tr>
-                      ))}
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
+                        {formatDateTime(log.created_at)}
+                      </td>
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {log.status === "failed"
+                          ? (log.failed_reason ?? "Unknown")
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

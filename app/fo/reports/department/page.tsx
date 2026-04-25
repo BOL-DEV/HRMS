@@ -80,7 +80,8 @@ function Page() {
   const options = useMemo(
     () =>
       (departmentsQuery.data?.data.departments ?? []).map((item) => ({
-        id: item.department_id,
+        // Backend matches by department name, not UUID.
+        id: item.name,
         name: item.name,
       })),
     [departmentsQuery.data?.data.departments],

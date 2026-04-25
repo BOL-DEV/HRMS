@@ -18,6 +18,7 @@ function AdminDashboardControls({
     label: string;
     value: AdminDashboardPeriod;
   }> = [
+    { label: "This Month", value: "this_month" },
     { label: "Last Month", value: "last_month" },
     { label: "3 Months", value: "last_three_months" },
     { label: "6 Months", value: "last_6_months" },

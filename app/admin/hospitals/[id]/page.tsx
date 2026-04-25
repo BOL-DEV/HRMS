@@ -76,6 +76,10 @@ function HospitalOverviewPage() {
         value: formatCompactNumber(summary?.total_agents ?? 0),
       },
       {
+        title: "Total FOs",
+        value: formatCompactNumber(summary?.total_fos ?? 0),
+      },
+      {
         title: "Total Departments",
         value: formatCompactNumber(summary?.total_departments ?? 0),
       },
