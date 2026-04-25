@@ -7,12 +7,13 @@ import AdminHospitalTransactionsSummaryCards from "@/components/AdminHospitalTra
 import { ApiError } from "@/libs/api";
 import {
   exportAdminHospitalTransactionsCsv,
+  getAdminHospitalPatientSearch,
   getAdminHospitalTransactions,
 } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
 const PAGE_LIMIT = 15;
@@ -42,6 +43,12 @@ export default function HospitalTransactionsPage() {
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
   const [page, setPage] = useState(1);
+  const deferredPatientId = useDeferredValue(patientIdInput.trim());
+
+  const patientIdIsNumeric = useMemo(
+    () => (deferredPatientId ? /^\d+$/.test(deferredPatientId) : false),
+    [deferredPatientId],
+  );
 
   const transactionsQuery = useQuery({
     queryKey: [
@@ -72,6 +79,16 @@ export default function HospitalTransactionsPage() {
     enabled: Boolean(accessToken && hospitalId),
   });
 
+  const patientSearchQuery = useQuery({
+    queryKey: ["admin-hospital-patient-search", hospitalId, deferredPatientId],
+    queryFn: () =>
+      getAdminHospitalPatientSearch(hospitalId, {
+        query: deferredPatientId,
+        limit: 10,
+      }),
+    enabled: Boolean(accessToken && hospitalId && deferredPatientId && patientIdIsNumeric),
+  });
+
   useEffect(() => {
     if (!accessToken) {
       router.replace("/login");
@@ -79,20 +96,27 @@ export default function HospitalTransactionsPage() {
   }, [accessToken, router]);
 
   useEffect(() => {
-    if (!(transactionsQuery.error instanceof ApiError)) {
+    const error =
+      transactionsQuery.error instanceof ApiError
+        ? transactionsQuery.error
+        : patientSearchQuery.error instanceof ApiError
+          ? patientSearchQuery.error
+          : null;
+
+    if (!error) {
       return;
     }
 
-    if (transactionsQuery.error.status === 401) {
+    if (error.status === 401) {
       clearAuthTokens();
       router.replace("/login");
       return;
     }
 
-    if (transactionsQuery.error.status === 404) {
+    if (error.status === 404) {
       router.replace("/admin/hospitals");
     }
-  }, [transactionsQuery.error, router]);
+  }, [patientSearchQuery.error, router, transactionsQuery.error]);
 
   const transactionsData = transactionsQuery.data?.data;
   const pagination = transactionsData?.pagination;
@@ -173,6 +197,8 @@ export default function HospitalTransactionsPage() {
           search={searchInput}
           paymentMethod={paymentMethodInput}
           patientId={patientIdInput}
+          patientSuggestions={patientSearchQuery.data?.data.patients ?? []}
+          isPatientSuggestionsLoading={patientSearchQuery.isLoading}
           department={departmentInput}
           agent={agentInput}
           startDate={startDateInput}

@@ -67,6 +67,7 @@ export interface paymentMethodProps {
 export interface RevenueChartDatum {
   name: string;
   value: number;
+  color?: string;
 }
 
 export interface AgentPerformanceRow {
@@ -509,7 +510,7 @@ export type FoDashboardResponse = {
         transaction_count: number;
         active_agents?: number;
       };
-      this_week: {
+      last_month: {
         total_revenue: number;
         transaction_count: number;
         active_agents?: number;
@@ -958,7 +959,7 @@ export type CreateAdminHospitalIncomeHeadPayload = {
 
 export type UpdateAdminHospitalIncomeHeadPayload = Partial<
   CreateAdminHospitalIncomeHeadPayload & {
-    status: "active" | "inactive";
+    status: "active" | "suspended";
   }
 >;
 
@@ -1089,6 +1090,27 @@ export type AdminHospitalTransactionItem = {
   payment_method?: "cash" | "transfer" | "pos";
   amount: number;
   agent: string;
+};
+
+export type AdminHospitalPatientSearchItem = {
+  id: string;
+  hospital_id: string;
+  patient_id: string;
+  patient_name: string;
+  phone_number: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminHospitalPatientSearchResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    query: string;
+    total_matches: number;
+    patients: AdminHospitalPatientSearchItem[];
+  };
 };
 
 export type AdminHospitalActivityLog = {
@@ -1473,6 +1495,28 @@ export type FoDepartmentsResponse = {
   };
 };
 
+export type CreateFoDepartmentPayload = {
+  name: string;
+};
+
+export type UpdateFoDepartmentPayload = {
+  name: string;
+};
+
+export type FoDepartmentMutationResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    hospital_id: string;
+    name: string;
+    is_active: boolean;
+    is_deleted: boolean;
+    created_at: string;
+    updated_at: string;
+  };
+};
+
 export type FoIncomeHeadItem = {
   income_head_id: string;
   hospital_id: string;
@@ -1497,6 +1541,34 @@ export type FoIncomeHeadsResponse = {
     };
     total_income_heads: number;
     income_heads: FoIncomeHeadItem[];
+  };
+};
+
+export type FoIncomeHeadStatus = "active" | "suspended";
+
+export type CreateFoIncomeHeadPayload = {
+  department_id: string;
+  name: string;
+};
+
+export type UpdateFoIncomeHeadPayload = {
+  department_id?: string;
+  name?: string;
+  status?: FoIncomeHeadStatus;
+};
+
+export type FoIncomeHeadMutationResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    hospital_id: string;
+    department_id: string;
+    name: string;
+    is_active: boolean;
+    is_deleted: boolean;
+    created_at: string;
+    updated_at: string;
   };
 };
 

@@ -1,19 +1,32 @@
 "use client";
 
+import AdminHospitalIncomeHeadFormModal from "@/components/AdminHospitalIncomeHeadFormModal";
 import AdminSearchField from "@/components/AdminSearchField";
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
-import { getFoDepartments, getFoIncomeHeads } from "@/libs/fo-auth";
-import { useQuery } from "@tanstack/react-query";
+import {
+  createFoIncomeHead,
+  getFoDepartments,
+  getFoIncomeHeads,
+  updateFoIncomeHead,
+} from "@/libs/fo-auth";
+import { formatDateTime } from "@/libs/helper";
+import type { FoIncomeHeadItem } from "@/libs/type";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 
 export default function FoIncomeHeadsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const accessToken = getAccessToken();
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("All");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingIncomeHead, setEditingIncomeHead] =
+    useState<FoIncomeHeadItem | null>(null);
 
   const departmentsQuery = useQuery({
     queryKey: ["fo-income-heads-departments-page"],
@@ -55,6 +68,48 @@ export default function FoIncomeHeadsPage() {
     }
   }, [departmentsQuery.error, incomeHeadsQuery.error, router]);
 
+  const createMutation = useMutation({
+    mutationFn: (payload: { departmentId: string; name: string }) =>
+      createFoIncomeHead({
+        department_id: payload.departmentId,
+        name: payload.name,
+      }),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({ queryKey: ["fo-income-heads-page"] });
+      setIsCreateOpen(false);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to create income head.",
+      );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: {
+      incomeHeadId: string;
+      departmentId: string;
+      name: string;
+      status: "active" | "suspended";
+    }) =>
+      updateFoIncomeHead(payload.incomeHeadId, {
+        department_id: payload.departmentId,
+        name: payload.name,
+        status: payload.status,
+      }),
+    onSuccess: (response) => {
+      toast.success(response.message);
+      queryClient.invalidateQueries({ queryKey: ["fo-income-heads-page"] });
+      setEditingIncomeHead(null);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to update income head.",
+      );
+    },
+  });
+
   const departmentOptions = useMemo(
     () =>
       (departmentsQuery.data?.data.departments ?? []).map((item) => ({
@@ -80,7 +135,16 @@ export default function FoIncomeHeadsPage() {
     <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
       <Header
         title="Income Heads"
-        Subtitle="Browse income heads returned for the FO hospital"
+        Subtitle="Browse and manage income heads in the FO hospital workspace"
+        actions={
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Add Income Head
+          </button>
+        }
       />
 
       <div className="space-y-6 p-6">
@@ -141,7 +205,7 @@ export default function FoIncomeHeadsPage() {
               Income Head Directory
             </h2>
             <p className="text-sm text-gray-600 dark:text-slate-400">
-              Read-only income head list from the FO income heads endpoint.
+              Income head list for the current FO hospital workspace.
             </p>
           </div>
 
@@ -153,6 +217,7 @@ export default function FoIncomeHeadsPage() {
                   <th className="p-3 font-semibold">Department</th>
                   <th className="p-3 font-semibold">Status</th>
                   <th className="p-3 font-semibold">Updated</th>
+                  <th className="p-3 font-semibold text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,7 +225,7 @@ export default function FoIncomeHeadsPage() {
                   <tr>
                     <td
                       className="p-4 text-gray-500 dark:text-slate-400"
-                      colSpan={4}
+                      colSpan={5}
                     >
                       Loading income heads...
                     </td>
@@ -169,7 +234,7 @@ export default function FoIncomeHeadsPage() {
                   <tr>
                     <td
                       className="p-4 text-gray-500 dark:text-slate-400"
-                      colSpan={4}
+                      colSpan={5}
                     >
                       No income heads found for the current filters.
                     </td>
@@ -187,10 +252,19 @@ export default function FoIncomeHeadsPage() {
                         {item.department_name}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
-                        {item.is_active ? "Active" : "Inactive"}
+                        {item.is_active ? "Active" : "Suspended"}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
-                        {item.updated_at}
+                        {formatDateTime(item.updated_at)}
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setEditingIncomeHead(item)}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -200,6 +274,55 @@ export default function FoIncomeHeadsPage() {
           </div>
         </div>
       </div>
+
+      {isCreateOpen ? (
+        <AdminHospitalIncomeHeadFormModal
+          key="create-fo-income-head"
+          mode="create"
+          departmentOptions={departmentOptions}
+          isSubmitting={createMutation.isPending}
+          onClose={() => setIsCreateOpen(false)}
+          onSubmit={(values) => {
+            if (!values.departmentId || !values.name) {
+              toast.error("Select a department and enter a name.");
+              return;
+            }
+
+            createMutation.mutate({
+              departmentId: values.departmentId,
+              name: values.name,
+            });
+          }}
+        />
+      ) : null}
+
+      {editingIncomeHead ? (
+        <AdminHospitalIncomeHeadFormModal
+          key={editingIncomeHead.income_head_id}
+          mode="edit"
+          departmentOptions={departmentOptions}
+          initialValues={{
+            departmentId: editingIncomeHead.department_id,
+            name: editingIncomeHead.name,
+            status: editingIncomeHead.is_active ? "active" : "suspended",
+          }}
+          isSubmitting={updateMutation.isPending}
+          onClose={() => setEditingIncomeHead(null)}
+          onSubmit={(values) => {
+            if (!values.departmentId || !values.name) {
+              toast.error("Select a department and enter a name.");
+              return;
+            }
+
+            updateMutation.mutate({
+              incomeHeadId: editingIncomeHead.income_head_id,
+              departmentId: values.departmentId,
+              name: values.name,
+              status: values.status,
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

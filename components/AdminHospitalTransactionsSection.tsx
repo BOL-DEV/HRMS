@@ -1,7 +1,10 @@
 import AdminDateRangeFilterBar from "@/components/AdminDateRangeFilterBar";
 import AdminSearchField from "@/components/AdminSearchField";
 import { formatDateTime, formatNaira } from "@/libs/helper";
-import type { AdminHospitalTransactionItem } from "@/libs/type";
+import type {
+  AdminHospitalPatientSearchItem,
+  AdminHospitalTransactionItem,
+} from "@/libs/type";
 import { FiDownload } from "react-icons/fi";
 
 type Props = {
@@ -9,6 +12,8 @@ type Props = {
   search: string;
   paymentMethod: "all" | "cash" | "transfer" | "pos";
   patientId: string;
+  patientSuggestions?: AdminHospitalPatientSearchItem[];
+  isPatientSuggestionsLoading?: boolean;
   department: string;
   agent: string;
   startDate: string;
@@ -18,6 +23,7 @@ type Props = {
   onSearchChange: (value: string) => void;
   onPaymentMethodChange: (value: "all" | "cash" | "transfer" | "pos") => void;
   onPatientIdChange: (value: string) => void;
+  onSelectPatientId?: (value: string) => void;
   onDepartmentChange: (value: string) => void;
   onAgentChange: (value: string) => void;
   onStartDateChange: (value: string) => void;
@@ -39,6 +45,8 @@ function AdminHospitalTransactionsSection({
   search,
   paymentMethod,
   patientId,
+  patientSuggestions = [],
+  isPatientSuggestionsLoading = false,
   department,
   agent,
   startDate,
@@ -48,6 +56,7 @@ function AdminHospitalTransactionsSection({
   onSearchChange,
   onPaymentMethodChange,
   onPatientIdChange,
+  onSelectPatientId,
   onDepartmentChange,
   onAgentChange,
   onStartDateChange,
@@ -76,12 +85,51 @@ function AdminHospitalTransactionsSection({
             className="w-full max-w-none"
           />
 
-          <input
-            value={patientId}
-            onChange={(event) => onPatientIdChange(event.target.value)}
-            placeholder="Patient ID"
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-          />
+          <div className="relative w-full">
+            <input
+              value={patientId}
+              onChange={(event) => onPatientIdChange(event.target.value)}
+              placeholder="Patient ID"
+              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            />
+
+            {patientId.trim() ? (
+              <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                {isPatientSuggestionsLoading ? (
+                  <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
+                    Searching...
+                  </div>
+                ) : patientSuggestions.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
+                    No matches
+                  </div>
+                ) : (
+                  <ul className="max-h-64 overflow-y-auto">
+                    {patientSuggestions.map((patient) => (
+                      <li key={patient.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextValue = patient.patient_id;
+                            onSelectPatientId?.(nextValue);
+                            onPatientIdChange(nextValue);
+                          }}
+                          className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                        >
+                          <span className="font-semibold text-gray-900 dark:text-slate-100">
+                            {patient.patient_name} ({patient.patient_id})
+                          </span>
+                          <span className="text-xs text-gray-600 dark:text-slate-300">
+                            {patient.phone_number}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </div>
 
           <input
             value={department}

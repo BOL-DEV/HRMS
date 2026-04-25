@@ -101,7 +101,7 @@ export default function HospitalIncomeHeadsPage() {
       incomeHeadId: string;
       departmentId: string;
       name: string;
-      status: "active" | "inactive";
+      status: "active" | "suspended";
     }) =>
       updateAdminHospitalIncomeHead(hospitalId, payload.incomeHeadId, {
         department_id: payload.departmentId,
@@ -200,7 +200,7 @@ export default function HospitalIncomeHeadsPage() {
           initialValues={{
             departmentId: editingIncomeHead.department_id,
             name: editingIncomeHead.name,
-            status: editingIncomeHead.is_active ? "active" : "inactive",
+            status: editingIncomeHead.is_active ? "active" : "suspended",
           }}
           isSubmitting={updateMutation.isPending}
           onClose={() => setEditingIncomeHead(null)}
