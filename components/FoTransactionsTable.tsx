@@ -1,7 +1,6 @@
 import TagPill from "@/components/TagPill";
 import { formatDateTime, formatNaira } from "@/libs/helper";
 import type { FoReportPaymentType, FoTransactionItem } from "@/libs/type";
-import { FiMoreVertical } from "react-icons/fi";
 
 type MethodFilter = "Cash" | "Transfer" | "POS";
 
@@ -33,7 +32,6 @@ function FoTransactionsTable({
               <th className="p-3 font-semibold">Amount</th>
               <th className="p-3 font-semibold">Method</th>
               <th className="p-3 font-semibold">Agent</th>
-              <th className="p-3 font-semibold text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -41,7 +39,7 @@ function FoTransactionsTable({
               <tr>
                 <td
                   className="p-4 text-gray-500 dark:text-slate-400"
-                  colSpan={9}
+                  colSpan={8}
                 >
                   Loading transactions...
                 </td>
@@ -50,7 +48,7 @@ function FoTransactionsTable({
               <tr>
                 <td
                   className="p-4 text-gray-500 dark:text-slate-400"
-                  colSpan={9}
+                  colSpan={8}
                 >
                   No transactions found for the current filters.
                 </td>
@@ -87,11 +85,6 @@ function FoTransactionsTable({
                   </td>
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
                     {item.agent}
-                  </td>
-                  <td className="p-3 text-right">
-                    <button className="rounded-lg border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-slate-700 dark:hover:bg-slate-800">
-                      <FiMoreVertical className="text-gray-700 dark:text-slate-200" />
-                    </button>
                   </td>
                 </tr>
               ))

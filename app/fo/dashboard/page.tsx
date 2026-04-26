@@ -55,8 +55,8 @@ function getDashboardPeriodValue(
   periods:
     | {
         today: { total_revenue: number; transaction_count: number };
-        last_month: { total_revenue: number; transaction_count: number };
         this_month: { total_revenue: number; transaction_count: number };
+        last_month: { total_revenue: number; transaction_count: number };
         this_year: { total_revenue: number; transaction_count: number };
       }
     | undefined,
@@ -142,17 +142,18 @@ function Page() {
       ...summaryAccents[0],
     },
     {
-      label: "Last Month",
-      revenue: lastMonthPeriod.total_revenue,
-      transactions: lastMonthPeriod.transaction_count,
-      ...summaryAccents[1],
-    },
-    {
       label: "This Month",
       revenue: monthPeriod.total_revenue,
       transactions: monthPeriod.transaction_count,
       ...summaryAccents[2],
     },
+    {
+      label: "Last Month",
+      revenue: lastMonthPeriod.total_revenue,
+      transactions: lastMonthPeriod.transaction_count,
+      ...summaryAccents[1],
+    },
+
     {
       label: "This Year",
       revenue: yearPeriod.total_revenue,

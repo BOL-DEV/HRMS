@@ -17,7 +17,14 @@ function formatMetadata(metadata: Record<string, unknown>) {
   }
 
   return entries
-    .map(([key, value]) => `${key}: ${String(value)}`)
+    .map(([key, value]) => {
+      const formattedValue =
+        value !== null && typeof value === "object"
+          ? JSON.stringify(value)
+          : String(value);
+
+      return `${key.replaceAll("_", " ")}: ${formattedValue}`;
+    })
     .join(" | ");
 }
 
@@ -57,10 +64,14 @@ function AdminHospitalActivityTimeline({ rows, isLoading = false }: Props) {
                           {formatAction(log.action)}
                         </p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-                          Actor Role: {log.actor_role ?? "Unknown"}
+                          {log.actor
+                            ? `${log.actor.name} | ${log.actor.email} | ${log.actor.role}`
+                            : "Unknown actor"}
                         </p>
                         <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
-                          Target: {log.target_type ?? "unknown"} - {log.target_label ?? "Unknown"}
+                          Target: {log.target?.type ?? "unknown"} -{" "}
+                          {log.target?.label ?? "Unknown"}
+                          {log.target?.id ? ` (${log.target.id})` : ""}
                         </p>
                         <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
                           {formatMetadata(log.metadata)}

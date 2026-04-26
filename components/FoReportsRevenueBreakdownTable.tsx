@@ -9,20 +9,36 @@ type Row = {
 
 type Props = {
   rows: Row[];
+  title?: string;
+  primaryColumnLabel?: string;
+  secondaryColumnLabel?: string;
+  hideSecondaryColumn?: boolean;
+  emptyMessage?: string;
 };
 
-function FoReportsRevenueBreakdownTable({ rows }: Props) {
+function FoReportsRevenueBreakdownTable({
+  rows,
+  title = "Detailed Revenue Breakdown",
+  primaryColumnLabel = "Revenue Head",
+  secondaryColumnLabel = "Department",
+  hideSecondaryColumn = false,
+  emptyMessage = "No revenue breakdown available for the current filters.",
+}: Props) {
+  const columnCount = hideSecondaryColumn ? 3 : 4;
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
       <h2 className="mb-4 text-lg font-bold dark:text-slate-100">
-        Detailed Revenue Breakdown
+        {title}
       </h2>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
-              <th className="p-3 font-semibold">Revenue Head</th>
-              <th className="p-3 font-semibold">Department</th>
+              <th className="p-3 font-semibold">{primaryColumnLabel}</th>
+              {!hideSecondaryColumn ? (
+                <th className="p-3 font-semibold">{secondaryColumnLabel}</th>
+              ) : null}
               <th className="p-3 font-semibold">Transactions</th>
               <th className="p-3 font-semibold">Total Revenue</th>
             </tr>
@@ -32,9 +48,9 @@ function FoReportsRevenueBreakdownTable({ rows }: Props) {
               <tr>
                 <td
                   className="p-4 text-gray-500 dark:text-slate-400"
-                  colSpan={4}
+                  colSpan={columnCount}
                 >
-                  No revenue breakdown available for the current filters.
+                  {emptyMessage}
                 </td>
               </tr>
             ) : (
@@ -46,9 +62,11 @@ function FoReportsRevenueBreakdownTable({ rows }: Props) {
                   <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {row.revenueHead}
                   </td>
-                  <td className="p-3 text-gray-700 dark:text-slate-300">
-                    {row.department}
-                  </td>
+                  {!hideSecondaryColumn ? (
+                    <td className="p-3 text-gray-700 dark:text-slate-300">
+                      {row.department}
+                    </td>
+                  ) : null}
                   <td className="p-3 text-gray-700 dark:text-slate-300">
                     {row.transactions}
                   </td>

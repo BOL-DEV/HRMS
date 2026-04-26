@@ -5,6 +5,11 @@ type Props = {
   totalRevenue: number;
   totalTransactions: number;
   averageTransaction: number;
+  labels?: {
+    revenue?: string;
+    transactions?: string;
+    average?: string;
+  };
 };
 
 function FoReportsSummaryCards({
@@ -12,11 +17,21 @@ function FoReportsSummaryCards({
   totalRevenue,
   totalTransactions,
   averageTransaction,
+  labels,
 }: Props) {
   const cards = [
-    { label: "Total Revenue", value: formatNaira(totalRevenue) },
-    { label: "Total Transactions", value: totalTransactions },
-    { label: "Avg Transaction", value: formatNaira(Math.round(averageTransaction)) },
+    {
+      label: labels?.revenue ?? "Total Revenue",
+      value: formatNaira(totalRevenue),
+    },
+    {
+      label: labels?.transactions ?? "Total Transactions",
+      value: totalTransactions,
+    },
+    {
+      label: labels?.average ?? "Avg Transaction",
+      value: formatNaira(Math.round(averageTransaction)),
+    },
   ];
 
   return (
