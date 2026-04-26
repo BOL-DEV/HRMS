@@ -1,9 +1,7 @@
 "use client";
 
-import FoReportsCharts from "@/components/FoReportsCharts";
+import AdminPaginationFooter from "@/components/AdminPaginationFooter";
 import FoReportsFilterPanel from "@/components/FoReportsFilterPanel";
-import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
-import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
 import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
@@ -25,16 +23,6 @@ import { toast } from "react-hot-toast";
 
 type PaymentMethod = "Cash" | "Transfer" | "POS";
 
-function formatDateOnly(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getRelativeDate(daysFromToday: number) {
-  const today = new Date();
-  today.setDate(today.getDate() + daysFromToday);
-  return formatDateOnly(today);
-}
-
 function toMethodLabel(value: FoReportPaymentType): PaymentMethod {
   if (value === "cash") return "Cash";
   if (value === "transfer") return "Transfer";
@@ -54,8 +42,8 @@ function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
 
-  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
-  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [department, setDepartment] = useState("All");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "All">(
     "All",
@@ -63,12 +51,13 @@ function Page() {
   const [agent, setAgent] = useState("All");
   const [incomeHead, setIncomeHead] = useState("All");
   const [appliedFilters, setAppliedFilters] = useState({
-    startDate: getRelativeDate(-6),
-    endDate: getRelativeDate(0),
+    startDate: "",
+    endDate: "",
     department: "All",
     paymentMethod: "All" as PaymentMethod | "All",
     agent: "All",
     incomeHead: "All",
+    page: 1,
   });
 
   const agentsQuery = useQuery({
@@ -109,6 +98,8 @@ function Page() {
         agents:
           appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
         paymentMethod: toMethodParam(appliedFilters.paymentMethod),
+        page: appliedFilters.page,
+        limit: 15,
       }),
     enabled: Boolean(accessToken),
   });
@@ -151,117 +142,7 @@ function Page() {
     () => reportsQuery.data?.data.transactions ?? [],
     [reportsQuery.data?.data.transactions],
   );
-
-  const filteredTransactions = useMemo(
-    () =>
-      detailedReport.filter((item) => {
-        const matchesPayment =
-          paymentMethod === "All"
-            ? true
-            : toMethodLabel(item.payment_method) === paymentMethod;
-
-        return matchesPayment;
-      }),
-    [detailedReport, paymentMethod],
-  );
-
-  const stats = useMemo(() => {
-    const totalRevenue = filteredTransactions.reduce(
-      (sum, item) => sum + item.amount,
-      0,
-    );
-    const totalTransactions = filteredTransactions.length;
-    const avgTransaction = totalTransactions
-      ? totalRevenue / totalTransactions
-      : 0;
-
-    return {
-      totalRevenue,
-      totalTransactions,
-      avgTransaction,
-    };
-  }, [filteredTransactions]);
-
-  const revenueTrendData = useMemo(() => {
-    const grouped = new Map<string, number>();
-
-    filteredTransactions.forEach((item) => {
-      const day = item.date_time.slice(0, 10);
-      grouped.set(day, (grouped.get(day) ?? 0) + item.amount);
-    });
-
-    return [...grouped.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([label, value]) => ({ label, value }));
-  }, [filteredTransactions]);
-
-  const paymentMethodSummary = useMemo(() => {
-    const grouped = new Map<PaymentMethod, number>();
-
-    filteredTransactions.forEach((item) => {
-      const label = toMethodLabel(item.payment_method);
-      grouped.set(label, (grouped.get(label) ?? 0) + item.amount);
-    });
-
-    return [...grouped.entries()].map(([name, value]) => ({ name, value }));
-  }, [filteredTransactions]);
-
-  const departmentRevenue = useMemo(() => {
-    const grouped = new Map<string, number>();
-
-    filteredTransactions.forEach((item) => {
-      grouped.set(
-        item.department,
-        (grouped.get(item.department) ?? 0) + item.amount,
-      );
-    });
-
-    return [...grouped.entries()].map(([name, value]) => ({ name, value }));
-  }, [filteredTransactions]);
-
-  const topAgents = useMemo(() => {
-    const grouped = new Map<string, number>();
-
-    filteredTransactions.forEach((item) => {
-      grouped.set(item.agent, (grouped.get(item.agent) ?? 0) + item.amount);
-    });
-
-    return [...grouped.entries()]
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredTransactions]);
-
-  const breakdownTable = useMemo(() => {
-    const grouped = new Map<
-      string,
-      {
-        revenueHead: string;
-        department: string;
-        transactions: number;
-        totalRevenue: number;
-      }
-    >();
-
-    filteredTransactions.forEach((item) => {
-      const key = `${item.income_head}::${item.department}`;
-      const current = grouped.get(key);
-
-      if (current) {
-        current.transactions += 1;
-        current.totalRevenue += item.amount;
-        return;
-      }
-
-      grouped.set(key, {
-        revenueHead: item.income_head,
-        department: item.department,
-        transactions: 1,
-        totalRevenue: item.amount,
-      });
-    });
-
-    return [...grouped.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
-  }, [filteredTransactions]);
+  const pagination = reportsQuery.data?.data.pagination;
 
   const departmentOptions = useMemo(
     () =>
@@ -290,7 +171,15 @@ function Page() {
     [incomeHeadsQuery.data?.data.income_heads],
   );
 
+  const dateRangeIsInvalid =
+    Boolean(startDate || endDate) && (!startDate || !endDate || startDate > endDate);
+
   const handleGenerateReport = () => {
+    if (dateRangeIsInvalid) {
+      toast.error("Select a valid start date and end date before generating.");
+      return;
+    }
+
     setAppliedFilters({
       startDate,
       endDate,
@@ -298,6 +187,7 @@ function Page() {
       paymentMethod,
       agent,
       incomeHead,
+      page: 1,
     });
   };
 
@@ -401,6 +291,12 @@ function Page() {
           </div>
         ) : null}
 
+        {dateRangeIsInvalid ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            Start date and end date must both be set, and the start date cannot be after the end date.
+          </div>
+        ) : null}
+
         <FoReportsFilterPanel
           startDate={startDate}
           endDate={endDate}
@@ -421,30 +317,42 @@ function Page() {
           onAgentChange={setAgent}
           onIncomeHeadChange={setIncomeHead}
           onGenerateReport={handleGenerateReport}
+          isGenerateDisabled={dateRangeIsInvalid}
         />
-
-        <FoReportsSummaryCards
-          isLoading={reportsQuery.isLoading}
-          totalRevenue={stats.totalRevenue}
-          totalTransactions={stats.totalTransactions}
-          averageTransaction={stats.avgTransaction}
-        />
-
-        {filteredTransactions.length > 0 ? (
-          <FoReportsCharts
-            revenueTrendData={revenueTrendData}
-            paymentMethodSummary={paymentMethodSummary}
-            departmentRevenue={departmentRevenue}
-            topAgents={topAgents}
-          />
-        ) : null}
-
-        <FoReportsRevenueBreakdownTable rows={breakdownTable} />
 
         <FoReportsTransactionsTable
-          rows={filteredTransactions}
+          rows={detailedReport}
           toMethodLabel={toMethodLabel}
         />
+
+        {pagination ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              Showing {detailedReport.length} transaction{detailedReport.length === 1 ? "" : "s"} on this page.
+              Total matching transactions: {pagination.total_transactions}.
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+              <AdminPaginationFooter
+                currentPage={pagination.current_page}
+                totalPages={pagination.total_pages}
+                hasPrevious={pagination.has_previous}
+                hasNext={pagination.has_next}
+                onPrevious={() =>
+                  setAppliedFilters((current) => ({
+                    ...current,
+                    page: Math.max(current.page - 1, 1),
+                  }))
+                }
+                onNext={() =>
+                  setAppliedFilters((current) => ({
+                    ...current,
+                    page: Math.min(current.page + 1, pagination.total_pages),
+                  }))
+                }
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

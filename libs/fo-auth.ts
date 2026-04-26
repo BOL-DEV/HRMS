@@ -476,6 +476,8 @@ export async function getFoReports(params?: {
   incomeHeads?: string[];
   agents?: string[];
   paymentMethod?: FoReportPaymentType;
+  page?: number;
+  limit?: number;
 }) {
   const query = new URLSearchParams();
 
@@ -498,6 +500,14 @@ export async function getFoReports(params?: {
 
   if (params?.paymentMethod) {
     query.set("payment_method", params.paymentMethod);
+  }
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   const suffix = query.toString() ? `?${query.toString()}` : "";

@@ -14,26 +14,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
-function formatDateOnly(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getRelativeDate(daysFromToday: number) {
-  const today = new Date();
-  today.setDate(today.getDate() + daysFromToday);
-  return formatDateOnly(today);
-}
-
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
   const [department, setDepartment] = useState("All");
-  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
-  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [applied, setApplied] = useState({
     department: "All",
-    startDate: getRelativeDate(-6),
-    endDate: getRelativeDate(0),
+    startDate: "",
+    endDate: "",
   });
 
   const departmentsQuery = useQuery({
