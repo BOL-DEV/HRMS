@@ -13,16 +13,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 
-function formatDateOnly(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getRelativeDate(daysFromToday: number) {
-  const today = new Date();
-  today.setDate(today.getDate() + daysFromToday);
-  return formatDateOnly(today);
-}
-
 function isNumericPatientId(value: string) {
   return /^\d+$/.test(value);
 }
@@ -31,12 +21,12 @@ function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
   const [patientId, setPatientId] = useState("");
-  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
-  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [applied, setApplied] = useState({
     patientId: "",
-    startDate: getRelativeDate(-6),
-    endDate: getRelativeDate(0),
+    startDate: "",
+    endDate: "",
   });
 
   const reportQuery = useQuery({

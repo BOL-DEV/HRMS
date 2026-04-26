@@ -26,6 +26,7 @@ type Props = {
   onAgentChange: (value: string) => void;
   onIncomeHeadChange: (value: string) => void;
   onGenerateReport: () => void;
+  isGenerateDisabled?: boolean;
 };
 
 function FoReportsFilterPanel({
@@ -45,6 +46,7 @@ function FoReportsFilterPanel({
   onAgentChange,
   onIncomeHeadChange,
   onGenerateReport,
+  isGenerateDisabled = false,
 }: Props) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 dark:border-slate-700 dark:bg-slate-900">
@@ -149,7 +151,8 @@ function FoReportsFilterPanel({
 
       <button
         onClick={onGenerateReport}
-        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        disabled={isGenerateDisabled}
+        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <FiTrendingUp />
         Generate Report

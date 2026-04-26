@@ -13,7 +13,7 @@ function FoReportsTransactionsTable({ rows, toMethodLabel }: Props) {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
       <h2 className="mb-4 text-lg font-bold dark:text-slate-100">
-        Top Transactions
+        All Transactions
       </h2>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
