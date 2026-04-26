@@ -48,6 +48,14 @@ type RevenueBreakdownRow = {
   totalRevenue: number;
 };
 
+type BreakdownTableConfig = {
+  title: string;
+  primaryColumnLabel: string;
+  secondaryColumnLabel?: string;
+  hideSecondaryColumn?: boolean;
+  emptyMessage: string;
+};
+
 type ReportData =
   | AdminHospitalRevenueReportResponse["data"]
   | AdminHospitalPatientReportResponse["data"]
@@ -179,6 +187,8 @@ function extractRows(
         department: item.department,
         income_head: item.income_head,
         bill_name: item.bill_name,
+        // The patient report endpoint does not return payment method, so keep
+        // a neutral placeholder for the shared transaction table UI.
         payment_method: "cash",
         amount: item.amount,
         agent: item.agent_name,
@@ -254,11 +264,14 @@ function buildWorkspaceStats(
     const revenueData = data as AdminHospitalRevenueReportResponse["data"];
     const totalRevenue = rows.reduce((sum, item) => sum + item.amount, 0);
     const totalTransactions = revenueData.pagination.total_transactions;
+    const visibleTransactions = rows.length;
 
     return {
       totalRevenue,
       totalTransactions,
-      averageTransaction: totalTransactions ? totalRevenue / totalTransactions : 0,
+      averageTransaction: visibleTransactions
+        ? totalRevenue / visibleTransactions
+        : 0,
     };
   }
 
@@ -531,6 +544,33 @@ export default function Page() {
 
   const revenueBreakdownRows =
     rows.length > 0 ? buildRevenueBreakdownTable(rows) : groupedBreakdownRows;
+  const isGroupedSummaryView =
+    rows.length === 0 &&
+    (applied.reportType === "department" || applied.reportType === "agent");
+  const selectedRevenueDepartmentId = revenueDepartmentIds[0] ?? "";
+  const selectedRevenueIncomeHeadId = revenueIncomeHeadIds[0] ?? "";
+  const selectedRevenueAgentId = revenueAgentIds[0] ?? "";
+  const breakdownTableConfig: BreakdownTableConfig = isGroupedSummaryView
+    ? applied.reportType === "department"
+      ? {
+          title: "Department Summary",
+          primaryColumnLabel: "Department",
+          hideSecondaryColumn: true,
+          emptyMessage: "No department summary is available for the current filters.",
+        }
+      : {
+          title: "Agent Summary",
+          primaryColumnLabel: "Agent",
+          hideSecondaryColumn: true,
+          emptyMessage: "No agent summary is available for the current filters.",
+        }
+    : {
+        title: "Detailed Revenue Breakdown",
+        primaryColumnLabel: "Revenue Head",
+        secondaryColumnLabel: "Department",
+        hideSecondaryColumn: false,
+        emptyMessage: "No revenue breakdown available for the current filters.",
+      };
 
   const meta = getReportTypeMeta(reportType);
   const reportError =
@@ -813,6 +853,8 @@ export default function Page() {
                   value={filterValue}
                   onChange={(event) => setFilterValue(event.target.value)}
                   placeholder={meta.filterPlaceholder}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 />
               </div>
@@ -893,17 +935,16 @@ export default function Page() {
                   Departments
                 </p>
                 <select
-                  multiple
-                  value={revenueDepartmentIds}
+                  value={selectedRevenueDepartmentId}
                   onChange={(event) => {
-                    const values = Array.from(event.target.selectedOptions).map(
-                      (option) => option.value,
-                    );
-                    setRevenueDepartmentIds(values);
+                    const value = event.target.value;
+                    setRevenueDepartmentIds(value ? [value] : []);
                     setRevenueIncomeHeadIds([]);
                   }}
-                  className="h-28 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  disabled={departmentsQuery.isLoading}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 >
+                  <option value="">All departments</option>
                   {departmentOptions.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -917,17 +958,16 @@ export default function Page() {
                   Income Heads
                 </p>
                 <select
-                  multiple
-                  value={revenueIncomeHeadIds}
+                  value={selectedRevenueIncomeHeadId}
                   onChange={(event) =>
                     setRevenueIncomeHeadIds(
-                      Array.from(event.target.selectedOptions).map(
-                        (option) => option.value,
-                      ),
+                      event.target.value ? [event.target.value] : [],
                     )
                   }
-                  className="h-28 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  disabled={incomeHeadsQuery.isLoading}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 >
+                  <option value="">All income heads</option>
                   {incomeHeadOptions.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -941,17 +981,14 @@ export default function Page() {
                   Agents
                 </p>
                 <select
-                  multiple
-                  value={revenueAgentIds}
+                  value={selectedRevenueAgentId}
                   onChange={(event) =>
-                    setRevenueAgentIds(
-                      Array.from(event.target.selectedOptions).map(
-                        (option) => option.value,
-                      ),
-                    )
+                    setRevenueAgentIds(event.target.value ? [event.target.value] : [])
                   }
-                  className="h-28 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  disabled={agentsQuery.isLoading}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 >
+                  <option value="">All agents</option>
                   {agentOptions.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name}
@@ -1005,6 +1042,15 @@ export default function Page() {
           totalRevenue={stats.totalRevenue}
           totalTransactions={stats.totalTransactions}
           averageTransaction={stats.averageTransaction}
+          labels={
+            applied.reportType === "revenue"
+              ? {
+                  revenue: "Visible Revenue",
+                  transactions: "Total Transactions",
+                  average: "Visible Avg",
+                }
+              : undefined
+          }
         />
 
         {rows.length > 0 ? (
@@ -1016,7 +1062,14 @@ export default function Page() {
           />
         ) : null}
 
-        <FoReportsRevenueBreakdownTable rows={revenueBreakdownRows} />
+        <FoReportsRevenueBreakdownTable
+          rows={revenueBreakdownRows}
+          title={breakdownTableConfig.title}
+          primaryColumnLabel={breakdownTableConfig.primaryColumnLabel}
+          secondaryColumnLabel={breakdownTableConfig.secondaryColumnLabel}
+          hideSecondaryColumn={breakdownTableConfig.hideSecondaryColumn}
+          emptyMessage={breakdownTableConfig.emptyMessage}
+        />
 
         {rows.length > 0 ? (
           <FoReportsTransactionsTable rows={rows} toMethodLabel={toMethodLabel} />

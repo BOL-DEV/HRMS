@@ -733,6 +733,7 @@ export async function getAdminHospitalActivityLogs(
   params?: {
     startDate?: string;
     endDate?: string;
+    action?: string;
     page?: number;
     limit?: number;
   },
@@ -750,6 +751,10 @@ export async function getAdminHospitalActivityLogs(
 
   if (params?.limit) {
     query.set("limit", String(params.limit));
+  }
+
+  if (params?.action) {
+    query.set("action", params.action);
   }
 
   const suffix = query.toString() ? `?${query.toString()}` : "";

@@ -12,6 +12,17 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const PAGE_LIMIT = 20;
+const ACTION_OPTIONS = [
+  { value: "all", label: "All Activity" },
+  { value: "hospital", label: "Hospital" },
+  { value: "agent", label: "Agents" },
+  { value: "fo", label: "Front Office" },
+  { value: "department", label: "Departments" },
+  { value: "income_head", label: "Income Heads" },
+  { value: "bill_item", label: "Bill Items" },
+  { value: "receipt_reprint", label: "Receipt Reprints" },
+  { value: "agent.balance_topped_up", label: "Agent Top-ups" },
+] as const;
 
 export default function HospitalActivityLogsPage() {
   const params = useParams<{ id: string }>();
@@ -21,8 +32,10 @@ export default function HospitalActivityLogsPage() {
 
   const [startDateInput, setStartDateInput] = useState("");
   const [endDateInput, setEndDateInput] = useState("");
+  const [actionInput, setActionInput] = useState<(typeof ACTION_OPTIONS)[number]["value"]>("all");
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
+  const [appliedAction, setAppliedAction] = useState<(typeof ACTION_OPTIONS)[number]["value"]>("all");
   const [page, setPage] = useState(1);
 
   const logsQuery = useQuery({
@@ -31,12 +44,14 @@ export default function HospitalActivityLogsPage() {
       hospitalId,
       appliedStartDate,
       appliedEndDate,
+      appliedAction,
       page,
     ],
     queryFn: () =>
       getAdminHospitalActivityLogs(hospitalId, {
         startDate: appliedStartDate || undefined,
         endDate: appliedEndDate || undefined,
+        action: appliedAction,
         page,
         limit: PAGE_LIMIT,
       }),
@@ -80,14 +95,17 @@ export default function HospitalActivityLogsPage() {
 
     setAppliedStartDate(startDateInput);
     setAppliedEndDate(endDateInput);
+    setAppliedAction(actionInput);
     setPage(1);
   };
 
   const clearFilters = () => {
     setStartDateInput("");
     setEndDateInput("");
+    setActionInput("all");
     setAppliedStartDate("");
     setAppliedEndDate("");
+    setAppliedAction("all");
     setPage(1);
   };
 
@@ -104,6 +122,9 @@ export default function HospitalActivityLogsPage() {
         <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-slate-100">
           {pagination?.total_logs ?? 0}
         </p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
+          Showing {ACTION_OPTIONS.find((option) => option.value === appliedAction)?.label ?? "All Activity"}
+        </p>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
@@ -112,7 +133,7 @@ export default function HospitalActivityLogsPage() {
             Activity Timeline
           </h2>
           <p className="text-sm text-gray-600 dark:text-slate-400">
-            Audit log of hospital actions and changes
+            Audit log of hospital, staff, and configuration activity
           </p>
         </div>
 
@@ -124,6 +145,32 @@ export default function HospitalActivityLogsPage() {
           onApply={applyFilters}
           onClear={clearFilters}
           isInvalid={dateRangeIsInvalid}
+          leadSlot={
+            <div className="space-y-1">
+              <label
+                htmlFor="activity-action-filter"
+                className="text-sm font-medium text-gray-700 dark:text-slate-300"
+              >
+                Action Group
+              </label>
+              <select
+                id="activity-action-filter"
+                value={actionInput}
+                onChange={(event) =>
+                  setActionInput(
+                    event.target.value as (typeof ACTION_OPTIONS)[number]["value"],
+                  )
+                }
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                {ACTION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          }
         />
 
         <AdminHospitalActivityTimeline

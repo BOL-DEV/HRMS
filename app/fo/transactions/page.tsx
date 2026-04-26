@@ -85,15 +85,8 @@ function Page() {
     () => transactionsQuery.data?.data.transactions ?? [],
     [transactionsQuery.data?.data.transactions],
   );
+  const summary = transactionsQuery.data?.data.summary;
   const pagination = transactionsQuery.data?.data.pagination;
-
-  const stats = useMemo(
-    () => ({
-      totalRevenue: transactions.reduce((sum, item) => sum + item.amount, 0),
-      totalTransactions: pagination?.total_transactions ?? transactions.length,
-    }),
-    [pagination?.total_transactions, transactions],
-  );
 
   const handleExport = () => {
     exportFoTransactionsCsv({
@@ -135,8 +128,8 @@ function Page() {
 
         <FoTransactionsSummaryCards
           isLoading={transactionsQuery.isLoading}
-          totalRevenue={stats.totalRevenue}
-          totalTransactions={stats.totalTransactions}
+          totalRevenue={summary?.total_revenue ?? 0}
+          totalTransactions={summary?.transaction_count ?? 0}
         />
 
         <FoTransactionsFilterBar

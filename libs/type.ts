@@ -1119,9 +1119,17 @@ export type AdminHospitalPatientSearchResponse = {
 export type AdminHospitalActivityLog = {
   log_id: string;
   action: string;
-  actor_role?: string;
-  target_type?: string;
-  target_label?: string;
+  actor: {
+    user_id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null;
+  target: {
+    type: string;
+    id: string;
+    label: string;
+  } | null;
   metadata: Record<string, unknown>;
   created_at: string;
 };
@@ -1134,6 +1142,7 @@ export type AdminHospitalActivityLogsResponse = {
     filters: {
       start_date: string | null;
       end_date: string | null;
+      action: string;
       page: number;
       limit: number;
     };
@@ -1295,7 +1304,7 @@ export type AdminHospitalPatientReportResponse = {
     hospital_name: string;
     hospital_code: string;
     filters: {
-      patient_id: string;
+      patient_id: string | null;
       start_date: string | null;
       end_date: string | null;
       show_all: boolean;
