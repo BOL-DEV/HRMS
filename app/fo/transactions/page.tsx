@@ -16,16 +16,6 @@ import { toast } from "react-hot-toast";
 type MethodFilter = "All" | "Cash" | "Transfer" | "POS";
 const TRANSACTIONS_PER_PAGE = 15;
 
-function formatDateOnly(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getRelativeDate(daysFromToday: number) {
-  const today = new Date();
-  today.setDate(today.getDate() + daysFromToday);
-  return formatDateOnly(today);
-}
-
 function toMethodLabel(value: FoReportPaymentType): Exclude<MethodFilter, "All"> {
   if (value === "cash") return "Cash";
   if (value === "transfer") return "Transfer";
@@ -46,8 +36,8 @@ function Page() {
   const accessToken = getAccessToken();
   const [search, setSearch] = useState("");
   const [method, setMethod] = useState<MethodFilter>("All");
-  const [startDate, setStartDate] = useState(() => getRelativeDate(-6));
-  const [endDate, setEndDate] = useState(() => getRelativeDate(0));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
 
   const transactionsQuery = useQuery({
