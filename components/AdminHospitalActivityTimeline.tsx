@@ -1,4 +1,5 @@
 import { formatDateTime } from "@/libs/helper";
+import { formatNaira } from "@/libs/helper";
 import type { AdminHospitalActivityLog } from "@/libs/type";
 import { FiClock } from "react-icons/fi";
 
@@ -9,23 +10,68 @@ function formatAction(action: string) {
     .join(" ");
 }
 
-function formatMetadata(metadata: Record<string, unknown>) {
-  const entries = Object.entries(metadata);
+function formatLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
-  if (!entries.length) {
-    return "No extra metadata";
-  }
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function buildReadableDetails(metadata: Record<string, unknown>) {
+  const entries = Object.entries(metadata).filter(([key, value]) => {
+    if (key === "id" || key.endsWith("_id")) {
+      return false;
+    }
+
+    if (typeof value === "string" && isUuidLike(value)) {
+      return false;
+    }
+
+    return value !== null && value !== undefined && value !== "";
+  });
 
   return entries
     .map(([key, value]) => {
-      const formattedValue =
-        value !== null && typeof value === "object"
-          ? JSON.stringify(value)
-          : String(value);
+      if (key === "amount" && typeof value === "number") {
+        return {
+          label: "Amount",
+          value: formatNaira(value),
+        };
+      }
 
-      return `${key.replaceAll("_", " ")}: ${formattedValue}`;
+      return {
+        label: formatLabel(key),
+        value:
+          value !== null && typeof value === "object"
+            ? JSON.stringify(value)
+            : String(value),
+      };
     })
-    .join(" | ");
+    .filter((item) => item.value.trim().length > 0);
+}
+
+function buildSummary(log: AdminHospitalActivityLog) {
+  const actionVerb = log.action.split(".").at(1) ?? log.action;
+  const targetType = log.target?.type ? formatLabel(log.target.type) : "Item";
+  const targetLabel = log.target?.label ?? "Unknown item";
+  const verb = actionVerb.charAt(0).toUpperCase() + actionVerb.slice(1);
+
+  return `${verb} ${targetType}: ${targetLabel}`;
+}
+
+function buildActorLine(log: AdminHospitalActivityLog) {
+  if (!log.actor) {
+    return "Unknown actor";
+  }
+
+  return `${log.actor.name} (${formatLabel(log.actor.role.toLowerCase())})`;
 }
 
 type Props = {
@@ -49,42 +95,51 @@ function AdminHospitalActivityTimeline({ rows, isLoading = false }: Props) {
               </div>
             ))
           : rows.length
-            ? rows.map((log) => (
-                <div key={log.log_id} className="flex gap-4 py-5">
-                  <div className="pt-1">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-600 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
-                      <FiClock />
-                    </span>
-                  </div>
+            ? rows.map((log) => {
+                const details = buildReadableDetails(log.metadata);
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 dark:text-slate-100">
-                          {formatAction(log.action)}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
-                          {log.actor
-                            ? `${log.actor.name} | ${log.actor.email} | ${log.actor.role}`
-                            : "Unknown actor"}
-                        </p>
-                        <p className="mt-2 text-sm text-gray-700 dark:text-slate-300">
-                          Target: {log.target?.type ?? "unknown"} -{" "}
-                          {log.target?.label ?? "Unknown"}
-                          {log.target?.id ? ` (${log.target.id})` : ""}
-                        </p>
-                        <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
-                          {formatMetadata(log.metadata)}
-                        </p>
-                      </div>
+                return (
+                  <div key={log.log_id} className="flex gap-4 py-5">
+                    <div className="pt-1">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-600 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
+                        <FiClock />
+                      </span>
+                    </div>
 
-                      <div className="shrink-0 text-sm text-gray-500 dark:text-slate-400">
-                        {formatDateTime(log.created_at)}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-slate-100">
+                            {buildSummary(log)}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
+                            {buildActorLine(log)}
+                          </p>
+                          <p className="mt-1 text-xs uppercase tracking-wide text-gray-500 dark:text-slate-500">
+                            {formatAction(log.action)}
+                          </p>
+                          {details.length ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {details.map((item) => (
+                                <span
+                                  key={`${log.log_id}-${item.label}`}
+                                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                  {item.label}: {item.value}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="shrink-0 text-sm text-gray-500 dark:text-slate-400">
+                          {formatDateTime(log.created_at)}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             : (
                 <div className="py-10 text-center text-gray-500 dark:text-slate-400">
                   No activity logs found for the current filters.

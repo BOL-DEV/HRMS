@@ -16,7 +16,7 @@ const ACTION_OPTIONS = [
   { value: "all", label: "All Activity" },
   { value: "hospital", label: "Hospital" },
   { value: "agent", label: "Agents" },
-  { value: "fo", label: "Front Office" },
+  { value: "fo", label: "FO" },
   { value: "department", label: "Departments" },
   { value: "income_head", label: "Income Heads" },
   { value: "bill_item", label: "Bill Items" },
