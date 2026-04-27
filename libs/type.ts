@@ -552,44 +552,67 @@ export type AdminDashboardResponse = {
   status: number;
   message: string;
   data: {
-    filters: {
-      months: number;
-      period: AdminDashboardPeriod;
-      hospitals: string[];
-      hospital_scope: "all" | "selected";
-    };
-    summary: {
-      active_hospitals: number;
-      total_agents_across_hospitals: number;
+    overview: {
       total_hospitals: number;
-      total_platform_revenue: number;
-      total_transactions_made_by_agents: number;
+      active_hospitals: number;
+      suspended_hospitals: number;
+      total_agents: number;
+      active_agents: number;
+      total_fos: number;
+      active_fos: number;
+      total_revenue: {
+        current: number;
+        previous: number;
+        change: number;
+        change_percentage: number;
+      };
+      total_transactions: {
+        current: number;
+        previous: number;
+        change: number;
+        change_percentage: number;
+      };
+      hospital_mix: {
+        manual_revenue_hospitals: number;
+        automatic_revenue_hospitals: number;
+      };
     };
-    revenueTrend: Array<{
+    paymentMethodBreakdown: Array<{
+      payment_type: string;
+      transaction_count: number;
+      revenue: number;
+    }>;
+    attention: {
+      pending_receipt_reprints: number;
+      suspended_hospitals: number;
+      hospitals_without_fo: number;
+      hospitals_without_transactions_in_period: number;
+      suspended_agents: number;
+      suspended_fos: number;
+      failed_system_events_last_7_days: number;
+    };
+    topHospitals: Array<{
+      hospital_id: string;
+      hospital_name: string;
+      hospital_code: string;
+      revenue_type: string;
+      status: string;
+      revenue: number;
+      transaction_count: number;
+      agent_count: number;
+      pending_receipt_reprints: number;
+    }>;
+    monthlyRevenueTrend: Array<{
       month_key: string;
       month_label: string;
       revenue: number;
       transaction_count: number;
     }>;
-    transactionCountByPaymentMethod: Array<{
-      payment_type: string;
-      revenue: number;
-      transaction_count: number;
-    }>;
-    hospitalsByRevenueGenerated: Array<{
-      hospital_id: string;
-      hospital_name: string;
-      revenue: number;
-      transaction_count: number;
-    }>;
-    highestPerformingHospitals: Array<{
-      hospital_id: string;
-      hospital_name: string;
-      revenue: number;
-      transaction_count: number;
-      agent_count: number;
-      status: string;
-    }>;
+    chart_period: {
+      label: string;
+      start_date: string;
+      end_date: string;
+    };
   };
 };
 

@@ -21,7 +21,6 @@ import {
 import type {
   AdminAgentTopupPayload,
   AdminAgentTopupResponse,
-  AdminDashboardPeriod,
   AdminDashboardResponse,
   AdminHospitalAgentReportResponse,
   AdminHospitalDepartmentReportResponse,
@@ -261,18 +260,8 @@ async function printAdminDocument(endpoint: string) {
   }
 }
 
-export async function getAdminDashboard(params?: {
-  months?: AdminDashboardPeriod;
-}) {
-  const query = new URLSearchParams();
-
-  if (params?.months) {
-    query.set("months", params.months);
-  }
-
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-
-  return adminGet<AdminDashboardResponse>(`/api/admin/dashboard${suffix}`);
+export async function getAdminDashboard() {
+  return adminGet<AdminDashboardResponse>("/api/admin/dashboard");
 }
 
 export async function getAdminSystemLogs(params?: {
