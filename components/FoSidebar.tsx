@@ -35,12 +35,6 @@ const sidebarData = {
       active: false,
     },
     {
-      name: "Bill Items",
-      link: "/fo/bill-items",
-      label: <PiFilesLight className="inline" />,
-      active: false,
-    },
-    {
       name: "Departments",
       link: "/fo/departments",
       label: <PiFilesLight className="inline" />,
@@ -49,6 +43,12 @@ const sidebarData = {
     {
       name: "Income Heads",
       link: "/fo/income-heads",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
+      name: "Bill Items",
+      link: "/fo/bill-items",
       label: <PiFilesLight className="inline" />,
       active: false,
     },
@@ -70,11 +70,6 @@ const sidebarData = {
           active: false,
         },
         {
-          name: "Patient Report",
-          link: "/fo/reports/patient",
-          active: false,
-        },
-        {
           name: "Department Report",
           link: "/fo/reports/department",
           active: false,
@@ -82,6 +77,11 @@ const sidebarData = {
         {
           name: "Agent Report",
           link: "/fo/reports/agent",
+          active: false,
+        },
+        {
+          name: "Patient Report",
+          link: "/fo/reports/patient",
           active: false,
         },
       ],
