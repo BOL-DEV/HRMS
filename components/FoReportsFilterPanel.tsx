@@ -26,7 +26,9 @@ type Props = {
   onAgentChange: (value: string) => void;
   onIncomeHeadChange: (value: string) => void;
   onGenerateReport: () => void;
+  onViewAllReports?: () => void;
   isGenerateDisabled?: boolean;
+  isViewAllDisabled?: boolean;
 };
 
 function FoReportsFilterPanel({
@@ -46,7 +48,9 @@ function FoReportsFilterPanel({
   onAgentChange,
   onIncomeHeadChange,
   onGenerateReport,
+  onViewAllReports,
   isGenerateDisabled = false,
+  isViewAllDisabled = false,
 }: Props) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 dark:border-slate-700 dark:bg-slate-900">
@@ -149,14 +153,27 @@ function FoReportsFilterPanel({
         </div>
       </div>
 
-      <button
-        onClick={onGenerateReport}
-        disabled={isGenerateDisabled}
-        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <FiTrendingUp />
-        Generate Report
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          onClick={onGenerateReport}
+          disabled={isGenerateDisabled}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FiTrendingUp />
+          Generate Report
+        </button>
+
+        {onViewAllReports ? (
+          <button
+            type="button"
+            onClick={onViewAllReports}
+            disabled={isViewAllDisabled}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            View All Reports
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

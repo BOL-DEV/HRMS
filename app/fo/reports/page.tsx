@@ -2,6 +2,8 @@
 
 import AdminPaginationFooter from "@/components/AdminPaginationFooter";
 import FoReportsFilterPanel from "@/components/FoReportsFilterPanel";
+import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
+import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
 import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
 import Header from "@/components/Header";
 import { ApiError } from "@/libs/api";
@@ -14,7 +16,7 @@ import {
   getFoReports,
   printFoReports,
 } from "@/libs/fo-auth";
-import { FoReportPaymentType } from "@/libs/type";
+import { FoReportPaymentType, FoTransactionItem } from "@/libs/type";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +24,11 @@ import { FiDownload, FiPrinter } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 
 type PaymentMethod = "Cash" | "Transfer" | "POS";
+const REPORTS_PER_PAGE = 15;
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 function toMethodLabel(value: FoReportPaymentType): PaymentMethod {
   if (value === "cash") return "Cash";
@@ -38,12 +45,47 @@ function toMethodParam(
   return undefined;
 }
 
+function buildRevenueBreakdownTable(
+  rows: FoTransactionItem[],
+) {
+  const grouped = new Map<
+    string,
+    {
+      revenueHead: string;
+      department: string;
+      transactions: number;
+      totalRevenue: number;
+    }
+  >();
+
+  rows.forEach((item) => {
+    const key = `${item.income_head}::${item.department}`;
+    const current = grouped.get(key);
+
+    if (current) {
+      current.transactions += 1;
+      current.totalRevenue += item.amount;
+      return;
+    }
+
+    grouped.set(key, {
+      revenueHead: item.income_head,
+      department: item.department,
+      transactions: 1,
+      totalRevenue: item.amount,
+    });
+  });
+
+  return [...grouped.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
+}
+
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
+  const today = getTodayDate();
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [department, setDepartment] = useState("All");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "All">(
     "All",
@@ -51,8 +93,9 @@ function Page() {
   const [agent, setAgent] = useState("All");
   const [incomeHead, setIncomeHead] = useState("All");
   const [appliedFilters, setAppliedFilters] = useState({
-    startDate: "",
-    endDate: "",
+    startDate: today,
+    endDate: today,
+    showAll: false,
     department: "All",
     paymentMethod: "All" as PaymentMethod | "All",
     agent: "All",
@@ -87,6 +130,7 @@ function Page() {
       getFoReports({
         startDate: appliedFilters.startDate,
         endDate: appliedFilters.endDate,
+        showAll: appliedFilters.showAll,
         departments:
           appliedFilters.department === "All"
             ? undefined
@@ -99,7 +143,7 @@ function Page() {
           appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
         paymentMethod: toMethodParam(appliedFilters.paymentMethod),
         page: appliedFilters.page,
-        limit: 15,
+        limit: REPORTS_PER_PAGE,
       }),
     enabled: Boolean(accessToken),
   });
@@ -142,7 +186,12 @@ function Page() {
     () => reportsQuery.data?.data.transactions ?? [],
     [reportsQuery.data?.data.transactions],
   );
+  const reportSummary = reportsQuery.data?.data.summary;
   const pagination = reportsQuery.data?.data.pagination;
+  const revenueBreakdownRows = useMemo(
+    () => buildRevenueBreakdownTable(detailedReport),
+    [detailedReport],
+  );
 
   const departmentOptions = useMemo(
     () =>
@@ -172,7 +221,8 @@ function Page() {
   );
 
   const dateRangeIsInvalid =
-    Boolean(startDate || endDate) && (!startDate || !endDate || startDate > endDate);
+    Boolean(startDate || endDate) &&
+    (!startDate || !endDate || startDate > endDate);
 
   const handleGenerateReport = () => {
     if (dateRangeIsInvalid) {
@@ -183,6 +233,22 @@ function Page() {
     setAppliedFilters({
       startDate,
       endDate,
+      showAll: false,
+      department,
+      paymentMethod,
+      agent,
+      incomeHead,
+      page: 1,
+    });
+  };
+
+  const handleViewAllReports = () => {
+    setStartDate("");
+    setEndDate("");
+    setAppliedFilters({
+      startDate: "",
+      endDate: "",
+      showAll: true,
       department,
       paymentMethod,
       agent,
@@ -195,6 +261,7 @@ function Page() {
     exportFoReportsCsv({
       startDate: appliedFilters.startDate,
       endDate: appliedFilters.endDate,
+      showAll: appliedFilters.showAll,
       departments:
         appliedFilters.department === "All"
           ? undefined
@@ -206,8 +273,6 @@ function Page() {
       agents:
         appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
       paymentMethod: toMethodParam(appliedFilters.paymentMethod),
-      page: 1,
-      limit: 15,
     }).catch((error) => {
       toast.error(
         error instanceof Error ? error.message : "Unable to export report.",
@@ -219,6 +284,7 @@ function Page() {
     printFoReports({
       startDate: appliedFilters.startDate,
       endDate: appliedFilters.endDate,
+      showAll: appliedFilters.showAll,
       departments:
         appliedFilters.department === "All"
           ? undefined
@@ -230,8 +296,6 @@ function Page() {
       agents:
         appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
       paymentMethod: toMethodParam(appliedFilters.paymentMethod),
-      page: 1,
-      limit: 15,
     }).catch((error) => {
       toast.error(
         error instanceof Error ? error.message : "Unable to print report.",
@@ -317,7 +381,25 @@ function Page() {
           onAgentChange={setAgent}
           onIncomeHeadChange={setIncomeHead}
           onGenerateReport={handleGenerateReport}
+          onViewAllReports={handleViewAllReports}
           isGenerateDisabled={dateRangeIsInvalid}
+        />
+
+        <FoReportsSummaryCards
+          isLoading={reportsQuery.isLoading}
+          totalRevenue={reportSummary?.total_amount ?? 0}
+          totalTransactions={reportSummary?.total_transactions ?? 0}
+          averageTransaction={
+            reportSummary?.total_transactions
+              ? reportSummary.total_amount / reportSummary.total_transactions
+              : 0
+          }
+        />
+
+        <FoReportsRevenueBreakdownTable
+          rows={revenueBreakdownRows}
+          title="Detailed Revenue Breakdown (Current Page)"
+          emptyMessage="No revenue breakdown available for the current filters."
         />
 
         <FoReportsTransactionsTable
@@ -329,7 +411,7 @@ function Page() {
           <div className="space-y-4">
             <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
               Showing {detailedReport.length} transaction{detailedReport.length === 1 ? "" : "s"} on this page.
-              Total matching transactions: {pagination.total_transactions}.
+              Total matching transactions: {reportSummary?.total_transactions ?? pagination.total_transactions}.
             </div>
             <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
               <AdminPaginationFooter

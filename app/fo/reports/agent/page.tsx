@@ -14,16 +14,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
+  const today = getTodayDate();
   const [agent, setAgent] = useState("All");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [applied, setApplied] = useState({
     agent: "All",
-    startDate: "",
-    endDate: "",
+    startDate: today,
+    endDate: today,
   });
 
   const agentsQuery = useQuery({
@@ -98,6 +103,15 @@ function Page() {
           endDate,
         })
       }
+      onViewAllReports={() => {
+        setStartDate("");
+        setEndDate("");
+        setApplied({
+          agent,
+          startDate: "",
+          endDate: "",
+        });
+      }}
       onExport={() =>
         exportFoAgentReportCsv({
           agentId: applied.agent === "All" ? undefined : applied.agent,

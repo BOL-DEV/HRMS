@@ -472,6 +472,7 @@ export async function updateFoAgentStatus(
 export async function getFoReports(params?: {
   startDate?: string;
   endDate?: string;
+  showAll?: boolean;
   departments?: string[];
   incomeHeads?: string[];
   agents?: string[];
@@ -481,9 +482,16 @@ export async function getFoReports(params?: {
 }) {
   const query = new URLSearchParams();
 
-  if (params?.startDate && params?.endDate) {
+  if (params?.startDate) {
     query.set("start_date", params.startDate);
+  }
+
+  if (params?.endDate) {
     query.set("end_date", params.endDate);
+  }
+
+  if (params?.showAll && !params?.startDate && !params?.endDate) {
+    query.set("show_all", "true");
   }
 
   if (params?.departments?.length) {
@@ -522,6 +530,7 @@ export async function getFoReports(params?: {
 export async function exportFoReportsCsv(params?: {
   startDate?: string;
   endDate?: string;
+  showAll?: boolean;
   departments?: string[];
   incomeHeads?: string[];
   agents?: string[];
@@ -531,9 +540,16 @@ export async function exportFoReportsCsv(params?: {
 }) {
   const query = new URLSearchParams();
 
-  if (params?.startDate && params?.endDate) {
+  if (params?.startDate) {
     query.set("start_date", params.startDate);
+  }
+
+  if (params?.endDate) {
     query.set("end_date", params.endDate);
+  }
+
+  if (params?.showAll && !params?.startDate && !params?.endDate) {
+    query.set("show_all", "true");
   }
 
   if (params?.departments?.length) {
@@ -574,6 +590,7 @@ export async function exportFoReportsCsv(params?: {
 export async function printFoReports(params?: {
   startDate?: string;
   endDate?: string;
+  showAll?: boolean;
   departments?: string[];
   incomeHeads?: string[];
   agents?: string[];
@@ -583,9 +600,16 @@ export async function printFoReports(params?: {
 }) {
   const query = new URLSearchParams();
 
-  if (params?.startDate && params?.endDate) {
+  if (params?.startDate) {
     query.set("start_date", params.startDate);
+  }
+
+  if (params?.endDate) {
     query.set("end_date", params.endDate);
+  }
+
+  if (params?.showAll && !params?.startDate && !params?.endDate) {
+    query.set("show_all", "true");
   }
 
   if (params?.departments?.length) {

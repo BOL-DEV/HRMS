@@ -17,16 +17,21 @@ function isNumericPatientId(value: string) {
   return /^\d+$/.test(value);
 }
 
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
+  const today = getTodayDate();
   const [patientId, setPatientId] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [applied, setApplied] = useState({
     patientId: "",
-    startDate: "",
-    endDate: "",
+    startDate: today,
+    endDate: today,
   });
 
   const reportQuery = useQuery({
@@ -87,6 +92,27 @@ function Page() {
           patientId: trimmedPatientId,
           startDate,
           endDate,
+        });
+      }}
+      onViewAllReports={() => {
+        const trimmedPatientId = patientId.trim() || applied.patientId;
+
+        if (!trimmedPatientId) {
+          toast.error("Enter a patient ID to view all patient reports.");
+          return;
+        }
+
+        if (!isNumericPatientId(trimmedPatientId)) {
+          toast.error("Patient ID must contain only numbers.");
+          return;
+        }
+
+        setStartDate("");
+        setEndDate("");
+        setApplied({
+          patientId: trimmedPatientId,
+          startDate: "",
+          endDate: "",
         });
       }}
       onExport={() =>

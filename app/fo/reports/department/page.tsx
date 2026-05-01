@@ -14,16 +14,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function Page() {
   const router = useRouter();
   const accessToken = getAccessToken();
+  const today = getTodayDate();
   const [department, setDepartment] = useState("All");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [applied, setApplied] = useState({
     department: "All",
-    startDate: "",
-    endDate: "",
+    startDate: today,
+    endDate: today,
   });
 
   const departmentsQuery = useQuery({
@@ -99,6 +104,15 @@ function Page() {
           endDate,
         })
       }
+      onViewAllReports={() => {
+        setStartDate("");
+        setEndDate("");
+        setApplied({
+          department,
+          startDate: "",
+          endDate: "",
+        });
+      }}
       onExport={() =>
         exportFoDepartmentReportCsv({
           department: applied.department === "All" ? undefined : applied.department,

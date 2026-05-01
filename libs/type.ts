@@ -1776,6 +1776,7 @@ export type FoReportsResponse = {
     filters: {
       start_date: string | null;
       end_date: string | null;
+      show_all?: boolean;
       departments: string[];
       income_heads: string[];
       agents: string[];
@@ -1783,6 +1784,10 @@ export type FoReportsResponse = {
       page: number;
       limit: number;
       export: "csv" | null;
+    };
+    summary: {
+      total_amount: number;
+      total_transactions: number;
     };
     pagination: {
       current_page: number;
