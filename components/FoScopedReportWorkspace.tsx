@@ -1,6 +1,4 @@
 "use client";
-
-import FoReportsCharts from "@/components/FoReportsCharts";
 import FoPatientReportTable from "@/components/FoPatientReportTable";
 import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
 import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
@@ -41,6 +39,7 @@ type Props = {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onGenerate: () => void;
+  onViewAllReports?: () => void;
   onExport?: () => void;
   onPrint?: () => void;
   errorMessage?: string | null;
@@ -181,52 +180,6 @@ function buildWorkspaceStats(
   };
 }
 
-function buildRevenueTrend(rows: FoTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    const key = item.date_time.slice(0, 10);
-    grouped.set(key, (grouped.get(key) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, value]) => ({ label, value }));
-}
-
-function buildPaymentBreakdown(rows: FoTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    const label = toMethodLabel(item.payment_method);
-    grouped.set(label, (grouped.get(label) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()].map(([name, value]) => ({ name, value }));
-}
-
-function buildDepartmentBreakdown(rows: FoTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    grouped.set(item.department, (grouped.get(item.department) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()].map(([name, value]) => ({ name, value }));
-}
-
-function buildTopAgents(rows: FoTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    grouped.set(item.agent, (grouped.get(item.agent) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()]
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-}
-
 function buildRevenueBreakdownTable(rows: FoTransactionItem[]) {
   const grouped = new Map<
     string,
@@ -275,6 +228,7 @@ function FoScopedReportWorkspace({
   onStartDateChange,
   onEndDateChange,
   onGenerate,
+  onViewAllReports,
   onExport,
   onPrint,
   errorMessage,
@@ -284,10 +238,6 @@ function FoScopedReportWorkspace({
   const rows = extractTransactions(mode, data);
   const patientRows = mode === "patient" ? extractPatientRows(data) : [];
   const stats = buildWorkspaceStats(mode, data, rows);
-  const revenueTrend = buildRevenueTrend(rows);
-  const paymentBreakdown = buildPaymentBreakdown(rows);
-  const departmentBreakdown = buildDepartmentBreakdown(rows);
-  const topAgents = buildTopAgents(rows);
   const groupedRows =
     mode === "patient"
       ? []
@@ -389,13 +339,25 @@ function FoScopedReportWorkspace({
             </div>
 
             <div className="flex items-end">
-              <button
-                type="button"
-                onClick={onGenerate}
-                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Generate Report
-              </button>
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={onGenerate}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Generate Report
+                </button>
+
+                {onViewAllReports ? (
+                  <button
+                    type="button"
+                    onClick={onViewAllReports}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    View All Reports
+                  </button>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -406,15 +368,6 @@ function FoScopedReportWorkspace({
           totalTransactions={stats.totalTransactions}
           averageTransaction={stats.averageTransaction}
         />
-
-        {rows.length > 0 ? (
-          <FoReportsCharts
-            revenueTrendData={revenueTrend}
-            paymentMethodSummary={paymentBreakdown}
-            departmentRevenue={departmentBreakdown}
-            topAgents={topAgents}
-          />
-        ) : null}
 
         <FoReportsRevenueBreakdownTable rows={revenueBreakdownTable} />
 

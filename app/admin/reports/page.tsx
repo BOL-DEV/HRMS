@@ -79,10 +79,8 @@ function formatDateOnly(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function getRelativeDate(daysFromToday: number) {
-  const today = new Date();
-  today.setDate(today.getDate() + daysFromToday);
-  return formatDateOnly(today);
+function getTodayDate() {
+  return formatDateOnly(new Date());
 }
 
 function toMethodLabel(value: "cash" | "transfer" | "pos") {
@@ -326,8 +324,9 @@ function getReportTypeMeta(reportType: AdminReportTypeKey) {
   };
 }
 
-const INITIAL_DATE_START = getRelativeDate(-6);
-const INITIAL_DATE_END = getRelativeDate(0);
+const REPORTS_PER_PAGE = 15;
+const INITIAL_DATE_START = getTodayDate();
+const INITIAL_DATE_END = getTodayDate();
 
 export default function Page() {
   const router = useRouter();
@@ -362,77 +361,92 @@ export default function Page() {
     enabled: Boolean(accessToken),
   });
 
+  const hospitalOptions = useMemo(
+    () => optionsQuery.data?.data.hospitals ?? [],
+    [optionsQuery.data?.data.hospitals],
+  );
+
+  const selectedHospitalId = hospitalId || hospitalOptions[0]?.hospital_id || "";
+
   const departmentsQuery = useQuery({
-    queryKey: ["admin-report-departments", hospitalId],
-    queryFn: () => getAdminHospitalDepartments(hospitalId),
+    queryKey: ["admin-report-departments", selectedHospitalId],
+    queryFn: () => getAdminHospitalDepartments(selectedHospitalId),
     enabled: Boolean(
       accessToken &&
-        hospitalId &&
+        selectedHospitalId &&
         (reportType === "department" || reportType === "revenue"),
     ),
   });
 
   const agentsQuery = useQuery({
-    queryKey: ["admin-report-agents", hospitalId],
-    queryFn: () => getAdminHospitalAgents(hospitalId),
+    queryKey: ["admin-report-agents", selectedHospitalId],
+    queryFn: () => getAdminHospitalAgents(selectedHospitalId),
     enabled: Boolean(
       accessToken &&
-        hospitalId &&
+        selectedHospitalId &&
         (reportType === "agent" || reportType === "revenue"),
     ),
   });
 
   const incomeHeadsQuery = useQuery({
-    queryKey: ["admin-report-income-heads", hospitalId, revenueDepartmentIds],
+    queryKey: ["admin-report-income-heads", selectedHospitalId, revenueDepartmentIds],
     queryFn: () =>
-      getAdminHospitalIncomeHeads(hospitalId, {
+      getAdminHospitalIncomeHeads(selectedHospitalId, {
         departmentId: revenueDepartmentIds.length === 1 ? revenueDepartmentIds[0] : undefined,
       }),
-    enabled: Boolean(accessToken && hospitalId && reportType === "revenue"),
+    enabled: Boolean(accessToken && selectedHospitalId && reportType === "revenue"),
   });
 
+  const activeApplied = useMemo<AppliedFilters>(
+    () => ({
+      ...applied,
+      hospitalId: applied.hospitalId || selectedHospitalId,
+    }),
+    [applied, selectedHospitalId],
+  );
+
   const reportQuery = useQuery({
-    queryKey: ["admin-report", applied],
+    queryKey: ["admin-report", activeApplied],
     queryFn: async () => {
-      if (applied.reportType === "patient") {
-        return getAdminHospitalPatientReport(applied.hospitalId, {
-          patientId: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "patient") {
+        return getAdminHospitalPatientReport(activeApplied.hospitalId, {
+          patientId: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
       }
 
-      if (applied.reportType === "department") {
-        return getAdminHospitalDepartmentReport(applied.hospitalId, {
-          department: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "department") {
+        return getAdminHospitalDepartmentReport(activeApplied.hospitalId, {
+          department: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
       }
 
-      if (applied.reportType === "agent") {
-        return getAdminHospitalAgentReport(applied.hospitalId, {
-          agentId: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "agent") {
+        return getAdminHospitalAgentReport(activeApplied.hospitalId, {
+          agentId: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
       }
 
-      return getAdminHospitalRevenueReport(applied.hospitalId, {
-        departments: applied.revenueDepartmentIds,
-        incomeHeads: applied.revenueIncomeHeadIds,
-        agents: applied.revenueAgentIds,
+      return getAdminHospitalRevenueReport(activeApplied.hospitalId, {
+        departments: activeApplied.revenueDepartmentIds,
+        incomeHeads: activeApplied.revenueIncomeHeadIds,
+        agents: activeApplied.revenueAgentIds,
         paymentMethod:
-          applied.revenuePaymentMethod === "all"
+          activeApplied.revenuePaymentMethod === "all"
             ? undefined
-            : applied.revenuePaymentMethod,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-        page: applied.page,
-        limit: 15,
+            : activeApplied.revenuePaymentMethod,
+        startDate: activeApplied.startDate,
+        endDate: activeApplied.endDate,
+        page: activeApplied.page,
+        limit: REPORTS_PER_PAGE,
       });
     },
-    enabled: Boolean(accessToken && applied.hospitalId),
+    enabled: Boolean(accessToken && activeApplied.hospitalId),
   });
 
   useEffect(() => {
@@ -466,11 +480,6 @@ export default function Page() {
     reportQuery.error,
     router,
   ]);
-
-  const hospitalOptions = useMemo(
-    () => optionsQuery.data?.data.hospitals ?? [],
-    [optionsQuery.data?.data.hospitals],
-  );
 
   const reportTypeOptions = useMemo(
     () => optionsQuery.data?.data.report_types ?? [],
@@ -587,7 +596,8 @@ export default function Page() {
               : null;
 
   const dateRangeIsInvalid =
-    Boolean(startDate || endDate) && (!startDate || !endDate);
+    Boolean(startDate || endDate) &&
+    (!startDate || !endDate || startDate > endDate);
 
   const resetRevenueFilters = () => {
     setRevenueDepartmentIds([]);
@@ -597,12 +607,12 @@ export default function Page() {
   };
 
   const handleGenerate = () => {
-    if (!hospitalId || dateRangeIsInvalid) {
+    if (!selectedHospitalId || dateRangeIsInvalid) {
       return;
     }
 
     setApplied({
-      hospitalId,
+      hospitalId: selectedHospitalId,
       reportType,
       filterValue:
         reportType === "department" || reportType === "agent"
@@ -620,51 +630,75 @@ export default function Page() {
     });
   };
 
+  const handleViewAllReports = () => {
+    if (!selectedHospitalId) {
+      return;
+    }
+
+    setStartDate("");
+    setEndDate("");
+    setApplied({
+      hospitalId: selectedHospitalId,
+      reportType,
+      filterValue:
+        reportType === "department" || reportType === "agent"
+          ? filterValue === "All"
+            ? ""
+            : filterValue
+          : filterValue.trim(),
+      revenueDepartmentIds,
+      revenueIncomeHeadIds,
+      revenueAgentIds,
+      revenuePaymentMethod,
+      startDate: "",
+      endDate: "",
+      page: 1,
+    });
+  };
+
   const handleExport = async () => {
-    if (!applied.hospitalId) {
+    if (!activeApplied.hospitalId) {
       return;
     }
 
     try {
-      if (applied.reportType === "patient") {
-        await exportAdminHospitalPatientReportCsv(applied.hospitalId, {
-          patientId: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "patient") {
+        await exportAdminHospitalPatientReportCsv(activeApplied.hospitalId, {
+          patientId: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
         return;
       }
 
-      if (applied.reportType === "department") {
-        await exportAdminHospitalDepartmentReportCsv(applied.hospitalId, {
-          department: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "department") {
+        await exportAdminHospitalDepartmentReportCsv(activeApplied.hospitalId, {
+          department: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
         return;
       }
 
-      if (applied.reportType === "agent") {
-        await exportAdminHospitalAgentReportCsv(applied.hospitalId, {
-          agentId: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "agent") {
+        await exportAdminHospitalAgentReportCsv(activeApplied.hospitalId, {
+          agentId: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
         return;
       }
 
-      await exportAdminHospitalRevenueReportCsv(applied.hospitalId, {
-        departments: applied.revenueDepartmentIds,
-        incomeHeads: applied.revenueIncomeHeadIds,
-        agents: applied.revenueAgentIds,
+      await exportAdminHospitalRevenueReportCsv(activeApplied.hospitalId, {
+        departments: activeApplied.revenueDepartmentIds,
+        incomeHeads: activeApplied.revenueIncomeHeadIds,
+        agents: activeApplied.revenueAgentIds,
         paymentMethod:
-          applied.revenuePaymentMethod === "all"
+          activeApplied.revenuePaymentMethod === "all"
             ? undefined
-            : applied.revenuePaymentMethod,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-        page: applied.page,
-        limit: 15,
+            : activeApplied.revenuePaymentMethod,
+        startDate: activeApplied.startDate,
+        endDate: activeApplied.endDate,
       });
     } catch (error) {
       toast.error(
@@ -674,50 +708,48 @@ export default function Page() {
   };
 
   const handlePrint = async () => {
-    if (!applied.hospitalId) {
+    if (!activeApplied.hospitalId) {
       return;
     }
 
     try {
-      if (applied.reportType === "patient") {
-        await printAdminHospitalPatientReport(applied.hospitalId, {
-          patientId: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "patient") {
+        await printAdminHospitalPatientReport(activeApplied.hospitalId, {
+          patientId: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
         return;
       }
 
-      if (applied.reportType === "department") {
-        await printAdminHospitalDepartmentReport(applied.hospitalId, {
-          department: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "department") {
+        await printAdminHospitalDepartmentReport(activeApplied.hospitalId, {
+          department: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
         return;
       }
 
-      if (applied.reportType === "agent") {
-        await printAdminHospitalAgentReport(applied.hospitalId, {
-          agentId: applied.filterValue || undefined,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+      if (activeApplied.reportType === "agent") {
+        await printAdminHospitalAgentReport(activeApplied.hospitalId, {
+          agentId: activeApplied.filterValue || undefined,
+          startDate: activeApplied.startDate,
+          endDate: activeApplied.endDate,
         });
         return;
       }
 
-      await printAdminHospitalRevenueReport(applied.hospitalId, {
-        departments: applied.revenueDepartmentIds,
-        incomeHeads: applied.revenueIncomeHeadIds,
-        agents: applied.revenueAgentIds,
+      await printAdminHospitalRevenueReport(activeApplied.hospitalId, {
+        departments: activeApplied.revenueDepartmentIds,
+        incomeHeads: activeApplied.revenueIncomeHeadIds,
+        agents: activeApplied.revenueAgentIds,
         paymentMethod:
-          applied.revenuePaymentMethod === "all"
+          activeApplied.revenuePaymentMethod === "all"
             ? undefined
-            : applied.revenuePaymentMethod,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-        page: applied.page,
-        limit: 15,
+            : activeApplied.revenuePaymentMethod,
+        startDate: activeApplied.startDate,
+        endDate: activeApplied.endDate,
       });
     } catch (error) {
       toast.error(
@@ -737,7 +769,7 @@ export default function Page() {
         title="Admin Reports"
         Subtitle="Pick a hospital, choose a report type, and run the matching admin report endpoint."
         actions={
-          applied.hospitalId ? (
+          activeApplied.hospitalId ? (
             <div className="hidden items-center gap-2 md:flex">
               <button
                 type="button"
@@ -778,7 +810,7 @@ export default function Page() {
               </p>
             </div>
 
-            {applied.hospitalId ? (
+            {activeApplied.hospitalId ? (
               <div className="flex items-center gap-2 md:hidden">
                 <button
                   type="button"
@@ -806,7 +838,7 @@ export default function Page() {
                 Hospital
               </p>
               <select
-                value={hospitalId}
+                value={selectedHospitalId}
                 onChange={(event) => {
                   setHospitalId(event.target.value);
                   setFilterValue("");
@@ -1021,15 +1053,23 @@ export default function Page() {
 
           {dateRangeIsInvalid ? (
             <p className="mt-3 text-sm text-red-600 dark:text-red-300">
-              Start date and end date must be provided together.
+              Start date and end date must be provided together, and the start date cannot be after the end date.
             </p>
           ) : null}
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleViewAllReports}
+              disabled={!selectedHospitalId}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              View All Reports
+            </button>
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={!hospitalId || dateRangeIsInvalid}
+              disabled={!selectedHospitalId || dateRangeIsInvalid}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Generate Report
