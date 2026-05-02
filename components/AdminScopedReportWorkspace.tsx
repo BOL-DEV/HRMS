@@ -46,7 +46,6 @@ type Props = {
   endDate: string;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
-  onGenerate: () => void;
   onViewAllReports?: () => void;
   onExport?: () => void;
   onPrint?: () => void;
@@ -232,7 +231,6 @@ function AdminScopedReportWorkspace({
   endDate,
   onStartDateChange,
   onEndDateChange,
-  onGenerate,
   onViewAllReports,
   onExport,
   onPrint,
@@ -303,7 +301,7 @@ function AdminScopedReportWorkspace({
 
         <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="grid min-w-[280px] flex-1 gap-3 md:grid-cols-2">
+            <div className="grid min-w-70 flex-1 gap-3 md:grid-cols-2">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   Hospital
@@ -379,6 +377,21 @@ function AdminScopedReportWorkspace({
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="flex items-end">
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                {onViewAllReports ? (
+                  <button
+                    type="button"
+                    onClick={onViewAllReports}
+                    disabled={!hospitalId}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    View All
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                 Start Date
@@ -402,30 +415,6 @@ function AdminScopedReportWorkspace({
                 onChange={(event) => onEndDateChange(event.target.value)}
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               />
-            </div>
-
-            <div className="flex items-end">
-              <div className="flex w-full flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={onGenerate}
-                  disabled={!hospitalId || dateRangeIsInvalid}
-                  className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Generate Report
-                </button>
-
-                {onViewAllReports ? (
-                  <button
-                    type="button"
-                    onClick={onViewAllReports}
-                    disabled={!hospitalId}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    View All
-                  </button>
-                ) : null}
-              </div>
             </div>
           </div>
 

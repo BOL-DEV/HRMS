@@ -1,7 +1,6 @@
 "use client";
 
 import AdminPaginationFooter from "@/components/AdminPaginationFooter";
-import FoReportsCharts from "@/components/FoReportsCharts";
 import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
 import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
 import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
@@ -69,52 +68,6 @@ function buildRevenueBreakdownTable(rows: AdminReportTransactionItem[]) {
   });
 
   return [...grouped.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
-}
-
-function buildRevenueTrend(rows: AdminReportTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    const key = item.date_time.slice(0, 10);
-    grouped.set(key, (grouped.get(key) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, value]) => ({ label, value }));
-}
-
-function buildPaymentBreakdown(rows: AdminReportTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    const label = toMethodLabel(item.payment_method);
-    grouped.set(label, (grouped.get(label) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()].map(([name, value]) => ({ name, value }));
-}
-
-function buildDepartmentBreakdown(rows: AdminReportTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    grouped.set(item.department, (grouped.get(item.department) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()].map(([name, value]) => ({ name, value }));
-}
-
-function buildTopAgents(rows: AdminReportTransactionItem[]) {
-  const grouped = new Map<string, number>();
-
-  rows.forEach((item) => {
-    grouped.set(item.agent, (grouped.get(item.agent) ?? 0) + item.amount);
-  });
-
-  return [...grouped.entries()]
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
 }
 
 export default function Page() {
@@ -263,6 +216,47 @@ export default function Page() {
   const dateRangeIsInvalid =
     Boolean(startDate && endDate && startDate > endDate);
 
+  useEffect(() => {
+    if (!selectedHospitalId || dateRangeIsInvalid) {
+      return;
+    }
+
+    setApplied((current) => {
+      const next = {
+        hospitalId: selectedHospitalId,
+        startDate,
+        endDate,
+        showAll: Boolean(!startDate && !endDate),
+        departmentId,
+        incomeHeadId,
+        agentId,
+        paymentMethod,
+        page: 1,
+      };
+
+      return current.hospitalId === next.hospitalId &&
+        current.startDate === next.startDate &&
+        current.endDate === next.endDate &&
+        current.showAll === next.showAll &&
+        current.departmentId === next.departmentId &&
+        current.incomeHeadId === next.incomeHeadId &&
+        current.agentId === next.agentId &&
+        current.paymentMethod === next.paymentMethod &&
+        current.page === next.page
+        ? current
+        : next;
+    });
+  }, [
+    agentId,
+    dateRangeIsInvalid,
+    departmentId,
+    endDate,
+    incomeHeadId,
+    paymentMethod,
+    selectedHospitalId,
+    startDate,
+  ]);
+
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
       <Header
@@ -274,7 +268,7 @@ export default function Page() {
               type="button"
               onClick={() =>
                 !applied.hospitalId
-                  ? toast.error("Generate a revenue report before printing.")
+                  ? toast.error("Select a hospital to print reports.")
                   : printAdminHospitalRevenueReport(applied.hospitalId, {
                       startDate: applied.startDate,
                       endDate: applied.endDate,
@@ -310,7 +304,7 @@ export default function Page() {
               type="button"
               onClick={() =>
                 !applied.hospitalId
-                  ? toast.error("Generate a revenue report before exporting.")
+                  ? toast.error("Select a hospital to export reports.")
                   : exportAdminHospitalRevenueReportCsv(applied.hospitalId, {
                       startDate: applied.startDate,
                       endDate: applied.endDate,
@@ -376,31 +370,6 @@ export default function Page() {
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Start Date
-              </p>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                End Date
-              </p>
-              <input
-                type="date"
-                value={endDate}
-                min={startDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
             </div>
 
             <div className="space-y-1">
@@ -480,6 +449,31 @@ export default function Page() {
                 <option value="pos">POS</option>
               </select>
             </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                Start Date
+              </p>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                End Date
+              </p>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              />
+            </div>
           </div>
 
           {dateRangeIsInvalid ? (
@@ -516,35 +510,6 @@ export default function Page() {
             >
               View All Reports
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!selectedHospitalId) {
-                  toast.error("Select a hospital to generate the report.");
-                  return;
-                }
-
-                if (dateRangeIsInvalid) {
-                  return;
-                }
-
-                setApplied({
-                  hospitalId: selectedHospitalId,
-                  startDate,
-                  endDate,
-                  showAll: false,
-                  departmentId,
-                  incomeHeadId,
-                  agentId,
-                  paymentMethod,
-                  page: 1,
-                });
-              }}
-              disabled={!selectedHospitalId || dateRangeIsInvalid}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Generate Report
-            </button>
           </div>
         </div>
 
@@ -553,15 +518,6 @@ export default function Page() {
           totalRevenue={summary?.total_amount ?? 0}
           totalTransactions={summary?.total_transactions ?? 0}
         />
-
-        {rows.length > 0 ? (
-          <FoReportsCharts
-            revenueTrendData={buildRevenueTrend(rows)}
-            paymentMethodSummary={buildPaymentBreakdown(rows)}
-            departmentRevenue={buildDepartmentBreakdown(rows)}
-            topAgents={buildTopAgents(rows)}
-          />
-        ) : null}
 
         <FoReportsRevenueBreakdownTable
           rows={buildRevenueBreakdownTable(rows)}

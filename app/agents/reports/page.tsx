@@ -162,7 +162,7 @@ function Page() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <p className="text-sm font-medium text-gray-700">Date Range</p>
               <select className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -201,11 +201,6 @@ function Page() {
               </select>
             </div>
 
-            <div className="flex items-end">
-              <button className="w-full h-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-4 py-3 transition-colors">
-                Generate Report
-              </button>
-            </div>
           </div>
         </div>
 

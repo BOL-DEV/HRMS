@@ -58,6 +58,36 @@ export default function Page() {
   });
 
   useEffect(() => {
+    if (!selectedHospitalId) {
+      return;
+    }
+
+    const trimmedPatientId = patientId.trim();
+    const patientIdIsValid = !trimmedPatientId || isNumericPatientId(trimmedPatientId);
+    const dateRangeIsInvalid = Boolean(startDate && endDate && startDate > endDate);
+
+    if (!patientIdIsValid || dateRangeIsInvalid) {
+      return;
+    }
+
+    setApplied((current) => {
+      const next = {
+        hospitalId: selectedHospitalId,
+        patientId: trimmedPatientId,
+        startDate,
+        endDate,
+      };
+
+      return current.hospitalId === next.hospitalId &&
+        current.patientId === next.patientId &&
+        current.startDate === next.startDate &&
+        current.endDate === next.endDate
+        ? current
+        : next;
+    });
+  }, [endDate, patientId, selectedHospitalId, startDate]);
+
+  useEffect(() => {
     if (!accessToken) {
       router.replace("/login");
     }
@@ -103,26 +133,6 @@ export default function Page() {
       endDate={endDate}
       onStartDateChange={setStartDate}
       onEndDateChange={setEndDate}
-      onGenerate={() => {
-        if (!selectedHospitalId) {
-          toast.error("Select a hospital to generate the report.");
-          return;
-        }
-
-        const trimmedPatientId = patientId.trim();
-
-        if (trimmedPatientId && !isNumericPatientId(trimmedPatientId)) {
-          toast.error("Patient ID must contain only numbers.");
-          return;
-        }
-
-        setApplied({
-          hospitalId: selectedHospitalId,
-          patientId: trimmedPatientId,
-          startDate,
-          endDate,
-        });
-      }}
       onViewAllReports={() => {
         if (!selectedHospitalId) {
           toast.error("Select a hospital to view reports.");
@@ -147,7 +157,7 @@ export default function Page() {
       }}
       onExport={() =>
         !applied.hospitalId
-          ? Promise.resolve(toast.error("Generate a patient report before exporting."))
+          ? Promise.resolve(toast.error("Select a hospital to export reports."))
           : exportAdminHospitalPatientReportCsv(applied.hospitalId, {
               patientId: applied.patientId || undefined,
               startDate: applied.startDate,
@@ -160,7 +170,7 @@ export default function Page() {
       }
       onPrint={() =>
         !applied.hospitalId
-          ? Promise.resolve(toast.error("Generate a patient report before printing."))
+          ? Promise.resolve(toast.error("Select a hospital to print reports."))
           : printAdminHospitalPatientReport(applied.hospitalId, {
               patientId: applied.patientId || undefined,
               startDate: applied.startDate,

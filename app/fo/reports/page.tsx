@@ -92,16 +92,7 @@ function Page() {
   );
   const [agent, setAgent] = useState("All");
   const [incomeHead, setIncomeHead] = useState("All");
-  const [appliedFilters, setAppliedFilters] = useState({
-    startDate: today,
-    endDate: today,
-    showAll: false,
-    department: "All",
-    paymentMethod: "All" as PaymentMethod | "All",
-    agent: "All",
-    incomeHead: "All",
-    page: 1,
-  });
+  const [page, setPage] = useState(1);
 
   const agentsQuery = useQuery({
     queryKey: ["fo-agents-options"],
@@ -125,24 +116,29 @@ function Page() {
   });
 
   const reportsQuery = useQuery({
-    queryKey: ["fo-reports", appliedFilters],
+    queryKey: [
+      "fo-reports",
+      startDate,
+      endDate,
+      !startDate && !endDate,
+      department,
+      paymentMethod,
+      agent,
+      incomeHead,
+      page,
+    ],
     queryFn: () =>
       getFoReports({
-        startDate: appliedFilters.startDate,
-        endDate: appliedFilters.endDate,
-        showAll: appliedFilters.showAll,
+        startDate,
+        endDate,
+        showAll: !startDate && !endDate,
         departments:
-          appliedFilters.department === "All"
-            ? undefined
-            : [appliedFilters.department],
+          department === "All" ? undefined : [department],
         incomeHeads:
-          appliedFilters.incomeHead === "All"
-            ? undefined
-            : [appliedFilters.incomeHead],
-        agents:
-          appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
-        paymentMethod: toMethodParam(appliedFilters.paymentMethod),
-        page: appliedFilters.page,
+          incomeHead === "All" ? undefined : [incomeHead],
+        agents: agent === "All" ? undefined : [agent],
+        paymentMethod: toMethodParam(paymentMethod),
+        page,
         limit: REPORTS_PER_PAGE,
       }),
     enabled: Boolean(accessToken),
@@ -220,82 +216,59 @@ function Page() {
     [incomeHeadsQuery.data?.data.income_heads],
   );
 
-  const dateRangeIsInvalid =
-    Boolean(startDate || endDate) &&
-    (!startDate || !endDate || startDate > endDate);
+  const dateRangeIsInvalid = Boolean(
+    startDate && endDate && startDate > endDate,
+  );
 
-  useEffect(() => {
-    if (dateRangeIsInvalid) {
-      return;
-    }
+  const resetToFirstPage = () => setPage(1);
 
-    setAppliedFilters((current) => {
-      const showAll = !startDate && !endDate;
-      const next = {
-        ...current,
-        startDate,
-        endDate,
-        showAll,
-        department,
-        paymentMethod,
-        agent,
-        incomeHead,
-        page: 1,
-      };
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    resetToFirstPage();
+  };
 
-      const isSame =
-        current.startDate === next.startDate &&
-        current.endDate === next.endDate &&
-        current.showAll === next.showAll &&
-        current.department === next.department &&
-        current.paymentMethod === next.paymentMethod &&
-        current.agent === next.agent &&
-        current.incomeHead === next.incomeHead &&
-        current.page === next.page;
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+    resetToFirstPage();
+  };
 
-      return isSame ? current : next;
-    });
-  }, [
-    agent,
-    dateRangeIsInvalid,
-    department,
-    endDate,
-    incomeHead,
-    paymentMethod,
-    startDate,
-  ]);
+  const handleDepartmentChange = (value: string) => {
+    setDepartment(value);
+    setIncomeHead("All");
+    resetToFirstPage();
+  };
+
+  const handlePaymentMethodChange = (value: PaymentMethod | "All") => {
+    setPaymentMethod(value);
+    resetToFirstPage();
+  };
+
+  const handleAgentChange = (value: string) => {
+    setAgent(value);
+    resetToFirstPage();
+  };
+
+  const handleIncomeHeadChange = (value: string) => {
+    setIncomeHead(value);
+    resetToFirstPage();
+  };
 
   const handleViewAllReports = () => {
     setStartDate("");
     setEndDate("");
-    setAppliedFilters({
-      startDate: "",
-      endDate: "",
-      showAll: true,
-      department,
-      paymentMethod,
-      agent,
-      incomeHead,
-      page: 1,
-    });
+    resetToFirstPage();
   };
 
   const handleExportCsv = () => {
     exportFoReportsCsv({
-      startDate: appliedFilters.startDate,
-      endDate: appliedFilters.endDate,
-      showAll: appliedFilters.showAll,
+      startDate,
+      endDate,
+      showAll: !startDate && !endDate,
       departments:
-        appliedFilters.department === "All"
-          ? undefined
-          : [appliedFilters.department],
-      incomeHeads:
-        appliedFilters.incomeHead === "All"
-          ? undefined
-          : [appliedFilters.incomeHead],
-      agents:
-        appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
-      paymentMethod: toMethodParam(appliedFilters.paymentMethod),
+        department === "All" ? undefined : [department],
+      incomeHeads: incomeHead === "All" ? undefined : [incomeHead],
+      agents: agent === "All" ? undefined : [agent],
+      paymentMethod: toMethodParam(paymentMethod),
     }).catch((error) => {
       toast.error(
         error instanceof Error ? error.message : "Unable to export report.",
@@ -305,20 +278,14 @@ function Page() {
 
   const handlePrintReport = () => {
     printFoReports({
-      startDate: appliedFilters.startDate,
-      endDate: appliedFilters.endDate,
-      showAll: appliedFilters.showAll,
+      startDate,
+      endDate,
+      showAll: !startDate && !endDate,
       departments:
-        appliedFilters.department === "All"
-          ? undefined
-          : [appliedFilters.department],
-      incomeHeads:
-        appliedFilters.incomeHead === "All"
-          ? undefined
-          : [appliedFilters.incomeHead],
-      agents:
-        appliedFilters.agent === "All" ? undefined : [appliedFilters.agent],
-      paymentMethod: toMethodParam(appliedFilters.paymentMethod),
+        department === "All" ? undefined : [department],
+      incomeHeads: incomeHead === "All" ? undefined : [incomeHead],
+      agents: agent === "All" ? undefined : [agent],
+      paymentMethod: toMethodParam(paymentMethod),
     }).catch((error) => {
       toast.error(
         error instanceof Error ? error.message : "Unable to print report.",
@@ -380,8 +347,7 @@ function Page() {
 
         {dateRangeIsInvalid ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-            Start date and end date must both be set, and the start date cannot
-            be after the end date.
+            Start date cannot be after the end date.
           </div>
         ) : null}
 
@@ -395,15 +361,12 @@ function Page() {
           departmentOptions={departmentOptions}
           agentOptions={agentOptions}
           incomeHeadOptions={incomeHeadOptions}
-          onStartDateChange={setStartDate}
-          onEndDateChange={setEndDate}
-          onDepartmentChange={(value) => {
-            setDepartment(value);
-            setIncomeHead("All");
-          }}
-          onPaymentMethodChange={setPaymentMethod}
-          onAgentChange={setAgent}
-          onIncomeHeadChange={setIncomeHead}
+          onStartDateChange={handleStartDateChange}
+          onEndDateChange={handleEndDateChange}
+          onDepartmentChange={handleDepartmentChange}
+          onPaymentMethodChange={handlePaymentMethodChange}
+          onAgentChange={handleAgentChange}
+          onIncomeHeadChange={handleIncomeHeadChange}
           onViewAllReports={handleViewAllReports}
         />
 
@@ -441,16 +404,12 @@ function Page() {
                 hasPrevious={pagination.has_previous}
                 hasNext={pagination.has_next}
                 onPrevious={() =>
-                  setAppliedFilters((current) => ({
-                    ...current,
-                    page: Math.max(current.page - 1, 1),
-                  }))
+                  setPage((current) => Math.max(current - 1, 1))
                 }
                 onNext={() =>
-                  setAppliedFilters((current) => ({
-                    ...current,
-                    page: Math.min(current.page + 1, pagination.total_pages),
-                  }))
+                  setPage((current) =>
+                    Math.min(current + 1, pagination.total_pages),
+                  )
                 }
               />
             </div>

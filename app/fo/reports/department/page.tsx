@@ -14,6 +14,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
+const REPORTS_PER_PAGE = 15;
+
 function getTodayDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -25,11 +27,11 @@ function Page() {
   const [department, setDepartment] = useState("All");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
-  const [applied, setApplied] = useState({
-    department: "All",
-    startDate: today,
-    endDate: today,
-  });
+  const [page, setPage] = useState(1);
+
+  const dateRangeIsInvalid = Boolean(
+    startDate && endDate && startDate > endDate,
+  );
 
   const departmentsQuery = useQuery({
     queryKey: ["fo-report-departments"],
@@ -38,14 +40,16 @@ function Page() {
   });
 
   const reportQuery = useQuery({
-    queryKey: ["fo-department-report", applied],
+    queryKey: ["fo-department-report", department, startDate, endDate, page],
     queryFn: () =>
       getFoDepartmentReport({
-        department: applied.department === "All" ? undefined : applied.department,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
+        department: department === "All" ? undefined : department,
+        startDate,
+        endDate,
+        page: department === "All" ? undefined : page,
+        limit: department === "All" ? undefined : REPORTS_PER_PAGE,
       }),
-    enabled: Boolean(accessToken),
+    enabled: Boolean(accessToken) && !dateRangeIsInvalid,
   });
 
   useEffect(() => {
@@ -82,6 +86,24 @@ function Page() {
     [departmentsQuery.data?.data.departments],
   );
 
+  const pagination =
+    department === "All" ? null : reportQuery.data?.data.pagination ?? null;
+
+  const handleDepartmentChange = (value: string) => {
+    setDepartment(value);
+    setPage(1);
+  };
+
+  const handleStartDateChange = (value: string) => {
+    setStartDate(value);
+    setPage(1);
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setEndDate(value);
+    setPage(1);
+  };
+
   return (
     <FoScopedReportWorkspace
       mode="department"
@@ -90,34 +112,20 @@ function Page() {
       filterLabel="Department"
       filterType="select"
       filterValue={department}
-      onFilterChange={setDepartment}
+      onFilterChange={handleDepartmentChange}
       filterOptions={options}
       isFilterLoading={departmentsQuery.isLoading}
       startDate={startDate}
       endDate={endDate}
-      onStartDateChange={setStartDate}
-      onEndDateChange={setEndDate}
-      onGenerate={() =>
-        setApplied({
-          department,
-          startDate,
-          endDate,
-        })
-      }
-      onViewAllReports={() => {
-        setStartDate("");
-        setEndDate("");
-        setApplied({
-          department,
-          startDate: "",
-          endDate: "",
-        });
-      }}
+      onStartDateChange={handleStartDateChange}
+      onEndDateChange={handleEndDateChange}
       onExport={() =>
         exportFoDepartmentReportCsv({
-          department: applied.department === "All" ? undefined : applied.department,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+          department: department === "All" ? undefined : department,
+          startDate,
+          endDate,
+          page: department === "All" ? undefined : page,
+          limit: department === "All" ? undefined : REPORTS_PER_PAGE,
         }).catch((error) =>
           toast.error(
             error instanceof Error ? error.message : "Unable to export report.",
@@ -126,9 +134,11 @@ function Page() {
       }
       onPrint={() =>
         printFoDepartmentReport({
-          department: applied.department === "All" ? undefined : applied.department,
-          startDate: applied.startDate,
-          endDate: applied.endDate,
+          department: department === "All" ? undefined : department,
+          startDate,
+          endDate,
+          page: department === "All" ? undefined : page,
+          limit: department === "All" ? undefined : REPORTS_PER_PAGE,
         }).catch((error) =>
           toast.error(
             error instanceof Error ? error.message : "Unable to print report.",
@@ -142,8 +152,21 @@ function Page() {
             ? departmentsQuery.error.message
             : null
       }
+      dateRangeErrorMessage={
+        dateRangeIsInvalid ? "Start date cannot be after the end date." : null
+      }
       isLoading={reportQuery.isLoading}
       data={reportQuery.data?.data}
+      pagination={pagination}
+      onPreviousPage={() => setPage((current) => Math.max(current - 1, 1))}
+      onNextPage={() =>
+        setPage((current) =>
+          Math.min(
+            current + 1,
+            reportQuery.data?.data.pagination?.total_pages ?? current,
+          ),
+        )
+      }
     />
   );
 }

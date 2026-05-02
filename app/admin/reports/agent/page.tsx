@@ -105,6 +105,30 @@ export default function Page() {
   const dateRangeIsInvalid =
     Boolean(startDate && endDate && startDate > endDate);
 
+  useEffect(() => {
+    if (!selectedHospitalId || dateRangeIsInvalid) {
+      return;
+    }
+
+    setApplied((current) => {
+      const next = {
+        hospitalId: selectedHospitalId,
+        agentId,
+        startDate,
+        endDate,
+        page: 1,
+      };
+
+      return current.hospitalId === next.hospitalId &&
+        current.agentId === next.agentId &&
+        current.startDate === next.startDate &&
+        current.endDate === next.endDate &&
+        current.page === next.page
+        ? current
+        : next;
+    });
+  }, [agentId, dateRangeIsInvalid, endDate, selectedHospitalId, startDate]);
+
   return (
     <>
       <AdminScopedReportWorkspace
@@ -132,27 +156,9 @@ export default function Page() {
         endDate={endDate}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
-        onGenerate={() => {
-          if (!selectedHospitalId) {
-            toast.error("Select a hospital to generate the report.");
-            return;
-          }
-
-          if (dateRangeIsInvalid) {
-            return;
-          }
-
-          setApplied({
-            hospitalId: selectedHospitalId,
-            agentId,
-            startDate,
-            endDate,
-            page: 1,
-          });
-        }}
         onExport={() =>
           !applied.hospitalId
-            ? Promise.resolve(toast.error("Generate an agent report before exporting."))
+            ? Promise.resolve(toast.error("Select a hospital to export reports."))
             : exportAdminHospitalAgentReportCsv(applied.hospitalId, {
                 agentId: applied.agentId === "All" ? undefined : applied.agentId,
                 startDate: applied.startDate,
@@ -165,7 +171,7 @@ export default function Page() {
         }
         onPrint={() =>
           !applied.hospitalId
-            ? Promise.resolve(toast.error("Generate an agent report before printing."))
+            ? Promise.resolve(toast.error("Select a hospital to print reports."))
             : printAdminHospitalAgentReport(applied.hospitalId, {
                 agentId: applied.agentId === "All" ? undefined : applied.agentId,
                 startDate: applied.startDate,

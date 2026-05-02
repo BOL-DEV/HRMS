@@ -112,6 +112,30 @@ export default function Page() {
   const dateRangeIsInvalid =
     Boolean(startDate && endDate && startDate > endDate);
 
+  useEffect(() => {
+    if (!selectedHospitalId || dateRangeIsInvalid) {
+      return;
+    }
+
+    setApplied((current) => {
+      const next = {
+        hospitalId: selectedHospitalId,
+        department,
+        startDate,
+        endDate,
+        page: 1,
+      };
+
+      return current.hospitalId === next.hospitalId &&
+        current.department === next.department &&
+        current.startDate === next.startDate &&
+        current.endDate === next.endDate &&
+        current.page === next.page
+        ? current
+        : next;
+    });
+  }, [dateRangeIsInvalid, department, endDate, selectedHospitalId, startDate]);
+
   return (
     <>
       <AdminScopedReportWorkspace
@@ -139,27 +163,9 @@ export default function Page() {
         endDate={endDate}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
-        onGenerate={() => {
-          if (!selectedHospitalId) {
-            toast.error("Select a hospital to generate the report.");
-            return;
-          }
-
-          if (dateRangeIsInvalid) {
-            return;
-          }
-
-          setApplied({
-            hospitalId: selectedHospitalId,
-            department,
-            startDate,
-            endDate,
-            page: 1,
-          });
-        }}
         onExport={() =>
           !applied.hospitalId
-            ? Promise.resolve(toast.error("Generate a department report before exporting."))
+            ? Promise.resolve(toast.error("Select a hospital to export reports."))
             : exportAdminHospitalDepartmentReportCsv(applied.hospitalId, {
                 department:
                   applied.department === "All" ? undefined : applied.department,
@@ -173,7 +179,7 @@ export default function Page() {
         }
         onPrint={() =>
           !applied.hospitalId
-            ? Promise.resolve(toast.error("Generate a department report before printing."))
+            ? Promise.resolve(toast.error("Select a hospital to print reports."))
             : printAdminHospitalDepartmentReport(applied.hospitalId, {
                 department:
                   applied.department === "All" ? undefined : applied.department,

@@ -147,6 +147,34 @@ function getFilenameFromDisposition(
   return match?.[1] ?? fallback;
 }
 
+function applyDateRangeQuery(
+  query: URLSearchParams,
+  params?: {
+    startDate?: string;
+    endDate?: string;
+  },
+) {
+  const startDate = params?.startDate?.trim();
+  const endDate = params?.endDate?.trim();
+
+  if (startDate && endDate) {
+    query.set("start_date", startDate);
+    query.set("end_date", endDate);
+    return;
+  }
+
+  if (startDate) {
+    query.set("start_date", startDate);
+    query.set("end_date", startDate);
+    return;
+  }
+
+  if (endDate) {
+    query.set("start_date", endDate);
+    query.set("end_date", endDate);
+  }
+}
+
 async function downloadFoDocument(
   endpoint: string,
   fallbackFilename: string,
@@ -476,13 +504,7 @@ export async function getFoReports(params?: {
 }) {
   const query = new URLSearchParams();
 
-  if (params?.startDate) {
-    query.set("start_date", params.startDate);
-  }
-
-  if (params?.endDate) {
-    query.set("end_date", params.endDate);
-  }
+  applyDateRangeQuery(query, params);
 
   if (params?.showAll && !params?.startDate && !params?.endDate) {
     query.set("show_all", "true");
@@ -534,13 +556,7 @@ export async function exportFoReportsCsv(params?: {
 }) {
   const query = new URLSearchParams();
 
-  if (params?.startDate) {
-    query.set("start_date", params.startDate);
-  }
-
-  if (params?.endDate) {
-    query.set("end_date", params.endDate);
-  }
+  applyDateRangeQuery(query, params);
 
   if (params?.showAll && !params?.startDate && !params?.endDate) {
     query.set("show_all", "true");
@@ -575,7 +591,7 @@ export async function exportFoReportsCsv(params?: {
   return withFoSessionRetry((accessToken) =>
     downloadFoDocument(
       `/api/fo/reports?${query.toString()}`,
-      "fo-report.csv",
+      "fo_revenue_report.csv",
       accessToken,
     ),
   );
@@ -594,13 +610,7 @@ export async function printFoReports(params?: {
 }) {
   const query = new URLSearchParams();
 
-  if (params?.startDate) {
-    query.set("start_date", params.startDate);
-  }
-
-  if (params?.endDate) {
-    query.set("end_date", params.endDate);
-  }
+  applyDateRangeQuery(query, params);
 
   if (params?.showAll && !params?.startDate && !params?.endDate) {
     query.set("show_all", "true");
@@ -839,6 +849,8 @@ export async function getFoDepartmentReport(params?: {
   department?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
   exportType?: "csv";
   print?: boolean;
 }) {
@@ -848,9 +860,14 @@ export async function getFoDepartmentReport(params?: {
     query.set("department", params.department.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   if (params?.exportType === "csv") {
@@ -875,6 +892,8 @@ export async function exportFoDepartmentReportCsv(params?: {
   department?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
 }) {
   const query = new URLSearchParams();
 
@@ -882,9 +901,14 @@ export async function exportFoDepartmentReportCsv(params?: {
     query.set("department", params.department.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("export", "csv");
@@ -892,7 +916,7 @@ export async function exportFoDepartmentReportCsv(params?: {
   return withFoSessionRetry((accessToken) =>
     downloadFoDocument(
       `/api/fo/report/department?${query.toString()}`,
-      "fo-department-report.csv",
+      "fo_department_report.csv",
       accessToken,
     ),
   );
@@ -902,6 +926,8 @@ export async function printFoDepartmentReport(params?: {
   department?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
 }) {
   const query = new URLSearchParams();
 
@@ -909,9 +935,14 @@ export async function printFoDepartmentReport(params?: {
     query.set("department", params.department.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("print", "true");
@@ -928,6 +959,8 @@ export async function getFoAgentReport(params?: {
   agentId?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
   exportType?: "csv";
   print?: boolean;
 }) {
@@ -937,9 +970,14 @@ export async function getFoAgentReport(params?: {
     query.set("agent_id", params.agentId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   if (params?.exportType === "csv") {
@@ -964,6 +1002,8 @@ export async function exportFoAgentReportCsv(params?: {
   agentId?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
 }) {
   const query = new URLSearchParams();
 
@@ -971,9 +1011,14 @@ export async function exportFoAgentReportCsv(params?: {
     query.set("agent_id", params.agentId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("export", "csv");
@@ -981,7 +1026,7 @@ export async function exportFoAgentReportCsv(params?: {
   return withFoSessionRetry((accessToken) =>
     downloadFoDocument(
       `/api/fo/report/agent?${query.toString()}`,
-      "fo-agent-report.csv",
+      "fo_agent_report.csv",
       accessToken,
     ),
   );
@@ -991,6 +1036,8 @@ export async function printFoAgentReport(params?: {
   agentId?: string;
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
 }) {
   const query = new URLSearchParams();
 
@@ -998,9 +1045,14 @@ export async function printFoAgentReport(params?: {
     query.set("agent_id", params.agentId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("print", "true");

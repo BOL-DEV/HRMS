@@ -1868,6 +1868,14 @@ export type FoDepartmentReportResponse = {
           count: number;
           amount: number;
         };
+    pagination?: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
+    };
     report?: FoDepartmentReportGroupedItem[];
     transactions?: FoTransactionItem[];
   };
@@ -1905,6 +1913,14 @@ export type FoAgentReportResponse = {
           count: number;
           amount: number;
         };
+    pagination?: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
+    };
     report?: FoAgentReportGroupedItem[];
     transactions?: FoTransactionItem[];
   };
