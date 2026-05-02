@@ -223,6 +223,34 @@ function getFilenameFromDisposition(
   return match?.[1] ?? fallback;
 }
 
+function applyDateRangeQuery(
+  query: URLSearchParams,
+  params?: {
+    startDate?: string;
+    endDate?: string;
+  },
+) {
+  const startDate = params?.startDate?.trim();
+  const endDate = params?.endDate?.trim();
+
+  if (startDate && endDate) {
+    query.set("start_date", startDate);
+    query.set("end_date", endDate);
+    return;
+  }
+
+  if (startDate) {
+    query.set("start_date", startDate);
+    query.set("end_date", startDate);
+    return;
+  }
+
+  if (endDate) {
+    query.set("start_date", endDate);
+    query.set("end_date", endDate);
+  }
+}
+
 async function downloadAdminDocument(
   endpoint: string,
   fallbackFilename: string,
@@ -804,7 +832,45 @@ export async function updateAdminHospital(
 }
 
 export async function getAdminReportsOptions() {
-  return adminGet<AdminReportsOptionsResponse>("/api/admin/reports/options");
+  const hospitalsResponse = await getAdminHospitals({
+    sort: "newest",
+  });
+
+  return {
+    status: hospitalsResponse.status,
+    message: hospitalsResponse.message,
+    data: {
+      hospitals: hospitalsResponse.data.hospitals.map((hospital) => ({
+        hospital_id: hospital.hospital_id,
+        hospital_name: hospital.hospital_name,
+        hospital_code: hospital.hospital_code,
+        revenue_type: hospital.revenue_type,
+        status: hospital.status,
+      })),
+      report_types: [
+        {
+          key: "revenue" as const,
+          label: "Revenue Report",
+          endpoint: "/api/admin/reports",
+        },
+        {
+          key: "patient" as const,
+          label: "Patient Report",
+          endpoint: "/api/admin/reports/patient",
+        },
+        {
+          key: "department" as const,
+          label: "Department Report",
+          endpoint: "/api/admin/reports/department",
+        },
+        {
+          key: "agent" as const,
+          label: "Agent Report",
+          endpoint: "/api/admin/reports/agent",
+        },
+      ],
+    },
+  } satisfies AdminReportsOptionsResponse;
 }
 
 export async function updateAdminPassword(payload: AdminUpdatePasswordPayload) {
@@ -825,6 +891,7 @@ export async function getAdminHospitalRevenueReport(
   params?: {
     startDate?: string;
     endDate?: string;
+    showAll?: boolean;
     departments?: string[];
     incomeHeads?: string[];
     agents?: string[];
@@ -834,10 +901,12 @@ export async function getAdminHospitalRevenueReport(
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.showAll) {
+    query.set("show_all", "true");
   }
 
   if (params?.departments?.length) {
@@ -864,10 +933,8 @@ export async function getAdminHospitalRevenueReport(
     query.set("limit", String(params.limit));
   }
 
-  const suffix = query.toString() ? `?${query.toString()}` : "";
-
   return adminGet<AdminHospitalRevenueReportResponse>(
-    `/api/admin/hospitals/${hospitalId}/reports${suffix}`,
+    `/api/admin/reports?${query.toString()}`,
   );
 }
 
@@ -876,6 +943,7 @@ export async function exportAdminHospitalRevenueReportCsv(
   params?: {
     startDate?: string;
     endDate?: string;
+    showAll?: boolean;
     departments?: string[];
     incomeHeads?: string[];
     agents?: string[];
@@ -885,10 +953,12 @@ export async function exportAdminHospitalRevenueReportCsv(
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.showAll) {
+    query.set("show_all", "true");
   }
 
   if (params?.departments?.length) {
@@ -918,7 +988,7 @@ export async function exportAdminHospitalRevenueReportCsv(
   query.set("export", "csv");
 
   return downloadAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/reports?${query.toString()}`,
+    `/api/admin/reports?${query.toString()}`,
     "admin-hospital-revenue-report.csv",
   );
 }
@@ -928,6 +998,7 @@ export async function printAdminHospitalRevenueReport(
   params?: {
     startDate?: string;
     endDate?: string;
+    showAll?: boolean;
     departments?: string[];
     incomeHeads?: string[];
     agents?: string[];
@@ -937,10 +1008,12 @@ export async function printAdminHospitalRevenueReport(
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.showAll) {
+    query.set("show_all", "true");
   }
 
   if (params?.departments?.length) {
@@ -969,9 +1042,7 @@ export async function printAdminHospitalRevenueReport(
 
   query.set("print", "true");
 
-  return printAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/reports?${query.toString()}`,
-  );
+  return printAdminDocument(`/api/admin/reports?${query.toString()}`);
 }
 
 export async function getAdminHospitalPatientReport(
@@ -983,18 +1054,16 @@ export async function getAdminHospitalPatientReport(
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
-  }
+  applyDateRangeQuery(query, params);
 
   return adminGet<AdminHospitalPatientReportResponse>(
-    `/api/admin/hospitals/${hospitalId}/report/patient?${query.toString()}`,
+    `/api/admin/reports/patient?${query.toString()}`,
   );
 }
 
@@ -1007,20 +1076,18 @@ export async function exportAdminHospitalPatientReportCsv(
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
-  }
+  applyDateRangeQuery(query, params);
 
   query.set("export", "csv");
 
   return downloadAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/report/patient?${query.toString()}`,
+    `/api/admin/reports/patient?${query.toString()}`,
     "admin-hospital-patient-report.csv",
   );
 }
@@ -1034,21 +1101,17 @@ export async function printAdminHospitalPatientReport(
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
-  }
+  applyDateRangeQuery(query, params);
 
   query.set("print", "true");
 
-  return printAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/report/patient?${query.toString()}`,
-  );
+  return printAdminDocument(`/api/admin/reports/patient?${query.toString()}`);
 }
 
 export async function getAdminHospitalDepartmentReport(
@@ -1057,21 +1120,29 @@ export async function getAdminHospitalDepartmentReport(
     department?: string;
     startDate?: string;
     endDate?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.department?.trim()) {
     query.set("department", params.department.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   return adminGet<AdminHospitalDepartmentReportResponse>(
-    `/api/admin/hospitals/${hospitalId}/report/department?${query.toString()}`,
+    `/api/admin/reports/department?${query.toString()}`,
   );
 }
 
@@ -1081,23 +1152,31 @@ export async function exportAdminHospitalDepartmentReportCsv(
     department?: string;
     startDate?: string;
     endDate?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.department?.trim()) {
     query.set("department", params.department.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("export", "csv");
 
   return downloadAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/report/department?${query.toString()}`,
+    `/api/admin/reports/department?${query.toString()}`,
     "admin-hospital-department-report.csv",
   );
 }
@@ -1108,23 +1187,31 @@ export async function printAdminHospitalDepartmentReport(
     department?: string;
     startDate?: string;
     endDate?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.department?.trim()) {
     query.set("department", params.department.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("print", "true");
 
   return printAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/report/department?${query.toString()}`,
+    `/api/admin/reports/department?${query.toString()}`,
   );
 }
 
@@ -1134,21 +1221,29 @@ export async function getAdminHospitalAgentReport(
     agentId?: string;
     startDate?: string;
     endDate?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.agentId?.trim()) {
     query.set("agent_id", params.agentId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   return adminGet<AdminHospitalAgentReportResponse>(
-    `/api/admin/hospitals/${hospitalId}/report/agent?${query.toString()}`,
+    `/api/admin/reports/agent?${query.toString()}`,
   );
 }
 
@@ -1158,23 +1253,31 @@ export async function exportAdminHospitalAgentReportCsv(
     agentId?: string;
     startDate?: string;
     endDate?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.agentId?.trim()) {
     query.set("agent_id", params.agentId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("export", "csv");
 
   return downloadAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/report/agent?${query.toString()}`,
+    `/api/admin/reports/agent?${query.toString()}`,
     "admin-hospital-agent-report.csv",
   );
 }
@@ -1185,22 +1288,28 @@ export async function printAdminHospitalAgentReport(
     agentId?: string;
     startDate?: string;
     endDate?: string;
+    page?: number;
+    limit?: number;
   },
 ) {
   const query = new URLSearchParams();
+  query.set("hospital", hospitalId);
 
   if (params?.agentId?.trim()) {
     query.set("agent_id", params.agentId.trim());
   }
 
-  if (params?.startDate && params?.endDate) {
-    query.set("start_date", params.startDate);
-    query.set("end_date", params.endDate);
+  applyDateRangeQuery(query, params);
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
   }
 
   query.set("print", "true");
 
-  return printAdminDocument(
-    `/api/admin/hospitals/${hospitalId}/report/agent?${query.toString()}`,
-  );
+  return printAdminDocument(`/api/admin/reports/agent?${query.toString()}`);
 }

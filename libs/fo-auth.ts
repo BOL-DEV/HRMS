@@ -210,18 +210,12 @@ function normalizeFoDashboardPeriod(value: unknown): FoDashboardPeriodValue {
     return {
       total_revenue: 0,
       transaction_count: 0,
-      active_agents: 0,
     };
   }
-
-  const activeAgents = value.active_agents;
 
   return {
     total_revenue: toNumber(value.total_revenue),
     transaction_count: toNumber(value.transaction_count),
-    ...(typeof activeAgents === "number" && Number.isFinite(activeAgents)
-      ? { active_agents: activeAgents }
-      : { active_agents: 0 }),
   };
 }
 

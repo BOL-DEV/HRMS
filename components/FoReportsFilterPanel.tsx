@@ -1,13 +1,41 @@
 "use client";
 
-import { FiTrendingUp } from "react-icons/fi";
-
 type PaymentMethod = "Cash" | "Transfer" | "POS";
 
 type Option = {
   id: string;
   name: string;
 };
+
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getTodayRange() {
+  const today = formatDate(new Date());
+  return { start: today, end: today };
+}
+
+function getLastSevenDaysRange() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 6);
+
+  return {
+    start: formatDate(start),
+    end: formatDate(end),
+  };
+}
+
+function getThisMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  return {
+    start: formatDate(start),
+    end: formatDate(now),
+  };
+}
 
 type Props = {
   startDate: string;
@@ -25,9 +53,7 @@ type Props = {
   onPaymentMethodChange: (value: PaymentMethod | "All") => void;
   onAgentChange: (value: string) => void;
   onIncomeHeadChange: (value: string) => void;
-  onGenerateReport: () => void;
   onViewAllReports?: () => void;
-  isGenerateDisabled?: boolean;
   isViewAllDisabled?: boolean;
 };
 
@@ -47,13 +73,40 @@ function FoReportsFilterPanel({
   onPaymentMethodChange,
   onAgentChange,
   onIncomeHeadChange,
-  onGenerateReport,
   onViewAllReports,
-  isGenerateDisabled = false,
   isViewAllDisabled = false,
 }: Props) {
+  const applyRange = (range: { start: string; end: string }) => {
+    onStartDateChange(range.start);
+    onEndDateChange(range.end);
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => applyRange(getTodayRange())}
+          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          onClick={() => applyRange(getLastSevenDaysRange())}
+          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+        >
+          Last 7 Days
+        </button>
+        <button
+          type="button"
+          onClick={() => applyRange(getThisMonthRange())}
+          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+        >
+          This Month
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
@@ -154,15 +207,6 @@ function FoReportsFilterPanel({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={onGenerateReport}
-          disabled={isGenerateDisabled}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <FiTrendingUp />
-          Generate Report
-        </button>
-
         {onViewAllReports ? (
           <button
             type="button"

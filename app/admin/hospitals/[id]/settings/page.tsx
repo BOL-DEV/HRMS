@@ -54,6 +54,183 @@ function getHospitalFormDefaults(
   };
 }
 
+function HospitalSettingsForm({
+  defaults,
+  hospitalCode,
+  isLoading,
+  isSaving,
+  onSubmit,
+}: {
+  defaults: NonNullable<ReturnType<typeof getHospitalFormDefaults>>;
+  hospitalCode?: string;
+  isLoading: boolean;
+  isSaving: boolean;
+  onSubmit: (payload: UpdateAdminHospitalPayload) => void;
+}) {
+  const [form, setForm] = useState<FormState>(() => buildInitialState(defaults));
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const payload: UpdateAdminHospitalPayload = {};
+    const trimmedName = form.name.trim();
+    const trimmedEmail = form.email.trim();
+    const trimmedPhone = form.phone.trim();
+    const trimmedAddress = form.address.trim();
+
+    if (trimmedName && trimmedName !== defaults.name) {
+      payload.name = trimmedName;
+    }
+
+    if (trimmedEmail && trimmedEmail !== defaults.email) {
+      payload.contact_email = trimmedEmail;
+    }
+
+    if (trimmedPhone && trimmedPhone !== defaults.phone) {
+      payload.contact_phone = trimmedPhone;
+    }
+
+    if (trimmedAddress && trimmedAddress !== defaults.address) {
+      payload.address = trimmedAddress;
+    }
+
+    if (form.revenueType !== defaults.revenueType) {
+      payload.revenue_type = form.revenueType;
+    }
+
+    if (form.status !== defaults.status) {
+      payload.status = form.status;
+    }
+
+    if (!Object.keys(payload).length) {
+      toast("No changes to save.");
+      return;
+    }
+
+    onSubmit(payload);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 p-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Hospital Name
+          </span>
+          <input
+            value={form.name}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, name: event.target.value }))
+            }
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            required
+          />
+        </label>
+
+        <div className="space-y-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Hospital Code
+          </span>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+            {hospitalCode ?? "--"}
+          </div>
+        </div>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Contact Email
+          </span>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, email: event.target.value }))
+            }
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            required
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Contact Phone
+          </span>
+          <input
+            value={form.phone}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, phone: event.target.value }))
+            }
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            required
+          />
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Revenue Type
+          </span>
+          <select
+            value={form.revenueType}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                revenueType: event.target.value as "manual" | "automatic",
+              }))
+            }
+            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            <option value="automatic">Automatic</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Status
+          </span>
+          <select
+            value={form.status}
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                status: event.target.value as AdminHospitalStatus,
+              }))
+            }
+            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </label>
+
+        <label className="space-y-2 md:col-span-2">
+          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Address
+          </span>
+          <textarea
+            value={form.address}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, address: event.target.value }))
+            }
+            className="min-h-28 w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            required
+          />
+        </label>
+      </div>
+
+      <div className="flex justify-end border-t border-gray-200 pt-5 dark:border-slate-700">
+        <button
+          type="submit"
+          disabled={isSaving || isLoading}
+          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isSaving ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function HospitalSettingsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -71,14 +248,6 @@ export default function HospitalSettingsPage() {
     () => getHospitalFormDefaults(overviewQuery.data?.data.hospital),
     [overviewQuery.data?.data.hospital],
   );
-
-  const [form, setForm] = useState<FormState>(() => buildInitialState(defaults));
-
-  useEffect(() => {
-    if (defaults) {
-      setForm(buildInitialState(defaults));
-    }
-  }, [defaults]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -121,51 +290,6 @@ export default function HospitalSettingsPage() {
     },
   });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!defaults) {
-      return;
-    }
-
-    const payload: UpdateAdminHospitalPayload = {};
-    const trimmedName = form.name.trim();
-    const trimmedEmail = form.email.trim();
-    const trimmedPhone = form.phone.trim();
-    const trimmedAddress = form.address.trim();
-
-    if (trimmedName && trimmedName !== defaults.name) {
-      payload.name = trimmedName;
-    }
-
-    if (trimmedEmail && trimmedEmail !== defaults.email) {
-      payload.contact_email = trimmedEmail;
-    }
-
-    if (trimmedPhone && trimmedPhone !== defaults.phone) {
-      payload.contact_phone = trimmedPhone;
-    }
-
-    if (trimmedAddress && trimmedAddress !== defaults.address) {
-      payload.address = trimmedAddress;
-    }
-
-    if (form.revenueType !== defaults.revenueType) {
-      payload.revenue_type = form.revenueType;
-    }
-
-    if (form.status !== defaults.status) {
-      payload.status = form.status;
-    }
-
-    if (!Object.keys(payload).length) {
-      toast("No changes to save.");
-      return;
-    }
-
-    updateMutation.mutate(payload);
-  };
-
   return (
     <div className="space-y-6">
       {overviewQuery.error instanceof Error ? (
@@ -182,123 +306,20 @@ export default function HospitalSettingsPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 p-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Hospital Name
-              </span>
-              <input
-                value={form.name}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, name: event.target.value }))
-                }
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                required
-              />
-            </label>
-
-            <div className="space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Hospital Code
-              </span>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                {overviewQuery.data?.data.hospital.hospital_code ?? "--"}
-              </div>
-            </div>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Contact Email
-              </span>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, email: event.target.value }))
-                }
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                required
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Contact Phone
-              </span>
-              <input
-                value={form.phone}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, phone: event.target.value }))
-                }
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                required
-              />
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Revenue Type
-              </span>
-              <select
-                value={form.revenueType}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    revenueType: event.target.value as "manual" | "automatic",
-                  }))
-                }
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              >
-                <option value="automatic">Automatic</option>
-                <option value="manual">Manual</option>
-              </select>
-            </label>
-
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Status
-              </span>
-              <select
-                value={form.status}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    status: event.target.value as AdminHospitalStatus,
-                  }))
-                }
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              >
-                <option value="active">Active</option>
-                <option value="suspended">Suspended</option>
-              </select>
-            </label>
-
-            <label className="space-y-2 md:col-span-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Address
-              </span>
-              <textarea
-                value={form.address}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, address: event.target.value }))
-                }
-                className="min-h-28 w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                required
-              />
-            </label>
+        {defaults ? (
+          <HospitalSettingsForm
+            key={JSON.stringify(defaults)}
+            defaults={defaults}
+            hospitalCode={overviewQuery.data?.data.hospital.hospital_code}
+            isLoading={overviewQuery.isLoading}
+            isSaving={updateMutation.isPending}
+            onSubmit={(payload) => updateMutation.mutate(payload)}
+          />
+        ) : (
+          <div className="p-6 text-sm text-gray-500 dark:text-slate-400">
+            Hospital settings are loading.
           </div>
-
-          <div className="flex justify-end border-t border-gray-200 pt-5 dark:border-slate-700">
-            <button
-              type="submit"
-              disabled={updateMutation.isPending || overviewQuery.isLoading}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </form>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 "use client";
+
 import FoPatientReportTable from "@/components/FoPatientReportTable";
 import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
 import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
@@ -6,14 +7,13 @@ import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable"
 import Header from "@/components/Header";
 import { FiDownload, FiPrinter } from "react-icons/fi";
 import type {
-  FoAgentReportGroupedItem,
-  FoAgentReportResponse,
-  FoDepartmentReportGroupedItem,
-  FoDepartmentReportResponse,
-  FoPatientReportResponse,
-  FoPatientReportTransaction,
-  FoReportPaymentType,
-  FoTransactionItem,
+  AdminHospitalAgentReportGroupedItem,
+  AdminHospitalAgentReportResponse,
+  AdminHospitalDepartmentReportGroupedItem,
+  AdminHospitalDepartmentReportResponse,
+  AdminHospitalPatientReportResponse,
+  AdminReportPaymentType,
+  AdminReportTransactionItem,
 } from "@/libs/type";
 
 type Option = {
@@ -21,7 +21,42 @@ type Option = {
   name: string;
 };
 
+type HospitalOption = {
+  hospital_id: string;
+  hospital_name: string;
+};
+
 type WorkspaceMode = "patient" | "department" | "agent";
+
+type Props = {
+  mode: WorkspaceMode;
+  title: string;
+  subtitle: string;
+  hospitalId: string;
+  onHospitalChange: (value: string) => void;
+  hospitalOptions: HospitalOption[];
+  filterLabel: string;
+  filterValue: string;
+  onFilterChange: (value: string) => void;
+  filterType?: "input" | "select";
+  filterOptions?: Option[];
+  filterPlaceholder?: string;
+  isFilterLoading?: boolean;
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (value: string) => void;
+  onEndDateChange: (value: string) => void;
+  onGenerate: () => void;
+  onViewAllReports?: () => void;
+  onExport?: () => void;
+  onPrint?: () => void;
+  errorMessage?: string | null;
+  isLoading?: boolean;
+  data?:
+    | AdminHospitalPatientReportResponse["data"]
+    | AdminHospitalDepartmentReportResponse["data"]
+    | AdminHospitalAgentReportResponse["data"];
+};
 
 function formatDate(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -53,185 +88,13 @@ function getThisMonthRange() {
   };
 }
 
-function getWorkspaceActionLabels(mode: WorkspaceMode) {
-  if (mode === "patient") {
-    return {
-      generate: "Generate Report",
-      viewAll: "See All",
-    };
-  }
-
-  if (mode === "department") {
-    return {
-      generate: "Generate Report",
-      viewAll: "See All",
-    };
-  }
-
-  return {
-    generate: "Generate Report",
-    viewAll: "See All",
-  };
-}
-
-type Props = {
-  mode: WorkspaceMode;
-  title: string;
-  subtitle: string;
-  filterLabel: string;
-  filterValue: string;
-  onFilterChange: (value: string) => void;
-  filterType?: "input" | "select";
-  filterOptions?: Option[];
-  filterPlaceholder?: string;
-  isFilterLoading?: boolean;
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (value: string) => void;
-  onEndDateChange: (value: string) => void;
-  onGenerate: () => void;
-  onViewAllReports?: () => void;
-  onExport?: () => void;
-  onPrint?: () => void;
-  errorMessage?: string | null;
-  isLoading?: boolean;
-  data?:
-    | FoPatientReportResponse["data"]
-    | FoDepartmentReportResponse["data"]
-    | FoAgentReportResponse["data"];
-};
-
-function toMethodLabel(value: FoReportPaymentType): "Cash" | "Transfer" | "POS" {
+function toMethodLabel(value: AdminReportPaymentType): "Cash" | "Transfer" | "POS" {
   if (value === "cash") return "Cash";
   if (value === "transfer") return "Transfer";
   return "POS";
 }
 
-function toTransactionItem(
-  row: Record<string, unknown>,
-  index: number,
-): FoTransactionItem {
-  return {
-    transaction_id: String(
-      row.transaction_id ?? row.receipt_id ?? row.date_time ?? `row-${index}`,
-    ),
-    date_time: String(row.date_time ?? ""),
-    receipt_id: String(row.receipt_id ?? row.receipt_no ?? "-"),
-    patient_id: String(row.patient_id ?? "-"),
-    patient_name: String(row.patient_name ?? "-"),
-    department: String(row.department ?? "-"),
-    income_head: String(row.income_head ?? "-"),
-    bill_name: String(row.bill_name ?? "-"),
-    payment_method:
-      row.payment_method === "transfer"
-        ? "transfer"
-        : row.payment_method === "pos"
-          ? "pos"
-          : "cash",
-    amount: Number(row.amount ?? 0),
-    agent: String(row.agent ?? row.agent_name ?? "-"),
-  };
-}
-
-function extractTransactions(
-  mode: WorkspaceMode,
-  data?: Props["data"],
-): FoTransactionItem[] {
-  if (!data) {
-    return [];
-  }
-
-  if (mode === "patient") {
-    const patientData = data as FoPatientReportResponse["data"];
-    return patientData.report.map((item, index) =>
-      toTransactionItem(item as unknown as Record<string, unknown>, index),
-    );
-  }
-
-  if (Array.isArray((data as FoDepartmentReportResponse["data"]).transactions)) {
-    return (data as FoDepartmentReportResponse["data"]).transactions ?? [];
-  }
-
-  if (Array.isArray((data as FoAgentReportResponse["data"]).transactions)) {
-    return (data as FoAgentReportResponse["data"]).transactions ?? [];
-  }
-
-  return [];
-}
-
-function extractPatientRows(data?: Props["data"]): FoPatientReportTransaction[] {
-  if (!data) {
-    return [];
-  }
-
-  return (data as FoPatientReportResponse["data"]).report ?? [];
-}
-
-function buildGroupedRows(
-  mode: "department" | "agent",
-  data?: FoDepartmentReportResponse["data"] | FoAgentReportResponse["data"],
-) {
-  if (!data || data.transactions?.length) {
-    return [];
-  }
-
-  if (mode === "department") {
-    return ((data.report as FoDepartmentReportGroupedItem[] | undefined) ?? []).map(
-      (item) => ({
-        revenueHead: mode === "department" ? item.department : "Department",
-        department: item.department,
-        transactions: item.count,
-        totalRevenue: item.amount,
-      }),
-    );
-  }
-
-  return ((data.report as FoAgentReportGroupedItem[] | undefined) ?? []).map(
-    (item) => ({
-      revenueHead: item.agent,
-      department: "All Departments",
-      transactions: item.count,
-      totalRevenue: item.amount,
-    }),
-  );
-}
-
-function buildWorkspaceStats(
-  mode: WorkspaceMode,
-  data: Props["data"],
-  rows: FoTransactionItem[],
-) {
-  if (!data) {
-    return {
-      totalRevenue: 0,
-      totalTransactions: 0,
-      averageTransaction: 0,
-    };
-  }
-
-  if (mode === "patient") {
-    const summary = (data as FoPatientReportResponse["data"]).summary;
-    return {
-      totalRevenue: summary.total_bill_amount,
-      totalTransactions: summary.transaction_count,
-      averageTransaction: summary.transaction_count
-        ? summary.total_bill_amount / summary.transaction_count
-        : 0,
-    };
-  }
-
-  const summary = data.summary as Record<string, unknown>;
-  const totalRevenue = Number(summary.total_amount ?? summary.amount ?? 0);
-  const totalTransactions = Number(summary.total_count ?? summary.count ?? rows.length);
-
-  return {
-    totalRevenue,
-    totalTransactions,
-    averageTransaction: totalTransactions ? totalRevenue / totalTransactions : 0,
-  };
-}
-
-function buildRevenueBreakdownTable(rows: FoTransactionItem[]) {
+function buildRevenueBreakdownTable(rows: AdminReportTransactionItem[]) {
   const grouped = new Map<
     string,
     {
@@ -263,10 +126,101 @@ function buildRevenueBreakdownTable(rows: FoTransactionItem[]) {
   return [...grouped.values()].sort((a, b) => b.totalRevenue - a.totalRevenue);
 }
 
-function FoScopedReportWorkspace({
+function buildGroupedRows(
+  mode: "department" | "agent",
+  data?: AdminHospitalDepartmentReportResponse["data"] | AdminHospitalAgentReportResponse["data"],
+) {
+  if (!data || data.transactions?.length) {
+    return [];
+  }
+
+  if (mode === "department") {
+    return ((data.report as AdminHospitalDepartmentReportGroupedItem[] | undefined) ?? []).map(
+      (item) => ({
+        revenueHead: item.department,
+        department: item.department,
+        transactions: item.count,
+        totalRevenue: item.amount,
+      }),
+    );
+  }
+
+  return ((data.report as AdminHospitalAgentReportGroupedItem[] | undefined) ?? []).map(
+    (item) => ({
+      revenueHead: item.agent,
+      department: "All Departments",
+      transactions: item.count,
+      totalRevenue: item.amount,
+    }),
+  );
+}
+
+function buildWorkspaceStats(
+  mode: WorkspaceMode,
+  data: Props["data"],
+  rows: AdminReportTransactionItem[],
+) {
+  if (!data) {
+    return {
+      totalRevenue: 0,
+      totalTransactions: 0,
+    };
+  }
+
+  if (mode === "patient") {
+    const summary = (data as AdminHospitalPatientReportResponse["data"]).summary;
+    return {
+      totalRevenue: summary.total_bill_amount,
+      totalTransactions: summary.transaction_count,
+    };
+  }
+
+  const summary = data.summary as Record<string, unknown>;
+  return {
+    totalRevenue: Number(summary.total_amount ?? summary.amount ?? 0),
+    totalTransactions: Number(summary.total_count ?? summary.count ?? rows.length),
+  };
+}
+
+function extractTransactions(
+  mode: WorkspaceMode,
+  data?: Props["data"],
+): AdminReportTransactionItem[] {
+  if (!data) {
+    return [];
+  }
+
+  if (mode === "patient") {
+    return (data as AdminHospitalPatientReportResponse["data"]).report.map(
+      (item, index) => ({
+        transaction_id: `${item.patient_id}-${item.date_time}-${index}`,
+        date_time: item.date_time,
+        receipt_id: "-",
+        patient_id: item.patient_id,
+        patient_name: item.patient_name,
+        department: item.department,
+        income_head: item.income_head,
+        bill_name: item.bill_name,
+        payment_method: "cash",
+        amount: item.amount,
+        agent: item.agent_name,
+      }),
+    );
+  }
+
+  return (
+    (data as AdminHospitalDepartmentReportResponse["data"] | AdminHospitalAgentReportResponse["data"])
+      .transactions ?? []
+  );
+}
+
+function AdminScopedReportWorkspace({
   mode,
   title,
   subtitle,
+  hospitalId,
+  onHospitalChange,
+  hospitalOptions,
   filterLabel,
   filterValue,
   onFilterChange,
@@ -287,22 +241,30 @@ function FoScopedReportWorkspace({
   data,
 }: Props) {
   const rows = extractTransactions(mode, data);
-  const patientRows = mode === "patient" ? extractPatientRows(data) : [];
+  const patientRows =
+    mode === "patient"
+      ? (data as AdminHospitalPatientReportResponse["data"] | undefined)?.report ?? []
+      : [];
   const stats = buildWorkspaceStats(mode, data, rows);
-  const actionLabels = getWorkspaceActionLabels(mode);
   const groupedRows =
     mode === "patient"
       ? []
-      : buildGroupedRows(mode, data as FoDepartmentReportResponse["data"] | FoAgentReportResponse["data"]);
-  const revenueBreakdownTable =
+      : buildGroupedRows(
+          mode,
+          data as AdminHospitalDepartmentReportResponse["data"] | AdminHospitalAgentReportResponse["data"],
+        );
+  const revenueBreakdownRows =
     rows.length > 0 ? buildRevenueBreakdownTable(rows) : groupedRows;
+  const dateRangeIsInvalid =
+    Boolean(startDate && endDate && startDate > endDate);
+
   const applyRange = (range: { start: string; end: string }) => {
     onStartDateChange(range.start);
     onEndDateChange(range.end);
   };
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
       <Header
         title={title}
         Subtitle={subtitle}
@@ -339,34 +301,56 @@ function FoScopedReportWorkspace({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-[240px] flex-1 space-y-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                {filterLabel}
-              </p>
-              {filterType === "select" ? (
+            <div className="grid min-w-[280px] flex-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  Hospital
+                </p>
                 <select
-                  value={filterValue}
-                  onChange={(event) => onFilterChange(event.target.value)}
-                  disabled={isFilterLoading}
+                  value={hospitalId}
+                  onChange={(event) => onHospitalChange(event.target.value)}
                   className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                 >
-                  <option value="All">All</option>
-                  {filterOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
+                  <option value="">Select hospital</option>
+                  {hospitalOptions.map((item) => (
+                    <option key={item.hospital_id} value={item.hospital_id}>
+                      {item.hospital_name}
                     </option>
                   ))}
                 </select>
-              ) : (
-                <input
-                  value={filterValue}
-                  onChange={(event) => onFilterChange(event.target.value)}
-                  placeholder={filterPlaceholder}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-                />
-              )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  {filterLabel}
+                </p>
+                {filterType === "select" ? (
+                  <select
+                    value={filterValue}
+                    onChange={(event) => onFilterChange(event.target.value)}
+                    disabled={isFilterLoading || !hospitalId}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  >
+                    <option value="All">All</option>
+                    {filterOptions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={filterValue}
+                    onChange={(event) => onFilterChange(event.target.value)}
+                    placeholder={filterPlaceholder}
+                    disabled={!hospitalId}
+                    inputMode={mode === "patient" ? "numeric" : undefined}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -422,28 +406,34 @@ function FoScopedReportWorkspace({
 
             <div className="flex items-end">
               <div className="flex w-full flex-col gap-2 sm:flex-row">
-                {mode !== "agent" ? (
-                  <button
-                    type="button"
-                    onClick={onGenerate}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    {actionLabels.generate}
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={onGenerate}
+                  disabled={!hospitalId || dateRangeIsInvalid}
+                  className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Generate Report
+                </button>
 
                 {onViewAllReports ? (
                   <button
                     type="button"
                     onClick={onViewAllReports}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    disabled={!hospitalId}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
-                    {actionLabels.viewAll}
+                    View All
                   </button>
                 ) : null}
               </div>
             </div>
           </div>
+
+          {dateRangeIsInvalid ? (
+            <p className="mt-3 text-sm text-red-600 dark:text-red-300">
+              Start date and end date must be provided together, and the start date cannot be after the end date.
+            </p>
+          ) : null}
         </div>
 
         <FoReportsSummaryCards
@@ -452,21 +442,18 @@ function FoScopedReportWorkspace({
           totalTransactions={stats.totalTransactions}
         />
 
-        <FoReportsRevenueBreakdownTable rows={revenueBreakdownTable} />
+        <FoReportsRevenueBreakdownTable rows={revenueBreakdownRows} />
 
         {mode === "patient" && patientRows.length > 0 ? (
           <FoPatientReportTable rows={patientRows} />
         ) : null}
 
         {mode !== "patient" && rows.length > 0 ? (
-          <FoReportsTransactionsTable
-            rows={rows}
-            toMethodLabel={toMethodLabel}
-          />
+          <FoReportsTransactionsTable rows={rows} toMethodLabel={toMethodLabel} />
         ) : null}
       </div>
     </div>
   );
 }
 
-export default FoScopedReportWorkspace;
+export default AdminScopedReportWorkspace;

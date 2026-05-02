@@ -224,23 +224,46 @@ function Page() {
     Boolean(startDate || endDate) &&
     (!startDate || !endDate || startDate > endDate);
 
-  const handleGenerateReport = () => {
+  useEffect(() => {
     if (dateRangeIsInvalid) {
-      toast.error("Select a valid start date and end date before generating.");
       return;
     }
 
-    setAppliedFilters({
-      startDate,
-      endDate,
-      showAll: false,
-      department,
-      paymentMethod,
-      agent,
-      incomeHead,
-      page: 1,
+    setAppliedFilters((current) => {
+      const showAll = !startDate && !endDate;
+      const next = {
+        ...current,
+        startDate,
+        endDate,
+        showAll,
+        department,
+        paymentMethod,
+        agent,
+        incomeHead,
+        page: 1,
+      };
+
+      const isSame =
+        current.startDate === next.startDate &&
+        current.endDate === next.endDate &&
+        current.showAll === next.showAll &&
+        current.department === next.department &&
+        current.paymentMethod === next.paymentMethod &&
+        current.agent === next.agent &&
+        current.incomeHead === next.incomeHead &&
+        current.page === next.page;
+
+      return isSame ? current : next;
     });
-  };
+  }, [
+    agent,
+    dateRangeIsInvalid,
+    department,
+    endDate,
+    incomeHead,
+    paymentMethod,
+    startDate,
+  ]);
 
   const handleViewAllReports = () => {
     setStartDate("");
@@ -357,7 +380,8 @@ function Page() {
 
         {dateRangeIsInvalid ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-            Start date and end date must both be set, and the start date cannot be after the end date.
+            Start date and end date must both be set, and the start date cannot
+            be after the end date.
           </div>
         ) : null}
 
@@ -380,25 +404,18 @@ function Page() {
           onPaymentMethodChange={setPaymentMethod}
           onAgentChange={setAgent}
           onIncomeHeadChange={setIncomeHead}
-          onGenerateReport={handleGenerateReport}
           onViewAllReports={handleViewAllReports}
-          isGenerateDisabled={dateRangeIsInvalid}
         />
 
         <FoReportsSummaryCards
           isLoading={reportsQuery.isLoading}
           totalRevenue={reportSummary?.total_amount ?? 0}
           totalTransactions={reportSummary?.total_transactions ?? 0}
-          averageTransaction={
-            reportSummary?.total_transactions
-              ? reportSummary.total_amount / reportSummary.total_transactions
-              : 0
-          }
         />
 
         <FoReportsRevenueBreakdownTable
           rows={revenueBreakdownRows}
-          title="Detailed Revenue Breakdown (Current Page)"
+          title="Detailed Revenue Breakdown"
           emptyMessage="No revenue breakdown available for the current filters."
         />
 
@@ -410,8 +427,12 @@ function Page() {
         {pagination ? (
           <div className="space-y-4">
             <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-              Showing {detailedReport.length} transaction{detailedReport.length === 1 ? "" : "s"} on this page.
-              Total matching transactions: {reportSummary?.total_transactions ?? pagination.total_transactions}.
+              Showing {detailedReport.length} transaction
+              {detailedReport.length === 1 ? "" : "s"} on this page. Total
+              matching transactions:{" "}
+              {reportSummary?.total_transactions ??
+                pagination.total_transactions}
+              .
             </div>
             <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
               <AdminPaginationFooter

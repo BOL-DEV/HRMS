@@ -4,11 +4,9 @@ type Props = {
   isLoading?: boolean;
   totalRevenue: number;
   totalTransactions: number;
-  averageTransaction: number;
   labels?: {
     revenue?: string;
     transactions?: string;
-    average?: string;
   };
 };
 
@@ -16,7 +14,6 @@ function FoReportsSummaryCards({
   isLoading = false,
   totalRevenue,
   totalTransactions,
-  averageTransaction,
   labels,
 }: Props) {
   const cards = [
@@ -28,23 +25,19 @@ function FoReportsSummaryCards({
       label: labels?.transactions ?? "Total Transactions",
       value: totalTransactions,
     },
-    {
-      label: labels?.average ?? "Avg Transaction",
-      value: formatNaira(Math.round(averageTransaction)),
-    },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"
         >
-          <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
+          <p className="text-sm font-medium text-gray-500 dark:text-slate-400">
             {card.label}
           </p>
-          <h2 className="mt-2 text-2xl font-bold dark:text-slate-100">
+          <h2 className="mt-3 text-3xl font-bold tracking-tight dark:text-slate-100">
             {isLoading ? "--" : card.value}
           </h2>
         </div>

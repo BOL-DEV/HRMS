@@ -508,22 +508,18 @@ export type FoDashboardResponse = {
       today: {
         total_revenue: number;
         transaction_count: number;
-        active_agents?: number;
       };
       last_month: {
         total_revenue: number;
         transaction_count: number;
-        active_agents?: number;
       };
       this_month: {
         total_revenue: number;
         transaction_count: number;
-        active_agents?: number;
       };
       this_year: {
         total_revenue: number;
         transaction_count: number;
-        active_agents?: number;
       };
     };
   };
@@ -560,18 +556,8 @@ export type AdminDashboardResponse = {
       active_agents: number;
       total_fos: number;
       active_fos: number;
-      total_revenue: {
-        current: number;
-        previous: number;
-        change: number;
-        change_percentage: number;
-      };
-      total_transactions: {
-        current: number;
-        previous: number;
-        change: number;
-        change_percentage: number;
-      };
+      total_revenue: number;
+      total_transactions: number;
       hospital_mix: {
         manual_revenue_hospitals: number;
         automatic_revenue_hospitals: number;
@@ -585,8 +571,6 @@ export type AdminDashboardResponse = {
     attention: {
       pending_receipt_reprints: number;
       suspended_hospitals: number;
-      hospitals_without_fo: number;
-      hospitals_without_transactions_in_period: number;
       suspended_agents: number;
       suspended_fos: number;
       failed_system_events_last_7_days: number;
@@ -1299,6 +1283,7 @@ export type AdminHospitalRevenueReportResponse = {
     filters: {
       start_date: string | null;
       end_date: string | null;
+      show_all?: boolean;
       departments: string[];
       income_heads: string[];
       agents: string[];
@@ -1306,6 +1291,10 @@ export type AdminHospitalRevenueReportResponse = {
       page: number;
       limit: number;
       export: "csv" | null;
+    };
+    summary: {
+      total_amount: number;
+      total_transactions: number;
     };
     pagination: {
       current_page: number;
@@ -1379,6 +1368,14 @@ export type AdminHospitalDepartmentReportResponse = {
           count: number;
           amount: number;
         };
+    pagination?: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
+    };
     report?: AdminHospitalDepartmentReportGroupedItem[];
     transactions?: AdminReportTransactionItem[];
   };
@@ -1416,6 +1413,14 @@ export type AdminHospitalAgentReportResponse = {
           count: number;
           amount: number;
         };
+    pagination?: {
+      current_page: number;
+      total_pages: number;
+      total_transactions: number;
+      has_next: boolean;
+      has_previous: boolean;
+      transactions_per_page: number;
+    };
     report?: AdminHospitalAgentReportGroupedItem[];
     transactions?: AdminReportTransactionItem[];
   };
