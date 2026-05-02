@@ -4,6 +4,7 @@ import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdo
 import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
 import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
 import Header from "@/components/Header";
+import AdminPaginationFooter from "@/components/AdminPaginationFooter";
 import { FiDownload, FiPrinter } from "react-icons/fi";
 import type {
   FoAgentReportGroupedItem,
@@ -19,6 +20,12 @@ import type {
 type Option = {
   id: string;
   name: string;
+};
+
+type SearchSelectOption = {
+  id: string;
+  name: string;
+  description?: string;
 };
 
 type WorkspaceMode = "patient" | "department" | "agent";
@@ -53,27 +60,6 @@ function getThisMonthRange() {
   };
 }
 
-function getWorkspaceActionLabels(mode: WorkspaceMode) {
-  if (mode === "patient") {
-    return {
-      generate: "Generate Report",
-      viewAll: "See All",
-    };
-  }
-
-  if (mode === "department") {
-    return {
-      generate: "Generate Report",
-      viewAll: "See All",
-    };
-  }
-
-  return {
-    generate: "Generate Report",
-    viewAll: "See All",
-  };
-}
-
 type Props = {
   mode: WorkspaceMode;
   title: string;
@@ -81,24 +67,37 @@ type Props = {
   filterLabel: string;
   filterValue: string;
   onFilterChange: (value: string) => void;
-  filterType?: "input" | "select";
+  filterType?: "input" | "select" | "search-select";
   filterOptions?: Option[];
+  filterSearchOptions?: SearchSelectOption[];
   filterPlaceholder?: string;
   isFilterLoading?: boolean;
+  onFilterOptionSelect?: (value: SearchSelectOption) => void;
+  emptyFilterSearchMessage?: string;
+  isFilterSearchLoading?: boolean;
   startDate: string;
   endDate: string;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
-  onGenerate: () => void;
   onViewAllReports?: () => void;
   onExport?: () => void;
   onPrint?: () => void;
   errorMessage?: string | null;
+  dateRangeErrorMessage?: string | null;
   isLoading?: boolean;
   data?:
     | FoPatientReportResponse["data"]
     | FoDepartmentReportResponse["data"]
     | FoAgentReportResponse["data"];
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    total_transactions: number;
+    has_next: boolean;
+    has_previous: boolean;
+  } | null;
+  onPreviousPage?: () => void;
+  onNextPage?: () => void;
 };
 
 function toMethodLabel(value: FoReportPaymentType): "Cash" | "Transfer" | "POS" {
@@ -272,24 +271,35 @@ function FoScopedReportWorkspace({
   onFilterChange,
   filterType = "input",
   filterOptions = [],
+  filterSearchOptions = [],
   filterPlaceholder,
   isFilterLoading = false,
+  onFilterOptionSelect,
+  emptyFilterSearchMessage = "No matches found.",
+  isFilterSearchLoading = false,
   startDate,
   endDate,
   onStartDateChange,
   onEndDateChange,
-  onGenerate,
   onViewAllReports,
   onExport,
   onPrint,
   errorMessage,
+  dateRangeErrorMessage,
   isLoading = false,
   data,
+  pagination,
+  onPreviousPage,
+  onNextPage,
 }: Props) {
   const rows = extractTransactions(mode, data);
   const patientRows = mode === "patient" ? extractPatientRows(data) : [];
   const stats = buildWorkspaceStats(mode, data, rows);
-  const actionLabels = getWorkspaceActionLabels(mode);
+  const hasExactSearchSelection =
+    filterType === "search-select" &&
+    filterSearchOptions.some(
+      (item) => item.id === filterValue.trim() || item.name === filterValue.trim(),
+    );
   const groupedRows =
     mode === "patient"
       ? []
@@ -339,6 +349,12 @@ function FoScopedReportWorkspace({
           </div>
         ) : null}
 
+        {dateRangeErrorMessage ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            {dateRangeErrorMessage}
+          </div>
+        ) : null}
+
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-[240px] flex-1 space-y-1">
@@ -359,6 +375,49 @@ function FoScopedReportWorkspace({
                     </option>
                   ))}
                 </select>
+              ) : filterType === "search-select" ? (
+                <div className="relative">
+                  <input
+                    value={filterValue}
+                    onChange={(event) => onFilterChange(event.target.value)}
+                    placeholder={filterPlaceholder}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                  {filterValue.trim() && !hasExactSearchSelection ? (
+                    <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                      {isFilterSearchLoading ? (
+                        <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
+                          Searching...
+                        </div>
+                      ) : filterSearchOptions.length === 0 ? (
+                        <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
+                          {emptyFilterSearchMessage}
+                        </div>
+                      ) : (
+                        <ul className="max-h-64 overflow-y-auto">
+                          {filterSearchOptions.map((item) => (
+                            <li key={item.id}>
+                              <button
+                                type="button"
+                                onClick={() => onFilterOptionSelect?.(item)}
+                                className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                              >
+                                <span className="font-semibold text-gray-900 dark:text-slate-100">
+                                  {item.name}
+                                </span>
+                                {item.description ? (
+                                  <span className="text-xs text-gray-600 dark:text-slate-300">
+                                    {item.description}
+                                  </span>
+                                ) : null}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               ) : (
                 <input
                   value={filterValue}
@@ -395,6 +454,20 @@ function FoScopedReportWorkspace({
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="flex items-end xl:order-3">
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                {onViewAllReports ? (
+                  <button
+                    type="button"
+                    onClick={onViewAllReports}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    See All
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                 Start Date
@@ -419,30 +492,6 @@ function FoScopedReportWorkspace({
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               />
             </div>
-
-            <div className="flex items-end">
-              <div className="flex w-full flex-col gap-2 sm:flex-row">
-                {mode !== "agent" ? (
-                  <button
-                    type="button"
-                    onClick={onGenerate}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    {actionLabels.generate}
-                  </button>
-                ) : null}
-
-                {onViewAllReports ? (
-                  <button
-                    type="button"
-                    onClick={onViewAllReports}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    {actionLabels.viewAll}
-                  </button>
-                ) : null}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -463,6 +512,26 @@ function FoScopedReportWorkspace({
             rows={rows}
             toMethodLabel={toMethodLabel}
           />
+        ) : null}
+
+        {pagination && onPreviousPage && onNextPage ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              Showing {rows.length} transaction{rows.length === 1 ? "" : "s"} on
+              this page. Total matching transactions:{" "}
+              {pagination.total_transactions}.
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+              <AdminPaginationFooter
+                currentPage={pagination.current_page}
+                totalPages={pagination.total_pages}
+                hasPrevious={pagination.has_previous}
+                hasNext={pagination.has_next}
+                onPrevious={onPreviousPage}
+                onNext={onNextPage}
+              />
+            </div>
+          </div>
         ) : null}
       </div>
     </div>

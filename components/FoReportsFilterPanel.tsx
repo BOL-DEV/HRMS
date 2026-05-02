@@ -110,31 +110,6 @@ function FoReportsFilterPanel({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            Start Date
-          </p>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            End Date
-          </p>
-          <input
-            type="date"
-            value={endDate}
-            min={startDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
             Department
           </p>
           <select
@@ -144,6 +119,42 @@ function FoReportsFilterPanel({
           >
             <option value="All">All</option>
             {departmentOptions.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Income Head
+          </p>
+          <select
+            value={incomeHead}
+            onChange={(e) => onIncomeHeadChange(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            <option value="All">All</option>
+            {incomeHeadOptions.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+            Agent
+          </p>
+          <select
+            value={agent}
+            onChange={(e) => onAgentChange(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          >
+            <option value="All">All</option>
+            {agentOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
@@ -171,38 +182,27 @@ function FoReportsFilterPanel({
 
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            Agent
+            Start Date
           </p>
-          <select
-            value={agent}
-            onChange={(e) => onAgentChange(e.target.value)}
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            <option value="All">All</option>
-            {agentOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div className="space-y-1">
           <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-            Income Head
+            End Date
           </p>
-          <select
-            value={incomeHead}
-            onChange={(e) => onIncomeHeadChange(e.target.value)}
+          <input
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-          >
-            <option value="All">All</option>
-            {incomeHeadOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       </div>
 
