@@ -36,8 +36,7 @@ import {
 type OverviewCard = {
   title: string;
   value: string;
-  delta: string;
-  deltaTone?: "positive" | "negative" | "neutral";
+  subtitle: string;
   icon: ReactNode;
   accentClassName: string;
   iconClassName: string;
@@ -50,15 +49,6 @@ type AttentionItem = {
   value: number;
   tone: "danger" | "warning" | "neutral";
 };
-
-function formatPercent(value: number) {
-  return `${value > 0 ? "+" : value < 0 ? "" : ""}${value.toFixed(2)}%`;
-}
-
-function formatChange(amount: number) {
-  const prefix = amount > 0 ? "+" : "";
-  return `${prefix}${formatNaira(amount)}`;
-}
 
 function formatShortDate(value: string) {
   const date = new Date(value);
@@ -120,14 +110,8 @@ function Page() {
   const overviewCards: OverviewCard[] = [
     {
       title: "Monthly Revenue",
-      value: formatNaira(overview?.total_revenue.current ?? 0),
-      delta: `${formatChange(overview?.total_revenue.change ?? 0)} vs last month (${formatPercent(overview?.total_revenue.change_percentage ?? 0)})`,
-      deltaTone:
-        (overview?.total_revenue.change ?? 0) > 0
-          ? "positive"
-          : (overview?.total_revenue.change ?? 0) < 0
-            ? "negative"
-            : "neutral",
+      value: formatNaira(overview?.total_revenue ?? 0),
+      subtitle: "Current-month total revenue",
       icon: <FiDollarSign className="text-xl" />,
       accentClassName:
         "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white dark:border-blue-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/30",
@@ -137,16 +121,8 @@ function Page() {
     },
     {
       title: "Monthly Transactions",
-      value: new Intl.NumberFormat("en-NG").format(
-        overview?.total_transactions.current ?? 0,
-      ),
-      delta: `${formatCompactNumber(overview?.total_transactions.change ?? 0)} change vs last month (${formatPercent(overview?.total_transactions.change_percentage ?? 0)})`,
-      deltaTone:
-        (overview?.total_transactions.change ?? 0) > 0
-          ? "positive"
-          : (overview?.total_transactions.change ?? 0) < 0
-            ? "negative"
-            : "neutral",
+      value: new Intl.NumberFormat("en-NG").format(overview?.total_transactions ?? 0),
+      subtitle: "Current-month completed transactions",
       icon: <FiFileText className="text-xl" />,
       accentClassName:
         "border-sky-200 bg-gradient-to-br from-sky-50 via-white to-white dark:border-sky-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/30",
@@ -157,7 +133,7 @@ function Page() {
     {
       title: "Hospitals",
       value: formatCompactNumber(overview?.total_hospitals ?? 0),
-      delta: `${overview?.active_hospitals ?? 0} active, ${overview?.suspended_hospitals ?? 0} suspended`,
+      subtitle: `${overview?.active_hospitals ?? 0} active, ${overview?.suspended_hospitals ?? 0} suspended`,
       icon: <FiActivity className="text-xl" />,
       accentClassName:
         "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white dark:border-emerald-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/30",
@@ -168,7 +144,7 @@ function Page() {
     {
       title: "Workforce",
       value: `${formatCompactNumber(overview?.active_agents ?? 0)} agents`,
-      delta: `${overview?.total_agents ?? 0} total agents, ${overview?.active_fos ?? 0}/${overview?.total_fos ?? 0} active FOs`,
+      subtitle: `${overview?.total_agents ?? 0} total agents, ${overview?.active_fos ?? 0}/${overview?.total_fos ?? 0} active FOs`,
       icon: <FiUsers className="text-xl" />,
       accentClassName:
         "border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800",
@@ -183,19 +159,6 @@ function Page() {
       label: "Pending receipt reprints",
       value: attention?.pending_receipt_reprints ?? 0,
       tone: (attention?.pending_receipt_reprints ?? 0) > 0 ? "warning" : "neutral",
-    },
-    {
-      label: "Hospitals without FO",
-      value: attention?.hospitals_without_fo ?? 0,
-      tone: (attention?.hospitals_without_fo ?? 0) > 0 ? "danger" : "neutral",
-    },
-    {
-      label: "Hospitals without transactions",
-      value: attention?.hospitals_without_transactions_in_period ?? 0,
-      tone:
-        (attention?.hospitals_without_transactions_in_period ?? 0) > 0
-          ? "warning"
-          : "neutral",
     },
     {
       label: "Suspended hospitals",
@@ -267,8 +230,7 @@ function Page() {
                 key={item.title}
                 title={item.title}
                 value={item.value}
-                delta={item.delta}
-                deltaTone={item.deltaTone}
+                delta={item.subtitle}
                 icon={item.icon}
                 variant="compact"
                 accentClassName={item.accentClassName}

@@ -31,6 +31,28 @@ const sidebarData = {
       link: "/admin/reports",
       label: <TbActivityHeartbeat className="inline" />,
       active: false,
+      children: [
+        {
+          name: "Revenue Report",
+          link: "/admin/reports/revenue",
+          active: false,
+        },
+        {
+          name: "Department Report",
+          link: "/admin/reports/department",
+          active: false,
+        },
+        {
+          name: "Agent Report",
+          link: "/admin/reports/agent",
+          active: false,
+        },
+        {
+          name: "Patient Report",
+          link: "/admin/reports/patient",
+          active: false,
+        },
+      ],
     },
     {
       name: "System Logs",
@@ -56,10 +78,16 @@ const AdminSidebar = () => {
       sidebarData.links.map((link) => ({
         ...link,
         active:
-          pathname === link.link ||
-          (link.link !== "/admin/dashboard" && pathname.startsWith(`${link.link}/`)) ||
-          (link.link === "/admin/hospitals" &&
-            pathname.startsWith("/admin/hospitals/")),
+          link.link === "/admin/reports"
+            ? pathname === "/admin/reports" || pathname.startsWith("/admin/reports/")
+            : pathname === link.link ||
+              (link.link !== "/admin/dashboard" && pathname.startsWith(`${link.link}/`)) ||
+              (link.link === "/admin/hospitals" &&
+                pathname.startsWith("/admin/hospitals/")),
+        children: link.children?.map((child) => ({
+          ...child,
+          active: pathname === child.link,
+        })),
       })),
     [pathname],
   );

@@ -31,6 +31,10 @@ function Page() {
     endDate: today,
   });
 
+  const dateRangeIsInvalid =
+    Boolean(startDate || endDate) &&
+    (!startDate || !endDate || startDate > endDate);
+
   const agentsQuery = useQuery({
     queryKey: ["fo-report-agents"],
     queryFn: () => getFoAgents(),
@@ -72,6 +76,21 @@ function Page() {
     }
   }, [agentsQuery.error, reportQuery.error, router]);
 
+  useEffect(() => {
+    if (dateRangeIsInvalid) {
+      return;
+    }
+
+    setApplied((current) => {
+      const next = { agent, startDate, endDate };
+      const isSame =
+        current.agent === next.agent &&
+        current.startDate === next.startDate &&
+        current.endDate === next.endDate;
+      return isSame ? current : next;
+    });
+  }, [agent, dateRangeIsInvalid, endDate, startDate]);
+
   const options = useMemo(
     () =>
       (agentsQuery.data?.data.agents ?? []).map((item) => ({
@@ -96,13 +115,7 @@ function Page() {
       endDate={endDate}
       onStartDateChange={setStartDate}
       onEndDateChange={setEndDate}
-      onGenerate={() =>
-        setApplied({
-          agent,
-          startDate,
-          endDate,
-        })
-      }
+      onGenerate={() => {}}
       onViewAllReports={() => {
         setStartDate("");
         setEndDate("");
