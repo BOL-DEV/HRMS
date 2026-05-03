@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import { FiCheckCircle, FiRefreshCw, FiSearch, FiX } from "react-icons/fi";
@@ -8,6 +15,7 @@ import { formatCurrency, openPrintWindowFromHtml } from "@/libs/helper";
 import type {
   AgentBillItem,
   AgentIncomeHead,
+  HospitalPatientSearchItem,
   NewTransactionForm,
 } from "@/libs/type";
 import {
@@ -17,6 +25,7 @@ import {
   getAgentPaymentConfig,
   lookupAgentPatient,
   processAgentPayment,
+  searchAgentHospitalPatients,
 } from "@/libs/agent-auth";
 
 interface Props {
@@ -64,8 +73,11 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
   const [billSearch, setBillSearch] = useState("");
   const [showBillItemList, setShowBillItemList] = useState(true);
-  const patientLookupTimeoutRef = useRef<number | null>(null);
+  const [patientSearchInput, setPatientSearchInput] = useState("");
+  const [showPatientSuggestions, setShowPatientSuggestions] = useState(true);
   const billItemFieldRef = useRef<HTMLDivElement | null>(null);
+  const patientFieldRef = useRef<HTMLDivElement | null>(null);
+  const deferredPatientSearchInput = useDeferredValue(patientSearchInput.trim());
 
   const paymentConfigQuery = useQuery({
     queryKey: ["agent-payment-config"],
@@ -74,6 +86,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   });
 
   const paymentMode = paymentConfigQuery.data?.data.revenue_type ?? "";
+  const hospitalId = paymentConfigQuery.data?.data.hospital_id ?? "";
 
   const departmentsQuery = useQuery({
     queryKey: ["agent-departments"],
@@ -116,6 +129,24 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const billItems = useMemo(
     () => billItemsQuery.data?.data ?? [],
     [billItemsQuery.data],
+  );
+
+  const patientSearchQuery = useQuery({
+    queryKey: ["agent-patient-search", hospitalId, deferredPatientSearchInput],
+    queryFn: () =>
+      searchAgentHospitalPatients(hospitalId, {
+        query: deferredPatientSearchInput,
+        patientId: deferredPatientSearchInput,
+        patientName: deferredPatientSearchInput,
+        name: deferredPatientSearchInput,
+        limit: 10,
+      }),
+    enabled: open && Boolean(hospitalId && deferredPatientSearchInput),
+  });
+
+  const patientSuggestions = useMemo(
+    () => patientSearchQuery.data?.data.patients ?? [],
+    [patientSearchQuery.data],
   );
 
   const patientLookupMutation = useMutation({
@@ -173,6 +204,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       printReceipt(response.data.receipt.receiptHTML);
       setForm(getInitialForm());
       setBillSearch("");
+      setPatientSearchInput("");
+      setShowPatientSuggestions(true);
       setShowBillItemList(true);
       onClose();
     },
@@ -208,6 +241,18 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
 
     patientLookupMutation.mutate(patientId);
   });
+
+  const handlePatientSuggestionSelect = (patient: HospitalPatientSearchItem) => {
+    setPatientSearchInput(patient.display_value);
+    setShowPatientSuggestions(false);
+    setForm((current) => ({
+      ...current,
+      patientId: patient.patient_id,
+      patientExists: true,
+      patientName: patient.patient_name,
+      phoneNumber: patient.phone_number,
+    }));
+  };
 
   const handleDepartmentChange = (value: string) => {
     const selectedDepartment = departments.find(
@@ -265,29 +310,22 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       return;
     }
 
-    if (patientLookupTimeoutRef.current) {
-      window.clearTimeout(patientLookupTimeoutRef.current);
-      patientLookupTimeoutRef.current = null;
-    }
-
     if (!canLookupPatient) {
       return;
     }
 
-    patientLookupTimeoutRef.current = window.setTimeout(() => {
-      triggerPatientLookup();
-    }, 2000);
+    if (patientSuggestions.some((patient) => patient.patient_id === form.patientId.trim())) {
+      return;
+    }
 
-    return () => {
-      if (patientLookupTimeoutRef.current) {
-        window.clearTimeout(patientLookupTimeoutRef.current);
-        patientLookupTimeoutRef.current = null;
-      }
-    };
-  }, [open, form.patientId, canLookupPatient]);
+    triggerPatientLookup();
+  }, [open, form.patientId, canLookupPatient, patientSuggestions, triggerPatientLookup]);
 
   useEffect(() => {
-    if (!open || !showBillItemList) {
+    if (
+      !open ||
+      (!showBillItemList && (!showPatientSuggestions || !patientSearchInput.trim()))
+    ) {
       return;
     }
 
@@ -301,6 +339,14 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       ) {
         setShowBillItemList(false);
       }
+
+      if (
+        patientFieldRef.current &&
+        target instanceof Node &&
+        !patientFieldRef.current.contains(target)
+      ) {
+        setShowPatientSuggestions(false);
+      }
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -308,7 +354,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [open, showBillItemList]);
+  }, [open, patientSearchInput, showBillItemList, showPatientSuggestions]);
 
   const handleSubmit = () => {
     const patientId = form.patientId.trim();
@@ -390,6 +436,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
 
     setForm(getInitialForm());
     setBillSearch("");
+    setPatientSearchInput("");
+    setShowPatientSuggestions(true);
     setShowBillItemList(true);
     onClose();
   };
@@ -408,6 +456,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       : null;
   const billItemsError =
     billItemsQuery.error instanceof Error ? billItemsQuery.error.message : null;
+  const patientSearchError =
+    patientSearchQuery.error instanceof Error
+      ? patientSearchQuery.error.message
+      : null;
 
   if (!open) {
     return null;
@@ -455,12 +507,14 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
               {configError ||
               departmentsError ||
               incomeHeadsError ||
-              billItemsError ? (
+              billItemsError ||
+              patientSearchError ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
                   {configError ??
                     departmentsError ??
                     incomeHeadsError ??
-                    billItemsError}
+                    billItemsError ??
+                    patientSearchError}
                 </div>
               ) : null}
 
@@ -487,27 +541,86 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   If the patient is not found, enter name and phone manually.
                 </p>
 
-                <div className="mt-4">
+                <div className="mt-4" ref={patientFieldRef}>
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                      Patient ID
+                      Patient Search
                     </span>
-                    <input
-                      value={form.patientId}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          patientId: event.target.value.replace(/\D/g, ""),
-                          patientExists: false,
-                          patientName: "",
-                          phoneNumber: "",
-                        }))
-                      }
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
-                      placeholder="100245"
-                      inputMode="numeric"
-                    />
+                    <div className="relative">
+                      <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <FiSearch />
+                      </div>
+                      <input
+                        value={patientSearchInput}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          const digitsOnly = value.replace(/\D/g, "");
+
+                          setPatientSearchInput(value);
+                          setShowPatientSuggestions(true);
+                          setForm((current) => ({
+                            ...current,
+                            patientId: digitsOnly,
+                            patientExists: false,
+                            patientName: "",
+                            phoneNumber: "",
+                          }));
+                        }}
+                        className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        placeholder="Search by patient ID or name"
+                      />
+
+                      {patientSearchInput.trim() && showPatientSuggestions ? (
+                        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                          <div className="max-h-72 overflow-y-auto p-3">
+                            {patientSearchQuery.isLoading ? (
+                              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                                Searching patients...
+                              </div>
+                            ) : patientSuggestions.length === 0 ? (
+                              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                                No patients matched this search.
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {patientSuggestions.map((patient) => {
+                                  const isSelected =
+                                    patient.patient_id === form.patientId &&
+                                    form.patientExists;
+
+                                  return (
+                                    <button
+                                      key={patient.id}
+                                      type="button"
+                                      onClick={() =>
+                                        handlePatientSuggestionSelect(patient)
+                                      }
+                                      className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                                        isSelected
+                                          ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20"
+                                          : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                                      }`}
+                                    >
+                                      <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                        {patient.display_value}
+                                      </p>
+                                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                                        {patient.phone_number}
+                                      </p>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   </label>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    You can search by patient ID or patient name. If no match
+                    appears, you can still continue with a new patient.
+                  </p>
                 </div>
 
                 {patientLookupMutation.isPending ? (
@@ -883,10 +996,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   Quick Guide
                 </h3>
                 <ol className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <li>1. Enter patient ID and wait for the auto lookup.</li>
-                  <li>2. Choose department, payment type, and income head.</li>
-                  <li>3. Search and select the correct bill item.</li>
-                  <li>4. Review the preview, then process and print.</li>
+                  <li>1. Search by patient ID or name and select a match when available.</li>
+                  <li>2. If no patient exists, enter name and phone manually.</li>
+                  <li>3. Choose department, payment type, and income head.</li>
+                  <li>4. Search and select the correct bill item, then review and print.</li>
                 </ol>
               </section>
 

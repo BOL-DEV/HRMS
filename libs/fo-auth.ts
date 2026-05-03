@@ -44,6 +44,8 @@ import type {
   FoStatsResponse,
   FoStatsTimePeriod,
   FoTransactionsResponse,
+  HospitalImageUrlResponse,
+  HospitalPatientSearchResponse,
   UpdateFoAgentStatusResponse,
   UpdateFoBillItemPayload,
   UpdateFoDepartmentPayload,
@@ -699,6 +701,59 @@ export async function getFoTransactions(params?: {
     getJson<FoTransactionsResponse>(`/api/fo/transactions${suffix}`, {
       headers: getFoAuthHeaders(accessToken),
     }),
+  );
+}
+
+export async function searchFoHospitalPatients(
+  hospitalId: string,
+  params?: {
+    query?: string;
+    patientId?: string;
+    patientName?: string;
+    name?: string;
+    limit?: number;
+  },
+) {
+  const query = new URLSearchParams();
+
+  if (params?.query?.trim()) {
+    query.set("query", params.query.trim());
+  }
+
+  if (params?.patientId?.trim()) {
+    query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.patientName?.trim()) {
+    query.set("patient_name", params.patientName.trim());
+  }
+
+  if (params?.name?.trim()) {
+    query.set("name", params.name.trim());
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  return withFoSessionRetry((accessToken) =>
+    getJson<HospitalPatientSearchResponse>(
+      `/api/hospitals/${hospitalId}/patients/search?${query.toString()}`,
+      {
+        headers: getFoAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+export async function getFoHospitalImageUrl(hospitalId: string) {
+  return withFoSessionRetry((accessToken) =>
+    getJson<HospitalImageUrlResponse>(
+      `/api/admin/hospitals/${hospitalId}/image-url`,
+      {
+        headers: getFoAuthHeaders(accessToken),
+      },
+    ),
   );
 }
 

@@ -24,6 +24,8 @@ import type {
   AgentTransactionsResponse,
   AgentTransactionsTimePeriod,
   AuthRefreshResponse,
+  HospitalImageUrlResponse,
+  HospitalPatientSearchResponse,
   ProcessPaymentPayload,
   ProcessPaymentResponse,
   AgentReceiptsResponse,
@@ -140,6 +142,59 @@ export async function lookupAgentPatient(patientId: string) {
     getJson<AgentPatientLookupResponse>(`/api/agent/patients/${patientId}`, {
       headers: getAgentAuthHeaders(accessToken),
     }),
+  );
+}
+
+export async function searchAgentHospitalPatients(
+  hospitalId: string,
+  params?: {
+    query?: string;
+    patientId?: string;
+    patientName?: string;
+    name?: string;
+    limit?: number;
+  },
+) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.query?.trim()) {
+    searchParams.set("query", params.query.trim());
+  }
+
+  if (params?.patientId?.trim()) {
+    searchParams.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.patientName?.trim()) {
+    searchParams.set("patient_name", params.patientName.trim());
+  }
+
+  if (params?.name?.trim()) {
+    searchParams.set("name", params.name.trim());
+  }
+
+  if (params?.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
+
+  return withAgentSessionRetry((accessToken) =>
+    getJson<HospitalPatientSearchResponse>(
+      `/api/hospitals/${hospitalId}/patients/search?${searchParams.toString()}`,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+export async function getAgentHospitalImageUrl(hospitalId: string) {
+  return withAgentSessionRetry((accessToken) =>
+    getJson<HospitalImageUrlResponse>(
+      `/api/admin/hospitals/${hospitalId}/image-url`,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
   );
 }
 

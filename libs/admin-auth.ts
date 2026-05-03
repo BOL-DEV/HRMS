@@ -36,6 +36,7 @@ import type {
   AdminHospitalTransactionsResponse,
   AdminHospitalOverviewResponse,
   AdminHospitalIncomeHeadsResponse,
+  HospitalImageUrlResponse,
   AdminHospitalIncomeHeadMutationResponse,
   AdminHospitalBillItemsResponse,
   AdminHospitalBillItemMutationResponse,
@@ -365,6 +366,12 @@ export async function getAdminHospitals(params?: {
 export async function getAdminHospitalOverview(hospitalId: string) {
   return adminGet<AdminHospitalOverviewResponse>(
     `/api/admin/hospitals/${hospitalId}/overview`,
+  );
+}
+
+export async function getAdminHospitalImageUrl(hospitalId: string) {
+  return adminGet<HospitalImageUrlResponse>(
+    `/api/admin/hospitals/${hospitalId}/image-url`,
   );
 }
 
