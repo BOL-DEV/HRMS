@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { FiChevronDown, FiChevronsLeft, FiChevronsRight } from "react-icons/fi";
+import SidebarBrand from "./SidebarBrand";
 import ThemeToggle from "./ThemeToggle";
 
 interface Props {
@@ -107,25 +108,8 @@ function Sidebar({ title, links, isOpen = false }: Props) {
       >
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-gray-200 p-5 dark:border-slate-800">
-          <div className="relative min-w-0 flex-1 overflow-hidden">
-            <h1
-              className={`whitespace-nowrap text-xl font-bold text-gray-900 transition-all duration-150 ease-out dark:text-slate-100 ${
-                isDesktopExpanded
-                  ? "opacity-100 translate-x-0"
-                  : "md:-translate-x-2 md:opacity-0"
-              }`}
-            >
-              {title}
-            </h1>
-            <div
-              className={`pointer-events-none absolute text-xl font-bold text-gray-900 transition-all duration-150 ease-out dark:text-slate-100 ${
-                isDesktopExpanded
-                  ? "md:-translate-x-2 md:opacity-0"
-                  : "hidden md:block md:translate-x-0 md:opacity-100"
-              }`}
-            >
-              {title.charAt(0)}
-            </div>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <SidebarBrand title={title} isExpanded={isDesktopExpanded} />
           </div>
 
           <button

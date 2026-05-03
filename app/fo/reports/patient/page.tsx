@@ -6,8 +6,9 @@ import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import {
   exportFoPatientReportCsv,
   getFoPatientReport,
-  getFoTransactions,
+  getFoProfile,
   printFoPatientReport,
+  searchFoHospitalPatients,
 } from "@/libs/fo-auth";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -30,44 +31,34 @@ function Page() {
     startDate && endDate && startDate > endDate,
   );
 
+  const profileQuery = useQuery({
+    queryKey: ["fo-profile"],
+    queryFn: getFoProfile,
+    enabled: Boolean(accessToken),
+  });
+
+  const hospitalId = profileQuery.data?.data.hospital_id ?? "";
+
   const patientLookupQuery = useQuery({
-    queryKey: ["fo-patient-report-search", deferredPatientQuery],
+    queryKey: ["fo-patient-report-search", hospitalId, deferredPatientQuery],
     queryFn: () =>
-      getFoTransactions({
-        search: deferredPatientQuery,
+      searchFoHospitalPatients(hospitalId, {
+        query: deferredPatientQuery,
+        patientId: deferredPatientQuery,
+        patientName: deferredPatientQuery,
+        name: deferredPatientQuery,
         limit: 20,
       }),
-    enabled: Boolean(accessToken && deferredPatientQuery),
+    enabled: Boolean(accessToken && hospitalId && deferredPatientQuery),
   });
 
   const patientOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const query = deferredPatientQuery.toLowerCase();
-
-    return (patientLookupQuery.data?.data.transactions ?? [])
-      .filter((item) => {
-        if (!item.patient_id || seen.has(item.patient_id)) {
-          return false;
-        }
-
-        const matches =
-          !query ||
-          item.patient_id.toLowerCase().includes(query) ||
-          item.patient_name.toLowerCase().includes(query);
-
-        if (!matches) {
-          return false;
-        }
-
-        seen.add(item.patient_id);
-        return true;
-      })
-      .map((item) => ({
-        id: item.patient_id,
-        name: `${item.patient_name} (${item.patient_id})`,
-        description: item.department,
-      }));
-  }, [deferredPatientQuery, patientLookupQuery.data?.data.transactions]);
+    return (patientLookupQuery.data?.data.patients ?? []).map((item) => ({
+      id: item.patient_id,
+      name: item.display_value,
+      description: item.phone_number,
+    }));
+  }, [patientLookupQuery.data?.data.patients]);
 
   const selectedPatientId = useMemo(() => {
     const trimmedQuery = patientQuery.trim();
@@ -111,15 +102,22 @@ function Page() {
   }, [reportQuery.error, router]);
 
   useEffect(() => {
-    if (!(patientLookupQuery.error instanceof ApiError)) {
+    const error =
+      patientLookupQuery.error instanceof ApiError
+        ? patientLookupQuery.error
+        : profileQuery.error instanceof ApiError
+          ? profileQuery.error
+          : null;
+
+    if (!error) {
       return;
     }
 
-    if (patientLookupQuery.error.status === 401) {
+    if (error.status === 401) {
       clearAuthTokens();
       router.replace("/login");
     }
-  }, [patientLookupQuery.error, router]);
+  }, [patientLookupQuery.error, profileQuery.error, router]);
 
   return (
     <FoScopedReportWorkspace
@@ -179,6 +177,8 @@ function Page() {
           ? reportQuery.error.message
           : patientLookupQuery.error instanceof Error
             ? patientLookupQuery.error.message
+            : profileQuery.error instanceof Error
+              ? profileQuery.error.message
             : null
       }
       dateRangeErrorMessage={

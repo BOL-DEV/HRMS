@@ -1,5 +1,6 @@
 import React from "react";
 import HeaderAgentProfile from "@/components/HeaderAgentProfile";
+import HeaderHospitalBrand from "@/components/HeaderHospitalBrand";
 
 interface Props {
   title: string;
@@ -11,8 +12,8 @@ function Header(props: Props) {
   const { title, Subtitle, actions } = props;
 
   return (
-    <nav className="sticky top-0 z-30 flex items-center justify-between border-b border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
-      <div className="min-w-0">
+    <nav className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+      <div className="min-w-0 flex-1">
         <h1 className="truncate text-2xl font-bold text-gray-900 md:pl-0 pl-12 dark:text-slate-100">
           {title}
         </h1>
@@ -21,9 +22,10 @@ function Header(props: Props) {
         </p>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {actions}
 
+        <HeaderHospitalBrand />
         <HeaderAgentProfile />
       </div>
     </nav>

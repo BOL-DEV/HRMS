@@ -233,6 +233,38 @@ export type AgentPaymentConfigResponse = {
   };
 };
 
+export type HospitalPatientSearchItem = {
+  id: string | number;
+  hospital_id: string | number;
+  patient_id: string;
+  patient_name: string;
+  phone_number: string;
+  created_at: string;
+  updated_at: string;
+  display_value: string;
+};
+
+export type HospitalPatientSearchResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    query: string;
+    total_matches: number;
+    patients: HospitalPatientSearchItem[];
+  };
+};
+
+export type HospitalImageUrlResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    hospital_name: string;
+    image_url: string;
+  };
+};
+
 export type AgentPatientLookupResponse = {
   status: number;
   message: string;
@@ -1102,26 +1134,9 @@ export type AdminHospitalTransactionItem = {
   agent: string;
 };
 
-export type AdminHospitalPatientSearchItem = {
-  id: string;
-  hospital_id: string;
-  patient_id: string;
-  patient_name: string;
-  phone_number: string;
-  created_at: string;
-  updated_at: string;
-};
+export type AdminHospitalPatientSearchItem = HospitalPatientSearchItem;
 
-export type AdminHospitalPatientSearchResponse = {
-  status: number;
-  message: string;
-  data: {
-    hospital_id: string;
-    query: string;
-    total_matches: number;
-    patients: AdminHospitalPatientSearchItem[];
-  };
-};
+export type AdminHospitalPatientSearchResponse = HospitalPatientSearchResponse;
 
 export type AdminHospitalActivityLog = {
   log_id: string;
