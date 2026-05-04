@@ -159,7 +159,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
                     }
                     className={`flex w-full items-center rounded-xl font-medium transition ${
                       link.active
-                        ? "bg-blue-800 text-white hover:bg-blue-700"
+                        ? "bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-50 dark:hover:bg-emerald-500/30"
                         : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
                     } ${
                       isDesktopExpanded
@@ -197,7 +197,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
                     href={link.link}
                     className={`flex items-center rounded-xl font-medium transition ${
                       link.active
-                        ? "bg-blue-800 text-white hover:bg-blue-700"
+                        ? "bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-50 dark:hover:bg-emerald-500/30"
                         : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
                     } ${
                       isDesktopExpanded
@@ -241,7 +241,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
                           href={child.link}
                           className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
                             child.active
-                              ? "bg-blue-50 text-blue-800 dark:bg-blue-500/15 dark:text-blue-200"
+                              ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
                               : "text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800"
                           }`}
                         >

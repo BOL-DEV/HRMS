@@ -30,30 +30,10 @@ export default function Page() {
               A focused access point for admins, finance teams, and payment
               agents working across hospital revenue operations.
             </p>
-            {/* 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {quickStats.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl border border-slate-300/80 bg-white/72 px-4 py-4 shadow-[0_10px_30px_rgba(112,138,162,0.1)] backdrop-blur"
-                >
-                  <div className="rounded-2xl bg-[#e6f1f8] p-3 text-sky-700 w-fit">
-                    {item.icon}
-                  </div>
-                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div> */}
 
             <div className="mt-8">
               <AuthLoginCard mode="embedded" />
             </div>
-
           </div>
         </div>
 
