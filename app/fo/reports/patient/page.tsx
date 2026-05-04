@@ -24,6 +24,7 @@ function Page() {
   const accessToken = getAccessToken();
   const today = getTodayDate();
   const [patientQuery, setPatientQuery] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState("");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const deferredPatientQuery = useDeferredValue(patientQuery.trim());
@@ -44,9 +45,6 @@ function Page() {
     queryFn: () =>
       searchFoHospitalPatients(hospitalId, {
         query: deferredPatientQuery,
-        patientId: deferredPatientQuery,
-        patientName: deferredPatientQuery,
-        name: deferredPatientQuery,
         limit: 20,
       }),
     enabled: Boolean(accessToken && hospitalId && deferredPatientQuery),
@@ -59,19 +57,6 @@ function Page() {
       description: item.phone_number,
     }));
   }, [patientLookupQuery.data?.data.patients]);
-
-  const selectedPatientId = useMemo(() => {
-    const trimmedQuery = patientQuery.trim();
-    const exactSuggestion = patientOptions.find(
-      (item) => item.id === trimmedQuery || item.name === trimmedQuery,
-    );
-
-    if (exactSuggestion) {
-      return exactSuggestion.id;
-    }
-
-    return /^\d+$/.test(trimmedQuery) ? trimmedQuery : "";
-  }, [patientOptions, patientQuery]);
 
   const reportQuery = useQuery({
     queryKey: ["fo-patient-report", selectedPatientId, startDate, endDate],
@@ -127,9 +112,16 @@ function Page() {
       filterLabel="Patient"
       filterType="search-select"
       filterValue={patientQuery}
-      onFilterChange={setPatientQuery}
-      onFilterOptionSelect={(option) => setPatientQuery(option.id)}
+      onFilterChange={(value) => {
+        setPatientQuery(value);
+        setSelectedPatientId("");
+      }}
+      onFilterOptionSelect={(option) => {
+        setPatientQuery(option.name);
+        setSelectedPatientId(option.id);
+      }}
       filterSearchOptions={patientOptions}
+      isFilterOptionSelected={Boolean(selectedPatientId)}
       filterPlaceholder="Search patient by ID or name"
       emptyFilterSearchMessage="No matching patients found."
       isFilterSearchLoading={patientLookupQuery.isLoading}

@@ -1,9 +1,11 @@
 import { FiCrosshair } from "react-icons/fi";
+import Image from "next/image";
 import AuthLoginCard from "@/components/AuthLoginCard";
+import { PLATFORM_LOGO_SRC } from "@/libs/brand";
 
 export default function Page() {
   return (
-    <main className="min-h-screen bg-[#dfe7ef] text-slate-900">
+    <main className="min-h-screen bg-slate-100 text-slate-900">
       <section className="grid min-h-screen lg:grid-cols-[0.92fr_1.08fr]">
         <div className="relative flex items-center justify-center overflow-hidden border-r border-slate-300/70 bg-[linear-gradient(180deg,#edf3f8_0%,#dfe8f0_100%)] px-6 py-10 sm:px-10 lg:px-12">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(255,255,255,0.9),transparent_18%),radial-gradient(circle_at_80%_38%,rgba(165,199,222,0.28),transparent_14%),radial-gradient(circle_at_28%_78%,rgba(187,211,231,0.34),transparent_16%)]" />
@@ -52,68 +54,19 @@ export default function Page() {
               <AuthLoginCard mode="embedded" />
             </div>
 
-            <div className="mt-10 flex justify-center lg:hidden">
-              <div className="relative flex items-center gap-4">
-                <div className="relative h-20 w-20 shrink-0">
-                  <div className="absolute left-7 top-0 h-full w-4 rounded-full bg-sky-300/60" />
-                  <div className="absolute left-0 top-7 h-4 w-16 rounded-full bg-[#123f49]" />
-                  <div className="absolute left-0 top-[2.65rem] h-4 w-18 rounded-full bg-[#123f49]" />
-                  <div className="absolute left-0 top-[4.1rem] h-4 w-16 rounded-full bg-[#123f49]" />
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="rounded-[1.8rem] bg-[#123f49] px-7 py-4 shadow-[0_22px_50px_rgba(18,63,73,0.25)]">
-                    <span className="text-5xl font-black leading-none tracking-tight text-white">
-                      swift
-                    </span>
-                  </div>
-
-                  <span className="text-5xl font-black italic leading-none tracking-tight text-[#55b8b0]">
-                    Rev
-                  </span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
-        <div className="relative hidden overflow-hidden lg:block">
-          <div className="absolute inset-0 bg-[linear-gradient(160deg,#d9edf7_0%,#c8e1ef_24%,#afd3e6_52%,#d3ecf7_100%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_24%,rgba(255,255,255,0.95),transparent_15%),radial-gradient(circle_at_76%_70%,rgba(255,255,255,0.72),transparent_14%),radial-gradient(circle_at_26%_16%,rgba(122,180,215,0.34),transparent_22%)]" />
-
-          <div className="absolute inset-0 opacity-55">
-            <div className="absolute -left-16 top-18 h-28 w-[72%] rotate-11 rounded-full bg-white/70 shadow-[0_0_0_10px_rgba(255,255,255,0.12)]" />
-            <div className="absolute left-22 top-27 h-5 w-[61%] rotate-11 rounded-full bg-slate-500/65" />
-            <div className="absolute left-[35%] top-[14%] h-52 w-52 rounded-full border-18 border-[#7bb8d8]/90 bg-white/70 shadow-[0_30px_80px_rgba(117,166,197,0.18)]" />
-            <div className="absolute left-[44%] top-[23%] h-32 w-32 rounded-full bg-white/95 shadow-inner" />
-            <div className="absolute left-[26%] top-[43%] h-56 w-7 rotate-28deg rounded-full bg-slate-500/70" />
-            <div className="absolute left-[20%] top-[55%] h-26 w-26 rounded-full bg-[#83bddc]/90 shadow-[0_20px_50px_rgba(103,152,186,0.25)]" />
-          </div>
-
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.35),transparent_34%)]" />
-
-          <div className="absolute inset-0 flex items-center justify-center px-10">
-            <div className="w-[32rem] max-w-[78%]">
-              <div className="relative flex items-center justify-center">
-                <div className="absolute left-0 top-1/2 w-28 -translate-y-1/2 space-y-4">
-                  <div className="h-4 w-18 rounded-full bg-[#123f49]" />
-                  <div className="h-4 w-28 rounded-full bg-[#123f49]" />
-                  <div className="h-4 w-22 rounded-full bg-[#123f49]" />
-                </div>
-
-                <div className="relative ml-14 rounded-[1.8rem] bg-[#123f49] px-9 py-5 shadow-[0_22px_50px_rgba(18,63,73,0.25)]">
-                  <span className="text-7xl font-black leading-none tracking-tight text-white">
-                    swift
-                  </span>
-                </div>
-
-                <div className="ml-4">
-                  <span className="text-7xl font-black italic leading-none tracking-tight text-[#55b8b0] drop-shadow-[0_12px_24px_rgba(71,166,160,0.24)]">
-                    Rev
-                  </span>
-                </div>
-              </div>
-            </div>
+        <div className="hidden bg-slate-50 lg:block" aria-hidden="true">
+          <div className="flex h-full w-full items-center justify-center px-10">
+            <Image
+              src={PLATFORM_LOGO_SRC}
+              alt="SwiftRev"
+              width={820}
+              height={300}
+              className="h-auto w-[min(600px,88%)] object-contain opacity-95"
+              priority
+            />
           </div>
         </div>
       </section>
