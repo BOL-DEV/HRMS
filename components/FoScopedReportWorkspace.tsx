@@ -75,6 +75,7 @@ type Props = {
   onFilterOptionSelect?: (value: SearchSelectOption) => void;
   emptyFilterSearchMessage?: string;
   isFilterSearchLoading?: boolean;
+  isFilterOptionSelected?: boolean;
   startDate: string;
   endDate: string;
   onStartDateChange: (value: string) => void;
@@ -277,6 +278,7 @@ function FoScopedReportWorkspace({
   onFilterOptionSelect,
   emptyFilterSearchMessage = "No matches found.",
   isFilterSearchLoading = false,
+  isFilterOptionSelected = false,
   startDate,
   endDate,
   onStartDateChange,
@@ -295,11 +297,6 @@ function FoScopedReportWorkspace({
   const rows = extractTransactions(mode, data);
   const patientRows = mode === "patient" ? extractPatientRows(data) : [];
   const stats = buildWorkspaceStats(mode, data, rows);
-  const hasExactSearchSelection =
-    filterType === "search-select" &&
-    filterSearchOptions.some(
-      (item) => item.id === filterValue.trim() || item.name === filterValue.trim(),
-    );
   const groupedRows =
     mode === "patient"
       ? []
@@ -383,7 +380,7 @@ function FoScopedReportWorkspace({
                     placeholder={filterPlaceholder}
                     className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                   />
-                  {filterValue.trim() && !hasExactSearchSelection ? (
+                  {filterValue.trim() && !isFilterOptionSelected ? (
                     <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
                       {isFilterSearchLoading ? (
                         <div className="p-3 text-sm text-gray-600 dark:text-slate-300">

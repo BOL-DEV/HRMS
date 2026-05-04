@@ -78,6 +78,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const billItemFieldRef = useRef<HTMLDivElement | null>(null);
   const patientFieldRef = useRef<HTMLDivElement | null>(null);
   const deferredPatientSearchInput = useDeferredValue(patientSearchInput.trim());
+  const lastAutoLookupPatientIdRef = useRef<string>("");
+  const patientLookupToastId = "agent-patient-lookup";
 
   const paymentConfigQuery = useQuery({
     queryKey: ["agent-payment-config"],
@@ -136,9 +138,6 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     queryFn: () =>
       searchAgentHospitalPatients(hospitalId, {
         query: deferredPatientSearchInput,
-        patientId: deferredPatientSearchInput,
-        patientName: deferredPatientSearchInput,
-        name: deferredPatientSearchInput,
         limit: 10,
       }),
     enabled: open && Boolean(hospitalId && deferredPatientSearchInput),
@@ -155,7 +154,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       const patient = response.data.patient;
 
       if (response.data.exists && patient) {
-        toast.success("Patient found. Details loaded.");
+        toast.success("Patient found. Details loaded.", {
+          id: patientLookupToastId,
+        });
         setForm((current) => ({
           ...current,
           patientExists: true,
@@ -165,7 +166,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         return;
       }
 
-      toast("Patient not found. Enter name and phone manually.");
+      toast("Patient not found. Enter name and phone manually.", {
+        id: patientLookupToastId,
+      });
       setForm((current) => ({
         ...current,
         patientExists: false,
@@ -176,6 +179,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     onError: (error) => {
       toast.error(
         error instanceof Error ? error.message : "Unable to verify patient ID.",
+        {
+          id: patientLookupToastId,
+        },
       );
     },
   });
@@ -216,8 +222,6 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     },
   });
 
-  const canLookupPatient =
-    form.patientId.trim().length > 0 && isDigitsOnly(form.patientId.trim());
   const patientStepReady =
     Boolean(form.patientId) &&
     (form.patientExists ||
@@ -241,6 +245,12 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
 
     patientLookupMutation.mutate(patientId);
   });
+
+  useEffect(() => {
+    if (!form.patientId.trim()) {
+      lastAutoLookupPatientIdRef.current = "";
+    }
+  }, [form.patientId]);
 
   const handlePatientSuggestionSelect = (patient: HospitalPatientSearchItem) => {
     setPatientSearchInput(patient.display_value);
@@ -310,16 +320,43 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       return;
     }
 
-    if (!canLookupPatient) {
+    if (form.patientExists) {
       return;
     }
 
-    if (patientSuggestions.some((patient) => patient.patient_id === form.patientId.trim())) {
+    if (patientLookupMutation.isPending) {
       return;
     }
 
-    triggerPatientLookup();
-  }, [open, form.patientId, canLookupPatient, patientSuggestions, triggerPatientLookup]);
+    const patientId = form.patientId.trim();
+
+    if (!patientId || !isDigitsOnly(patientId)) {
+      return;
+    }
+
+    if (lastAutoLookupPatientIdRef.current === patientId) {
+      return;
+    }
+
+    if (patientSuggestions.some((patient) => patient.patient_id === patientId)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      lastAutoLookupPatientIdRef.current = patientId;
+      triggerPatientLookup();
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    form.patientExists,
+    form.patientId,
+    open,
+    patientLookupMutation.isPending,
+    patientSuggestions,
+  ]);
 
   useEffect(() => {
     if (

@@ -7,9 +7,7 @@ import { FiActivity } from "react-icons/fi";
 import { getAgentHospitalImageUrl, getAgentProfile } from "@/libs/agent-auth";
 import { getAccessToken } from "@/libs/auth";
 import { getFoHospitalImageUrl, getFoProfile } from "@/libs/fo-auth";
-
-const PLATFORM_IMAGE_URL =
-  "https://res.cloudinary.com/dk8kjrdkx/image/upload/v1777820385/WhatsApp_Image_2026-05-02_at_22.27.20_pjkemm.jpg";
+import { PLATFORM_LOGO_SRC } from "@/libs/brand";
 
 function useHydrated() {
   return useSyncExternalStore(
@@ -69,7 +67,7 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
 
   const imageUrl =
     section === "admin" || section === "fo" || section === "agent"
-      ? PLATFORM_IMAGE_URL
+      ? PLATFORM_LOGO_SRC
       : hospitalImageQuery.data?.data.image_url ?? "";
 
   const displayTitle =
@@ -85,7 +83,7 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 text-white">
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-white">
             <FiActivity className="text-sm" />
           </div>
         )}
