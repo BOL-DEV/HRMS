@@ -149,15 +149,6 @@ export default function Page() {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
-          <div className="border-b border-line-subtle p-5">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-              Platform Activity
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-slate-400">
-              Login, logout, and related platform-wide events
-            </p>
-          </div>
-
           <AdminDateRangeFilterBar
             startDate={startDateInput}
             endDate={endDateInput}
@@ -166,6 +157,16 @@ export default function Page() {
             onApply={applyFilters}
             onClear={clearFilters}
             isInvalid={dateRangeIsInvalid}
+            leadSlot={
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  Platform Activity
+                </h2>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  Login, logout, and related platform-wide events
+                </p>
+              </div>
+            }
           />
 
           <div className="flex flex-col gap-4 border-b border-line-subtle p-5 md:flex-row md:items-center">

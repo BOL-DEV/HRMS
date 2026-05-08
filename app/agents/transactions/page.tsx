@@ -163,8 +163,6 @@ function Page() {
             )
           }
           onNewTransaction={() => setOpenNewTransaction(true)}
-          onRefresh={() => transactionsQuery.refetch()}
-          isRefreshing={transactionsQuery.isFetching}
         />
 
         {statusMessage ? (

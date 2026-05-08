@@ -13,6 +13,7 @@ import StatusPill from "@/components/StatusPill";
 const tabs = [
   { label: "Overview", href: (id: string) => `/admin/hospitals/${id}` },
   { label: "Agents", href: (id: string) => `/admin/hospitals/${id}/agents` },
+  { label: "Top-Ups", href: (id: string) => `/admin/hospitals/${id}/topups` },
   { label: "FOs", href: (id: string) => `/admin/hospitals/${id}/fos` },
   {
     label: "Departments",

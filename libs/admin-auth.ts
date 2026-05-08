@@ -22,6 +22,7 @@ import type {
   AdminAgentTopupPayload,
   AdminAgentTopupResponse,
   AdminDashboardResponse,
+  AdminHospitalAgentTopupHistoryResponse,
   AdminHospitalAgentReportResponse,
   AdminHospitalDepartmentReportResponse,
   AdminHospitalPatientReportResponse,
@@ -391,6 +392,35 @@ export async function getAdminHospitalAgents(
 
   return adminGet<AdminHospitalAgentsResponse>(
     `/api/admin/hospitals/${hospitalId}/agents${suffix}`,
+  );
+}
+
+export async function getAdminHospitalAgentTopupHistory(
+  hospitalId: string,
+  params?: {
+    agentId?: string;
+    page?: number;
+    limit?: number;
+  },
+) {
+  const query = new URLSearchParams();
+
+  if (params?.agentId?.trim()) {
+    query.set("agent_id", params.agentId.trim());
+  }
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return adminGet<AdminHospitalAgentTopupHistoryResponse>(
+    `/api/admin/hospitals/${hospitalId}/agents/topups${suffix}`,
   );
 }
 
