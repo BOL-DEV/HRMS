@@ -1,4 +1,4 @@
-export const PLATFORM_LOGO_SRC = "/image.png";
+export const PLATFORM_LOGO_SRC = "/swiftRev.png";
 
 export const BRAND_PRIMARY_CHART_COLOR = "var(--color-brand-600)";
 

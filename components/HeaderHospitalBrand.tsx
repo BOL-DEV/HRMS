@@ -63,6 +63,7 @@ export default function HeaderHospitalBrand() {
   const brand = useMemo(() => {
     if (section === "admin") {
       return {
+        isPlatformLogo: true,
         label: "Platform",
         title: "SwiftRev HQ",
         subtitle: "Central operations dashboard",
@@ -75,6 +76,7 @@ export default function HeaderHospitalBrand() {
 
     if (!profile) {
       return {
+        isPlatformLogo: false,
         label: section === "fo" ? "FO" : "Agent",
         title: hospitalImageQuery.isLoading ? "Loading hospital..." : "Hospital",
         subtitle: "Connected workspace",
@@ -83,6 +85,7 @@ export default function HeaderHospitalBrand() {
     }
 
     return {
+      isPlatformLogo: false,
       label: section === "fo" ? "FO Workspace" : "Agent Workspace",
       title: imageData?.hospital_name || profile.hospital_name || "Hospital",
       subtitle: profile.hospital_code || "Connected workspace",
@@ -101,7 +104,9 @@ export default function HeaderHospitalBrand() {
           <img
             src={brand.imageUrl}
             alt={brand.title}
-            className="h-full w-full object-cover"
+            className={`h-full w-full ${
+              brand.isPlatformLogo ? "object-contain p-1.5" : "object-cover"
+            }`}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-brand-700 to-brand-400 text-white">

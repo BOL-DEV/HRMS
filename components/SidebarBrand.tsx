@@ -76,15 +76,15 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
   return (
     <div className="flex min-w-0 items-center">
       <div
-        className={`relative shrink-0 overflow-hidden rounded-xl border border-line-subtle/70 bg-transparent transition-all duration-150 ease-out dark:border-line-subtle ${
-          isExpanded ? "h-12 w-full max-w-[170px]" : "h-10 w-10"
+        className={`relative shrink-0 overflow-hidden bg-transparent transition-all duration-150 ease-out ${
+          isExpanded ? "h-16 w-full max-w-[220px]" : "h-12 w-12"
         }`}
       >
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={displayTitle}
-            className="h-full w-full object-contain"
+            className="h-full w-full scale-170 object-contain px-0 brightness-125 contrast-125 drop-shadow-[0_0_18px_rgba(45,212,191,0.24)]"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-brand-700 to-brand-400 text-white">
