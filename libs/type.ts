@@ -785,6 +785,42 @@ export type AdminHospitalAgentsResponse = {
   };
 };
 
+export type AgentTopupHistoryAgentItem = {
+  agent_id: string;
+  agent_name: string;
+  email: string;
+  status: "active" | "suspended";
+};
+
+export type AgentTopupHistoryRecord = {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  before_top_up_amount: number;
+  top_up_amount: number;
+  balance_after_topup: number;
+  created_at: string;
+};
+
+export type AgentTopupHistoryPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+};
+
+export type AdminHospitalAgentTopupHistoryResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    selected_agent_id: string | null;
+    agents: AgentTopupHistoryAgentItem[];
+    topups: AgentTopupHistoryRecord[];
+    pagination: AgentTopupHistoryPagination;
+  };
+};
+
 export type CreateAdminHospitalAgentPayload = {
   first_name: string;
   last_name: string;
@@ -1249,6 +1285,15 @@ export type AdminAgentTopupResponse = {
   status: number;
   message: string;
   data: {
+    topup_record?: {
+      id: string;
+      agent_id: string;
+      hospital_id: string;
+      before_top_up_amount: number;
+      top_up_amount: number;
+      balance_after_topup: number;
+      created_at: string;
+    };
     updated_balance: number;
   };
 };
@@ -1525,6 +1570,8 @@ export type FoAgentsResponse = {
     agents: FoAgentListItem[];
   };
 };
+
+export type FoAgentTopupHistoryResponse = AdminHospitalAgentTopupHistoryResponse;
 
 export type FoDepartmentItem = {
   department_id: string;

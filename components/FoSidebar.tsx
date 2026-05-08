@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { IoMdClose } from "react-icons/io";
 import { TbReportMedical } from "react-icons/tb";
 import { PiFilesLight } from "react-icons/pi";
+import { FiCreditCard } from "react-icons/fi";
 
 const sidebarData = {
   title: "FO",
@@ -26,6 +27,12 @@ const sidebarData = {
       name: "Agents",
       link: "/fo/agents",
       label: <MdOutlinePeopleAlt className="inline" />,
+      active: false,
+    },
+    {
+      name: "Top-Up History",
+      link: "/fo/agent-topups",
+      label: <FiCreditCard className="inline" />,
       active: false,
     },
     {

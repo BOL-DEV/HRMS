@@ -24,6 +24,7 @@ import type {
   CreateFoDepartmentPayload,
   CreateFoIncomeHeadPayload,
   FoAgentReportResponse,
+  FoAgentTopupHistoryResponse,
   FoAgentStatus,
   FoAgentsResponse,
   FoBillItemMutationResponse,
@@ -325,6 +326,47 @@ export async function getFoAgents(params?: {
       headers: getFoAuthHeaders(accessToken),
     }),
   );
+}
+
+export async function getFoAgentTopupHistory(params?: {
+  agentId?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+
+  if (params?.agentId?.trim()) {
+    query.set("agent_id", params.agentId.trim());
+  }
+
+  if (params?.page) {
+    query.set("page", String(params.page));
+  }
+
+  if (params?.limit) {
+    query.set("limit", String(params.limit));
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withFoSessionRetry(async (accessToken) => {
+    const profile = await getJson<FoProfileResponse>("/api/fo/profile", {
+      headers: getFoAuthHeaders(accessToken),
+    });
+
+    const hospitalId = profile.data.hospital_id;
+
+    if (!hospitalId) {
+      throw new Error("Unable to resolve the assigned hospital for this FO.");
+    }
+
+    return getJson<FoAgentTopupHistoryResponse>(
+      `/api/admin/hospitals/${hospitalId}/agents/topups${suffix}`,
+      {
+        headers: getFoAuthHeaders(accessToken),
+      },
+    );
+  });
 }
 
 export async function getFoDepartments(search?: string) {

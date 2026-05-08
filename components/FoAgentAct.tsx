@@ -20,7 +20,7 @@ function FoAgentAct({ search, onSearch, status, onStatus, sort, onSort }: Props)
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search by name, email, phone..."
-            className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-line-subtle dark:bg-panel-muted dark:text-slate-100"
           />
         </div>
 
@@ -29,7 +29,7 @@ function FoAgentAct({ search, onSearch, status, onStatus, sort, onSort }: Props)
           <select
             value={status}
             onChange={(e) => onStatus(e.target.value as FoAgentStatus | "all")}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-line-subtle dark:bg-panel-muted dark:text-slate-100"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -39,7 +39,7 @@ function FoAgentAct({ search, onSearch, status, onStatus, sort, onSort }: Props)
           <select
             value={sort}
             onChange={(e) => onSort(e.target.value as SortOption)}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 dark:border-line-subtle dark:bg-panel-muted dark:text-slate-100"
           >
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
@@ -48,7 +48,7 @@ function FoAgentAct({ search, onSearch, status, onStatus, sort, onSort }: Props)
         </div>
       </div>
 
-      <button className="inline-flex items-center gap-2 self-start rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong lg:self-auto">
+      <button className="inline-flex items-center gap-2 self-start rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel-muted dark:text-slate-200 dark:hover:bg-panel-strong lg:self-auto">
         <FiDownload />
         Export
       </button>

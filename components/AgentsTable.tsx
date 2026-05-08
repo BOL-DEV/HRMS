@@ -12,11 +12,11 @@ function AgentsTable({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-line-subtle dark:bg-panel-strong">
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-muted dark:text-slate-300">
               <th className="p-3 font-semibold">Name</th>
               <th className="p-3 font-semibold">Email</th>
               <th className="p-3 font-semibold">Phone</th>
@@ -43,7 +43,7 @@ function AgentsTable({
               rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-gray-100 dark:border-line-subtle"
                 >
                   <td className="whitespace-nowrap p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {row.name}
@@ -74,7 +74,7 @@ function AgentsTable({
                             prev === row.id ? null : row.id,
                           )
                         }
-                        className="rounded-lg border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                        className="rounded-lg border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-line-subtle dark:hover:bg-panel-muted"
                         aria-haspopup="true"
                         aria-expanded={openMenu === row.id}
                       >
@@ -82,7 +82,7 @@ function AgentsTable({
                       </button>
 
                       {openMenu === row.id ? (
-                        <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                        <div className="absolute right-0 z-20 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-line-subtle dark:bg-panel">
                           {[
                             {
                               label: "View Profile",
@@ -108,7 +108,7 @@ function AgentsTable({
                                 item.onClick();
                                 setOpenMenu(null);
                               }}
-                              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-panel-muted"
                               aria-label={item.label}
                             >
                               {item.icon}

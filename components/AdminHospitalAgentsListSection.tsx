@@ -2,7 +2,7 @@ import AdminSearchField from "@/components/AdminSearchField";
 import StatusPill from "@/components/StatusPill";
 import { formatNaira } from "@/libs/helper";
 import type { AdminHospitalAgentListItem } from "@/libs/type";
-import { FiCreditCard, FiEye, FiUserPlus } from "react-icons/fi";
+import { FiCreditCard, FiUserPlus } from "react-icons/fi";
 
 function getStatusLabel(status: AdminHospitalAgentListItem["status"]) {
   return status === "suspended" ? "Suspended" : "Active";
@@ -17,7 +17,6 @@ type Props = {
   onEdit: (agent: AdminHospitalAgentListItem) => void;
   onTopUp: (agent: AdminHospitalAgentListItem) => void;
   onToggleStatus: (agent: AdminHospitalAgentListItem) => void;
-  onView: (agent: AdminHospitalAgentListItem) => void;
 };
 
 function AdminHospitalAgentsListSection({
@@ -29,7 +28,6 @@ function AdminHospitalAgentsListSection({
   onEdit,
   onTopUp,
   onToggleStatus,
-  onView,
 }: Props) {
   return (
     <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
@@ -126,14 +124,6 @@ function AdminHospitalAgentsListSection({
                       </td>
                       <td className="p-3">
                         <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => onView(agent)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-line-subtle px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-panel-muted dark:text-slate-200"
-                          >
-                            <FiEye />
-                            View
-                          </button>
                           <button
                             type="button"
                             onClick={() => onEdit(agent)}

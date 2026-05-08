@@ -19,7 +19,7 @@ function FoAgentsListSection({
     <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold dark:text-slate-100">Agents</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Agents</h2>
           <p className="text-sm text-gray-600 dark:text-slate-400">
             {rows.length} agents found
           </p>

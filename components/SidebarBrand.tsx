@@ -74,40 +74,23 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
     section === "admin" ? "Platform" : section === "fo" ? "FO" : title;
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl border border-white/60 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <div className="flex min-w-0 items-center">
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-xl border border-line-subtle/70 bg-transparent transition-all duration-150 ease-out dark:border-line-subtle ${
+          isExpanded ? "h-12 w-full max-w-[170px]" : "h-10 w-10"
+        }`}
+      >
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={displayTitle}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-brand-700 to-brand-400 text-white">
             <FiActivity className="text-sm" />
           </div>
         )}
-      </div>
-
-      <div className="relative min-w-0 flex-1 overflow-hidden">
-        <h1
-          className={`whitespace-nowrap text-xl font-bold text-gray-900 transition-all duration-150 ease-out dark:text-slate-100 ${
-            isExpanded
-              ? "translate-x-0 opacity-100"
-              : "md:-translate-x-2 md:opacity-0"
-          }`}
-        >
-          {displayTitle}
-        </h1>
-        <div
-          className={`pointer-events-none absolute text-xl font-bold text-gray-900 transition-all duration-150 ease-out dark:text-slate-100 ${
-            isExpanded
-              ? "md:-translate-x-2 md:opacity-0"
-              : "hidden md:block md:translate-x-0 md:opacity-100"
-          }`}
-        >
-          {displayTitle.charAt(0)}
-        </div>
       </div>
     </div>
   );
