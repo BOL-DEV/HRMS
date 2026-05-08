@@ -42,8 +42,8 @@ function AdminHospitalBillItemsSection({
   onEdit,
 }: Props) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+    <div className="rounded-xl border border-line-subtle bg-panel">
+      <div className="border-b border-line-subtle p-5">
         <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           Bill Items
         </h2>
@@ -52,7 +52,7 @@ function AdminHospitalBillItemsSection({
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 border-b border-line-subtle p-5 lg:flex-row lg:items-center lg:justify-between">
         <AdminSearchField
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
@@ -63,7 +63,7 @@ function AdminHospitalBillItemsSection({
           <select
             value={departmentId}
             onChange={(event) => onDepartmentChange(event.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           >
             <option value="All">All Departments</option>
             {departmentOptions.map((option) => (
@@ -77,7 +77,7 @@ function AdminHospitalBillItemsSection({
             value={incomeHeadId}
             onChange={(event) => onIncomeHeadChange(event.target.value)}
             disabled={departmentId === "All"}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800"
+            className="rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-panel-muted dark:text-slate-100"
           >
             <option value="All">
               {departmentId === "All"
@@ -94,7 +94,7 @@ function AdminHospitalBillItemsSection({
           <button
             type="button"
             onClick={onOpenCreateModal}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             Add Bill Item
           </button>
@@ -104,7 +104,7 @@ function AdminHospitalBillItemsSection({
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Bill Item</th>
               <th className="p-3 font-semibold">Department</th>
               <th className="p-3 font-semibold">Income Head</th>
@@ -130,7 +130,7 @@ function AdminHospitalBillItemsSection({
               rows.map((item) => (
                 <tr
                   key={item.bill_item_id}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-line-subtle"
                 >
                   <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {item.name}
@@ -151,7 +151,7 @@ function AdminHospitalBillItemsSection({
                     <button
                       type="button"
                       onClick={() => onEdit(item)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                      className="rounded-lg border border-line-subtle px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-panel-muted dark:text-slate-200"
                     >
                       Edit
                     </button>

@@ -51,8 +51,8 @@ function PaymentMethodBreakdown({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl min-h-[34rem] overflow-hidden flex flex-col dark:border-slate-700 dark:bg-slate-900">
-      <div className="p-5 border-b border-gray-200 dark:border-slate-700">
+    <div className="flex min-h-[34rem] flex-col overflow-hidden rounded-xl border border-line-subtle bg-panel dark:border-line-subtle dark:bg-panel">
+      <div className="border-b border-line-subtle p-5 dark:border-line-subtle">
         <h2 className="text-xl font-bold">{title}</h2>
         <p className="text-sm text-gray-600 dark:text-slate-400">{subtitle}</p>
       </div>

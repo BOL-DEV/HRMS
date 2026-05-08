@@ -15,10 +15,10 @@ type Props<T extends string> = {
 
 const accentClasses = {
   admin:
-    "data-[active=true]:bg-blue-600 data-[active=true]:text-white data-[active=true]:shadow-sm",
-  fo: "data-[active=true]:bg-emerald-600 data-[active=true]:text-white data-[active=true]:shadow-sm",
+    "data-[active=true]:bg-brand-600 data-[active=true]:text-white data-[active=true]:shadow-sm",
+  fo: "data-[active=true]:bg-brand-600 data-[active=true]:text-white data-[active=true]:shadow-sm",
   agent:
-    "data-[active=true]:bg-amber-500 data-[active=true]:text-slate-950 data-[active=true]:shadow-sm",
+    "data-[active=true]:bg-brand-700 data-[active=true]:text-white data-[active=true]:shadow-sm",
 };
 
 function DashboardSegmentedControl<T extends string>({
@@ -30,7 +30,7 @@ function DashboardSegmentedControl<T extends string>({
 }: Props<T>) {
   return (
     <div
-      className={`inline-flex flex-wrap gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-slate-700 dark:bg-slate-800/80 ${className ?? ""}`}
+      className={`inline-flex flex-wrap gap-1 rounded-xl border border-line-subtle bg-canvas-alt p-1 dark:border-line-subtle dark:bg-panel-muted ${className ?? ""}`}
     >
       {options.map((option) => (
         <button

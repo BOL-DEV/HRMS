@@ -83,7 +83,7 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-white">
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-brand-700 to-brand-400 text-white">
             <FiActivity className="text-sm" />
           </div>
         )}

@@ -258,7 +258,7 @@ export default function Page() {
   ]);
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Revenue Report"
         Subtitle="Review transaction-level revenue activity for the selected hospital"
@@ -295,7 +295,7 @@ export default function Page() {
                       ),
                     )
               }
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200"
             >
               <FiPrinter />
               Print
@@ -331,7 +331,7 @@ export default function Page() {
                       ),
                     )
               }
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200"
             >
               <FiDownload />
               Export CSV
@@ -347,7 +347,7 @@ export default function Page() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-xl border border-line-subtle bg-panel p-5">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
@@ -361,7 +361,7 @@ export default function Page() {
                   setIncomeHeadId("All");
                   setAgentId("All");
                 }}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
                 <option value="">Select hospital</option>
                 {hospitals.map((item) => (
@@ -383,7 +383,7 @@ export default function Page() {
                   setIncomeHeadId("All");
                 }}
                 disabled={!selectedHospitalId || departmentsQuery.isLoading}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
                 <option value="All">All departments</option>
                 {departmentOptions.map((item) => (
@@ -402,7 +402,7 @@ export default function Page() {
                 value={incomeHeadId}
                 onChange={(event) => setIncomeHeadId(event.target.value)}
                 disabled={!selectedHospitalId || incomeHeadsQuery.isLoading}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
                 <option value="All">All income heads</option>
                 {incomeHeadOptions.map((item) => (
@@ -421,7 +421,7 @@ export default function Page() {
                 value={agentId}
                 onChange={(event) => setAgentId(event.target.value)}
                 disabled={!selectedHospitalId || agentsQuery.isLoading}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
                 <option value="All">All agents</option>
                 {agentOptions.map((item) => (
@@ -441,7 +441,7 @@ export default function Page() {
                 onChange={(event) =>
                   setPaymentMethod(event.target.value as AdminReportPaymentType | "all")
                 }
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
                 <option value="all">All methods</option>
                 <option value="cash">Cash</option>
@@ -458,7 +458,7 @@ export default function Page() {
                 type="date"
                 value={startDate}
                 onChange={(event) => setStartDate(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               />
             </div>
 
@@ -471,7 +471,7 @@ export default function Page() {
                 value={endDate}
                 min={startDate}
                 onChange={(event) => setEndDate(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               />
             </div>
           </div>
@@ -506,7 +506,7 @@ export default function Page() {
                 });
               }}
               disabled={!selectedHospitalId}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="rounded-lg border border-line-subtle px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-panel-muted disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200"
             >
               View All Reports
             </button>
@@ -529,12 +529,12 @@ export default function Page() {
 
         {pagination ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <div className="rounded-xl border border-line-subtle bg-panel px-5 py-4 text-sm text-gray-600 dark:text-slate-300">
               Showing {rows.length} transaction{rows.length === 1 ? "" : "s"} on
               this page. Total matching transactions:{" "}
               {summary?.total_transactions ?? pagination.total_transactions}.
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="rounded-xl border border-line-subtle bg-panel">
               <AdminPaginationFooter
                 currentPage={pagination.current_page}
                 totalPages={pagination.total_pages}

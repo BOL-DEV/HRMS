@@ -70,8 +70,8 @@ function AdminHospitalTransactionsSection({
   onExport,
 }: Props) {
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+    <div className="overflow-hidden rounded-2xl border border-line-subtle bg-panel shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
+      <div className="border-b border-line-subtle p-5">
         <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           Transactions
         </h2>
@@ -80,7 +80,7 @@ function AdminHospitalTransactionsSection({
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="flex flex-col gap-4 border-b border-line-subtle p-5">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
           <AdminSearchField
             value={search}
@@ -94,11 +94,11 @@ function AdminHospitalTransactionsSection({
               value={patientId}
               onChange={(event) => onPatientIdChange(event.target.value)}
               placeholder="Patient ID"
-              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-xl border border-line-subtle bg-canvas-alt px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
             />
 
             {patientId.trim() ? (
-              <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+              <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-line-subtle bg-panel shadow-lg">
                 {isPatientSuggestionsLoading ? (
                   <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
                     Searching...
@@ -118,7 +118,7 @@ function AdminHospitalTransactionsSection({
                             onSelectPatientId?.(nextValue);
                             onPatientIdChange(nextValue);
                           }}
-                          className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                          className="flex w-full flex-col gap-1 border-b border-line-subtle px-4 py-3 text-left text-sm hover:bg-panel-muted dark:hover:bg-panel-strong"
                         >
                           <span className="font-semibold text-gray-900 dark:text-slate-100">
                             {patient.patient_name} ({patient.patient_id})
@@ -138,7 +138,7 @@ function AdminHospitalTransactionsSection({
           <select
             value={department}
             onChange={(event) => onDepartmentChange(event.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="w-full rounded-xl border border-line-subtle bg-canvas-alt px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           >
             <option value="">All Departments</option>
             {departmentOptions.map((name) => (
@@ -151,7 +151,7 @@ function AdminHospitalTransactionsSection({
           <select
             value={agent}
             onChange={(event) => onAgentChange(event.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="w-full rounded-xl border border-line-subtle bg-canvas-alt px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           >
             <option value="">All Agents</option>
             {agentOptions.map((name) => (
@@ -168,7 +168,7 @@ function AdminHospitalTransactionsSection({
                 event.target.value as "all" | "cash" | "transfer" | "pos",
               )
             }
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="w-full rounded-xl border border-line-subtle bg-canvas-alt px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           >
             <option value="all">All Payment Methods</option>
             <option value="cash">Cash</option>
@@ -190,7 +190,7 @@ function AdminHospitalTransactionsSection({
           <button
             type="button"
             onClick={onExport}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-line-subtle bg-panel px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200 dark:hover:bg-panel-strong"
           >
             <FiDownload />
             Export CSV
@@ -201,7 +201,7 @@ function AdminHospitalTransactionsSection({
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Date/Time</th>
               <th className="p-3 font-semibold">Receipt ID</th>
               <th className="p-3 font-semibold">Patient ID</th>
@@ -219,10 +219,10 @@ function AdminHospitalTransactionsSection({
               ? Array.from({ length: 6 }).map((_, index) => (
                   <tr
                     key={index}
-                    className="border-b border-gray-100 dark:border-slate-800"
+                    className="border-b border-line-subtle"
                   >
                     <td colSpan={10} className="p-3">
-                      <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
+                      <div className="h-10 animate-pulse rounded-xl bg-panel-muted" />
                     </td>
                   </tr>
                 ))
@@ -240,7 +240,7 @@ function AdminHospitalTransactionsSection({
                 : rows.map((transaction) => (
                     <tr
                       key={`${transaction.receipt_id}-${transaction.date_time}`}
-                      className="border-b border-gray-100 dark:border-slate-800"
+                      className="border-b border-line-subtle"
                     >
                       <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
                         {formatDateTime(transaction.date_time)}

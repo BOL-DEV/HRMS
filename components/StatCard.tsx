@@ -27,14 +27,14 @@ function StatCard({
 }: Props) {
   const deltaClassName =
     deltaTone === "positive"
-      ? "text-blue-600"
+      ? "text-brand-700 dark:text-brand-300"
       : deltaTone === "negative"
         ? "text-red-600"
         : "text-gray-500 dark:text-slate-400";
 
   return (
     <div
-      className={`rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 ${variant === "compact" ? "p-4" : "p-5"} flex items-start justify-between ${accentClassName ?? ""}`}
+      className={`rounded-2xl border border-line-subtle bg-panel shadow-[0_18px_45px_rgba(15,23,42,0.06)] dark:border-line-subtle dark:bg-panel ${variant === "compact" ? "p-4" : "p-5"} flex items-start justify-between ${accentClassName ?? ""}`}
     >
       <div>
         <p className={`${variant === "compact" ? "text-xs" : "text-sm"} text-gray-600 font-semibold tracking-wide dark:text-slate-400`}>
@@ -53,7 +53,7 @@ function StatCard({
       </div>
 
       <div
-        className={`rounded-2xl ${variant === "compact" ? "p-2.5" : "p-3"} bg-blue-100 text-blue-600 dark:bg-sky-500/15 dark:text-sky-300 ${iconBackgroundClassName ?? ""} ${iconClassName ?? ""}`}
+        className={`rounded-2xl ${variant === "compact" ? "p-2.5" : "p-3"} bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300 ${iconBackgroundClassName ?? ""} ${iconClassName ?? ""}`}
       >
         {icon}
       </div>

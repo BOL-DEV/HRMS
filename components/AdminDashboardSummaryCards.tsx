@@ -54,7 +54,7 @@ function AdminDashboardSummaryCards({ isLoading = false, summary }: Props) {
         ? Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
-              className="h-36 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+              className="h-36 animate-pulse rounded-xl border border-line-subtle bg-panel"
             />
           ))
         : stats.map((item) => (

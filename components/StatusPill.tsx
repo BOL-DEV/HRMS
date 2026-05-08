@@ -33,7 +33,7 @@ function StatusPill({ status }: Props) {
                 : status === "Refunded"
                   ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
                   : status === "Refund"
-                    ? "bg-blue-100 text-blue-700 dark:bg-sky-500/15 dark:text-sky-300"
+                    ? "bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"
                     : status === "Refund Requested"
                       ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300"
                       : status === "Inactive"

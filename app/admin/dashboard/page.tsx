@@ -8,6 +8,7 @@ import StatCard from "@/components/StatCard";
 import { ApiError } from "@/libs/api";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import { BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatCompactNumber, formatNaira } from "@/libs/helper";
 import type { AdminDashboardResponse } from "@/libs/type";
 import { useQuery } from "@tanstack/react-query";
@@ -114,10 +115,10 @@ function Page() {
       subtitle: "Current-month total revenue",
       icon: <FiDollarSign className="text-xl" />,
       accentClassName:
-        "border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white dark:border-blue-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/30",
-      iconClassName: "text-blue-700 dark:text-blue-300",
-      iconBackgroundClassName: "bg-blue-100 dark:bg-blue-500/15",
-      valueClassName: "text-blue-700 dark:text-blue-200",
+        "border-brand-200 bg-gradient-to-br from-brand-50 via-white to-white dark:border-brand-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/30",
+      iconClassName: "text-brand-700 dark:text-brand-300",
+      iconBackgroundClassName: "bg-brand-100 dark:bg-brand-500/15",
+      valueClassName: "text-brand-700 dark:text-brand-200",
     },
     {
       title: "Monthly Transactions",
@@ -125,10 +126,10 @@ function Page() {
       subtitle: "Current-month completed transactions",
       icon: <FiFileText className="text-xl" />,
       accentClassName:
-        "border-sky-200 bg-gradient-to-br from-sky-50 via-white to-white dark:border-sky-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/30",
-      iconClassName: "text-sky-700 dark:text-sky-300",
-      iconBackgroundClassName: "bg-sky-100 dark:bg-sky-500/15",
-      valueClassName: "text-sky-700 dark:text-sky-200",
+        "border-brand-100 bg-gradient-to-br from-canvas-alt via-white to-white dark:border-brand-400/30 dark:from-slate-900 dark:via-slate-900 dark:to-brand-900/30",
+      iconClassName: "text-brand-800 dark:text-brand-200",
+      iconBackgroundClassName: "bg-brand-50 dark:bg-brand-500/15",
+      valueClassName: "text-brand-800 dark:text-brand-200",
     },
     {
       title: "Hospitals",
@@ -136,10 +137,10 @@ function Page() {
       subtitle: `${overview?.active_hospitals ?? 0} active, ${overview?.suspended_hospitals ?? 0} suspended`,
       icon: <FiActivity className="text-xl" />,
       accentClassName:
-        "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white dark:border-emerald-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/30",
-      iconClassName: "text-emerald-700 dark:text-emerald-300",
-      iconBackgroundClassName: "bg-emerald-100 dark:bg-emerald-500/15",
-      valueClassName: "text-emerald-700 dark:text-emerald-200",
+        "border-brand-200 bg-gradient-to-br from-brand-100 via-white to-white dark:border-brand-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/30",
+      iconClassName: "text-brand-700 dark:text-brand-300",
+      iconBackgroundClassName: "bg-brand-100 dark:bg-brand-500/15",
+      valueClassName: "text-brand-700 dark:text-brand-200",
     },
     {
       title: "Workforce",
@@ -201,7 +202,7 @@ function Page() {
   }));
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Admin Dashboard"
         Subtitle="Compact global snapshot across all hospitals"
@@ -219,7 +220,7 @@ function Page() {
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="h-36 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                className="h-36 animate-pulse rounded-2xl border border-line-subtle bg-panel"
               />
             ))}
           </DashboardKpiGrid>
@@ -254,9 +255,9 @@ function Page() {
             contentClassName="h-[24rem] p-5"
           >
             {dashboardQuery.isLoading ? (
-              <div className="h-full animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800" />
+              <div className="h-full animate-pulse rounded-2xl bg-panel-muted" />
             ) : monthlyRevenueTrend.length === 0 ? (
-              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-line-subtle text-sm text-gray-500 dark:text-slate-400">
                 Revenue trend data is not available.
               </div>
             ) : (
@@ -294,9 +295,9 @@ function Page() {
                   <Line
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#2563eb"
+                    stroke={BRAND_PRIMARY_CHART_COLOR}
                     strokeWidth={3}
-                    dot={{ r: 4, fill: "#2563eb" }}
+                    dot={{ r: 4, fill: BRAND_PRIMARY_CHART_COLOR }}
                     activeDot={{ r: 6 }}
                   />
                 </LineChart>
@@ -315,7 +316,7 @@ function Page() {
                 {Array.from({ length: 7 }).map((_, index) => (
                   <div
                     key={index}
-                    className="h-16 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800"
+                    className="h-16 animate-pulse rounded-2xl bg-panel-muted"
                   />
                 ))}
               </div>
@@ -329,7 +330,7 @@ function Page() {
                         ? "border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30"
                         : item.tone === "warning"
                           ? "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/20"
-                          : "border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-950/40"
+                          : "border-line-subtle bg-panel-muted"
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -370,12 +371,12 @@ function Page() {
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div
                     key={index}
-                    className="h-24 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800"
+                    className="h-24 animate-pulse rounded-2xl bg-panel-muted"
                   />
                 ))}
               </div>
             ) : paymentMethodBreakdown.length === 0 ? (
-              <div className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="flex h-full min-h-48 items-center justify-center rounded-2xl border border-dashed border-line-subtle text-sm text-gray-500 dark:text-slate-400">
                 Payment method data is not available.
               </div>
             ) : (
@@ -383,11 +384,11 @@ function Page() {
                 {paymentMethodBreakdown.map((item) => (
                   <div
                     key={item.payment_type}
-                    className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-950/40"
+                    className="rounded-2xl border border-line-subtle bg-panel-muted p-4"
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-full bg-blue-100 p-2 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                        <div className="rounded-full bg-brand-100 p-2 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                           <FiBriefcase className="text-sm" />
                         </div>
                         <div>
@@ -427,36 +428,36 @@ function Page() {
                 {Array.from({ length: 2 }).map((_, index) => (
                   <div
                     key={index}
-                    className="h-36 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800"
+                    className="h-36 animate-pulse rounded-2xl bg-panel-muted"
                   />
                 ))}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 dark:border-emerald-900/60 dark:from-emerald-950/20 dark:to-slate-900">
+                <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-white p-5 dark:border-brand-900/60 dark:from-brand-950/20 dark:to-slate-900">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-emerald-100 p-2 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <div className="rounded-full bg-brand-100 p-2 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                       <FiUserCheck className="text-sm" />
                     </div>
-                    <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                    <p className="text-sm font-semibold text-brand-900 dark:text-brand-200">
                       Manual Revenue Hospitals
                     </p>
                   </div>
-                  <p className="mt-4 text-4xl font-black tracking-tight text-emerald-700 dark:text-emerald-200">
+                  <p className="mt-4 text-4xl font-black tracking-tight text-brand-700 dark:text-brand-200">
                     {overview?.hospital_mix.manual_revenue_hospitals ?? 0}
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-5 dark:border-blue-900/60 dark:from-blue-950/20 dark:to-slate-900">
+                <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-canvas-alt to-white p-5 dark:border-brand-900/60 dark:from-brand-950/18 dark:to-slate-900">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-blue-100 p-2 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                    <div className="rounded-full bg-brand-50 p-2 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200">
                       <FiTrendingUp className="text-sm" />
                     </div>
-                    <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+                    <p className="text-sm font-semibold text-brand-900 dark:text-brand-200">
                       Automatic Revenue Hospitals
                     </p>
                   </div>
-                  <p className="mt-4 text-4xl font-black tracking-tight text-blue-700 dark:text-blue-200">
+                  <p className="mt-4 text-4xl font-black tracking-tight text-brand-800 dark:text-brand-200">
                     {overview?.hospital_mix.automatic_revenue_hospitals ?? 0}
                   </p>
                 </div>

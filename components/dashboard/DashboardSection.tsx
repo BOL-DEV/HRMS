@@ -13,9 +13,9 @@ type Props = {
 };
 
 const accentStyles: Record<DashboardAccent, string> = {
-  admin: "border-t-4 border-t-blue-500",
-  fo: "border-t-4 border-t-emerald-500",
-  agent: "border-t-4 border-t-amber-500",
+  admin: "border-t-4 border-t-brand-600",
+  fo: "border-t-4 border-t-brand-500",
+  agent: "border-t-4 border-t-brand-700",
   neutral: "border-t-4 border-t-slate-200 dark:border-t-slate-700",
 };
 
@@ -30,9 +30,9 @@ function DashboardSection({
 }: Props) {
   return (
     <section
-      className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900 ${accentStyles[accent]} ${className ?? ""}`}
+      className={`overflow-hidden rounded-2xl border border-line-subtle bg-panel shadow-[0_16px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel ${accentStyles[accent]} ${className ?? ""}`}
     >
-      <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-slate-800">
+      <div className="flex items-start justify-between gap-4 border-b border-line-subtle px-5 py-4 dark:border-line-subtle">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
             {title}

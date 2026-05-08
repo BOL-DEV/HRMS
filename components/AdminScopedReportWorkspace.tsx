@@ -262,7 +262,7 @@ function AdminScopedReportWorkspace({
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title={title}
         Subtitle={subtitle}
@@ -272,7 +272,7 @@ function AdminScopedReportWorkspace({
               <button
                 type="button"
                 onClick={onPrint}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-lg border border-line-subtle bg-panel px-4 py-2 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200"
               >
                 <FiPrinter />
                 Print
@@ -282,7 +282,7 @@ function AdminScopedReportWorkspace({
               <button
                 type="button"
                 onClick={onExport}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-lg border border-line-subtle bg-panel px-4 py-2 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200"
               >
                 <FiDownload />
                 Export CSV
@@ -299,7 +299,7 @@ function AdminScopedReportWorkspace({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-xl border border-line-subtle bg-panel p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="grid min-w-70 flex-1 gap-3 md:grid-cols-2">
               <div className="space-y-1">
@@ -309,7 +309,7 @@ function AdminScopedReportWorkspace({
                 <select
                   value={hospitalId}
                   onChange={(event) => onHospitalChange(event.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
                 >
                   <option value="">Select hospital</option>
                   {hospitalOptions.map((item) => (
@@ -329,7 +329,7 @@ function AdminScopedReportWorkspace({
                     value={filterValue}
                     onChange={(event) => onFilterChange(event.target.value)}
                     disabled={isFilterLoading || !hospitalId}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
                   >
                     <option value="All">All</option>
                     {filterOptions.map((item) => (
@@ -345,7 +345,7 @@ function AdminScopedReportWorkspace({
                     placeholder={filterPlaceholder}
                     disabled={!hospitalId}
                     inputMode={mode === "patient" ? "numeric" : undefined}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
                   />
                 )}
               </div>
@@ -355,21 +355,21 @@ function AdminScopedReportWorkspace({
               <button
                 type="button"
                 onClick={() => applyRange(getTodayRange())}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                className="rounded-full border border-line-subtle bg-panel px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:text-slate-300 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-200"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => applyRange(getLastSevenDaysRange())}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                className="rounded-full border border-line-subtle bg-panel px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:text-slate-300 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-200"
               >
                 Last 7 Days
               </button>
               <button
                 type="button"
                 onClick={() => applyRange(getThisMonthRange())}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                className="rounded-full border border-line-subtle bg-panel px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:text-slate-300 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-200"
               >
                 This Month
               </button>
@@ -384,7 +384,7 @@ function AdminScopedReportWorkspace({
                     type="button"
                     onClick={onViewAllReports}
                     disabled={!hospitalId}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="w-full rounded-lg border border-line-subtle bg-panel px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-panel-muted disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200"
                   >
                     View All
                   </button>
@@ -400,7 +400,7 @@ function AdminScopedReportWorkspace({
                 type="date"
                 value={startDate}
                 onChange={(event) => onStartDateChange(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
               />
             </div>
 
@@ -413,7 +413,7 @@ function AdminScopedReportWorkspace({
                 value={endDate}
                 min={startDate}
                 onChange={(event) => onEndDateChange(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
               />
             </div>
           </div>

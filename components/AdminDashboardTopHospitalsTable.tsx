@@ -29,7 +29,7 @@ function AdminDashboardTopHospitalsTable({ rows, isLoading = false }: Props) {
     >
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-gray-50 text-left text-xs uppercase tracking-[0.14em] text-gray-500 dark:bg-slate-800/70 dark:text-slate-400">
+          <tr className="bg-panel-muted text-left text-xs uppercase tracking-[0.14em] text-gray-500 dark:text-slate-400">
             <th className="px-5 py-3 font-semibold">Hospital</th>
             <th className="px-5 py-3 font-semibold">Revenue Type</th>
             <th className="px-5 py-3 font-semibold">Revenue</th>
@@ -44,10 +44,10 @@ function AdminDashboardTopHospitalsTable({ rows, isLoading = false }: Props) {
             Array.from({ length: 5 }).map((_, index) => (
               <tr
                 key={index}
-                className="border-t border-gray-100 dark:border-slate-800"
+                className="border-t border-line-subtle"
               >
                 <td className="px-5 py-4" colSpan={7}>
-                  <div className="h-4 w-full animate-pulse rounded-full bg-gray-100 dark:bg-slate-800" />
+                  <div className="h-4 w-full animate-pulse rounded-full bg-panel-muted" />
                 </td>
               </tr>
             ))
@@ -64,7 +64,7 @@ function AdminDashboardTopHospitalsTable({ rows, isLoading = false }: Props) {
             rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-t border-gray-100 dark:border-slate-800"
+                className="border-t border-line-subtle"
               >
                 <td className="px-5 py-3.5">
                   <div className="font-semibold text-gray-900 dark:text-slate-100">
@@ -75,7 +75,7 @@ function AdminDashboardTopHospitalsTable({ rows, isLoading = false }: Props) {
                   </div>
                 </td>
                 <td className="px-5 py-3.5 text-gray-600 dark:text-slate-300">
-                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                  <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                     {row.revenueType}
                   </span>
                 </td>

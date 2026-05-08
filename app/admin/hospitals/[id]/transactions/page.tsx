@@ -227,7 +227,7 @@ export default function HospitalTransactionsPage() {
         transactionCount={transactionsData?.summary.transaction_count ?? 0}
       />
 
-      <div className="space-y-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      <div className="space-y-0 overflow-hidden rounded-2xl border border-line-subtle bg-panel shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
         <AdminHospitalTransactionsSection
           rows={rows}
           search={searchInput}

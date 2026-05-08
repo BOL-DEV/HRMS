@@ -128,7 +128,7 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
                       <p className="font-medium text-gray-900">{t.name}</p>
                       <p className="text-sm text-gray-500">{t.invoice} • {t.date}</p>
                     </div>
-                    <p className="font-semibold text-blue-700">{usd(t.amount)}</p>
+                    <p className="font-semibold text-brand-700">{usd(t.amount)}</p>
                   </div>
                 ))}
               </div>

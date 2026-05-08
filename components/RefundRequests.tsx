@@ -62,7 +62,7 @@ function RefundRequests({ requests = refundRequests }: Props) {
             <p className="text-sm text-gray-600">{item.reason}</p>
 
             <div className="flex items-center justify-between">
-              <p className="text-blue-700 font-semibold">
+              <p className="font-semibold text-brand-700">
                 {formatUsd(item.amount)}
               </p>
               <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50">

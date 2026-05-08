@@ -57,7 +57,7 @@ function AdminPasswordSettings() {
   };
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+    <section className="rounded-xl border border-line-subtle bg-panel p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
@@ -72,7 +72,7 @@ function AdminPasswordSettings() {
           type="button"
           onClick={() => logoutMutation.mutate()}
           disabled={logoutMutation.isPending}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="inline-flex items-center gap-2 rounded-lg border border-line-subtle bg-panel px-4 py-2 text-sm font-medium text-gray-700 hover:bg-panel-muted disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200"
         >
           <FiLogOut />
           {logoutMutation.isPending ? "Signing out..." : "Logout"}
@@ -102,11 +102,11 @@ function AdminPasswordSettings() {
           }
         />
 
-        <div className="flex justify-end border-t border-gray-200 pt-4 dark:border-slate-700">
+        <div className="flex justify-end border-t border-line-subtle pt-4">
           <button
             type="submit"
             disabled={updateMutation.isPending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {updateMutation.isPending ? "Updating..." : "Update Password"}
           </button>
@@ -139,7 +139,7 @@ function PasswordField({
           type={visible ? "text" : "password"}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-11 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 pr-11 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           required
         />
         <button

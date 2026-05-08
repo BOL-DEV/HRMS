@@ -12,6 +12,7 @@ import StatCard from "@/components/StatCard";
 import { ApiError } from "@/libs/api";
 import { getAgentDashboard } from "@/libs/agent-auth";
 import { clearAgentTokens, getAgentAccessToken } from "@/libs/auth";
+import { BRAND_PERIOD_COLORS } from "@/libs/brand";
 import { formatChartLabel, formatCompactNumber, formatCurrency, formatDateTime } from "@/libs/helper";
 import type { AgentDashboardPeriod } from "@/libs/type";
 import { useQuery } from "@tanstack/react-query";
@@ -105,9 +106,9 @@ function Page() {
     }
 
     return [
-      { name: "Cash", value: totals.cash, color: "#0f766e" },
-      { name: "POS", value: totals.pos, color: "#f59e0b" },
-      { name: "Transfer", value: totals.transfer, color: "#2563eb" },
+      { name: "Cash", value: totals.cash, color: BRAND_PERIOD_COLORS.cash },
+      { name: "POS", value: totals.pos, color: BRAND_PERIOD_COLORS.pos },
+      { name: "Transfer", value: totals.transfer, color: BRAND_PERIOD_COLORS.transfer },
     ];
   }, [dashboardQuery.data]);
 
@@ -117,7 +118,7 @@ function Page() {
       : "Unable to load dashboard data.";
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
       <Header
         title="Agent Dashboard"
         Subtitle="Track your wallet, performance, and recent transactions"
@@ -151,7 +152,7 @@ function Page() {
               Array.from({ length: 3 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-36 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                  className="h-36 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-line-subtle dark:bg-panel"
                 />
               ))
             ) : (
@@ -162,29 +163,29 @@ function Page() {
                   delta={`Period: ${periodLabels[stats.time_period]}`}
                   deltaTone="positive"
                   icon={<FiActivity className="text-xl" />}
-                  accentClassName="border-amber-200 bg-gradient-to-br from-amber-50 via-white to-white dark:border-amber-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950/30"
-                  iconClassName="text-amber-700 dark:text-amber-300"
-                  iconBackgroundClassName="bg-amber-100 dark:bg-amber-500/15"
-                  valueClassName="text-amber-700 dark:text-amber-200"
+                  accentClassName="border-brand-200 bg-gradient-to-br from-brand-50 via-white to-white dark:border-brand-500/30 dark:from-panel dark:via-panel dark:to-brand-950/30"
+                  iconClassName="text-brand-700 dark:text-brand-300"
+                  iconBackgroundClassName="bg-brand-100 dark:bg-brand-500/15"
+                  valueClassName="text-brand-700 dark:text-brand-200"
                 />
                 <StatCard
                   title={`Transactions (${periodLabels[timePeriod]})`}
                   value={formatCompactNumber(stats.transaction_count)}
                   delta="Completed transactions"
                   icon={<FiFileText className="text-xl" />}
-                  accentClassName="border-blue-200 bg-gradient-to-br from-blue-50 via-white to-white dark:border-blue-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/30"
-                  iconClassName="text-blue-700 dark:text-blue-300"
-                  iconBackgroundClassName="bg-blue-100 dark:bg-blue-500/15"
-                  valueClassName="text-blue-700 dark:text-blue-200"
+                  accentClassName="border-brand-100 bg-gradient-to-br from-canvas-alt via-white to-white dark:border-brand-400/30 dark:from-panel dark:via-panel dark:to-brand-900/30"
+                  iconClassName="text-brand-800 dark:text-brand-200"
+                  iconBackgroundClassName="bg-brand-50 dark:bg-brand-500/15"
+                  valueClassName="text-brand-800 dark:text-brand-200"
                 />
                 <StatCard
                   title="Last Wallet Topup"
                   value={formatCurrency(stats.last_wallet_topup)}
                   delta="Most recent topup"
                   icon={<FiCreditCard className="text-xl" />}
-                  accentClassName="border-slate-200 bg-gradient-to-br from-slate-50 via-white to-white dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800"
-                  iconClassName="text-slate-700 dark:text-slate-300"
-                  iconBackgroundClassName="bg-slate-100 dark:bg-slate-700/60"
+                  accentClassName="border-brand-100 bg-gradient-to-br from-brand-50 via-white to-white dark:border-brand-500/20 dark:from-panel dark:via-panel dark:to-panel-strong"
+                  iconClassName="text-brand-800 dark:text-brand-200"
+                  iconBackgroundClassName="bg-brand-50 dark:bg-brand-500/12"
                   valueClassName="text-slate-800 dark:text-slate-100"
                 />
               </>
@@ -200,21 +201,21 @@ function Page() {
           >
             {dashboardQuery.isLoading || !stats ? (
               <div className="space-y-5">
-                <div className="h-5 w-40 animate-pulse rounded-full bg-gray-100 dark:bg-slate-800" />
-                <div className="h-14 w-72 animate-pulse rounded-full bg-gray-100 dark:bg-slate-800" />
+                <div className="h-5 w-40 animate-pulse rounded-full bg-gray-100 dark:bg-panel-strong" />
+                <div className="h-14 w-72 animate-pulse rounded-full bg-gray-100 dark:bg-panel-strong" />
                 <div className="grid gap-3 sm:grid-cols-3">
                   {Array.from({ length: 3 }).map((_, index) => (
                     <div
                       key={index}
-                      className="h-24 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800"
+                      className="h-24 animate-pulse rounded-2xl bg-gray-50 dark:bg-panel-strong"
                     />
                   ))}
                 </div>
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="rounded-3xl bg-gradient-to-br from-amber-500 via-amber-400 to-blue-500 p-[1px]">
-                  <div className="rounded-[calc(1.5rem-1px)] bg-white px-6 py-6 dark:bg-slate-950">
+                <div className="rounded-3xl bg-linear-to-br from-brand-700 via-brand-500 to-brand-300 p-px">
+                  <div className="rounded-[calc(1.5rem-1px)] bg-white px-6 py-6 dark:bg-canvas">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-slate-400">
@@ -225,29 +226,41 @@ function Page() {
                         </p>
                       </div>
 
-                      <div className="rounded-2xl bg-amber-100 p-3 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                      <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-500/14 dark:text-brand-200">
                         <FiDollarSign className="text-2xl" />
                       </div>
                     </div>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-2xl bg-amber-50 px-4 py-4 dark:bg-amber-500/10">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-300">
+                      <div className="relative overflow-hidden rounded-2xl bg-brand-50 px-4 py-4 dark:bg-panel-muted">
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-x-0 top-0 h-1 bg-brand-600 dark:bg-brand-400"
+                        />
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
                           Revenue
                         </p>
                         <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
                           {formatCurrency(stats.revenue_made)}
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-blue-50 px-4 py-4 dark:bg-blue-500/10">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700 dark:text-blue-300">
+                      <div className="relative overflow-hidden rounded-2xl bg-brand-100 px-4 py-4 dark:bg-panel-strong">
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-x-0 top-0 h-1 bg-brand-700 dark:bg-brand-500"
+                        />
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-800 dark:text-brand-200">
                           Transactions
                         </p>
                         <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-slate-100">
                           {formatCompactNumber(stats.transaction_count)}
                         </p>
                       </div>
-                      <div className="rounded-2xl bg-slate-50 px-4 py-4 dark:bg-slate-800">
+                      <div className="relative overflow-hidden rounded-2xl bg-slate-50 px-4 py-4 dark:bg-panel-muted">
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-x-0 top-0 h-1 bg-brand-600 dark:bg-brand-400"
+                        />
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600 dark:text-slate-300">
                           Active Period
                         </p>

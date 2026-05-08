@@ -1,6 +1,6 @@
 "use client";
 
-import { FiDownload, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { FiPlus, FiRefreshCw } from "react-icons/fi";
 
 type Props = {
   departments: string[];
@@ -13,7 +13,6 @@ type Props = {
   onNewTransaction: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
-  onExport?: () => void;
 };
 
 function TransactionActionBar({
@@ -27,10 +26,9 @@ function TransactionActionBar({
   onNewTransaction,
   onRefresh,
   isRefreshing = false,
-  onExport,
 }: Props) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 dark:bg-slate-900 dark:border-slate-800">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
         <div>
           <p className="text-sm font-medium text-gray-700 mb-2 dark:text-slate-200">
@@ -39,7 +37,7 @@ function TransactionActionBar({
           <select
             value={selectedDepartment}
             onChange={(event) => onDepartmentChange(event.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm font-medium dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="all">All</option>
             {departments.map((department) => (
@@ -57,7 +55,7 @@ function TransactionActionBar({
           <select
             value={selectedPaymentType}
             onChange={(event) => onPaymentTypeChange(event.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm font-medium dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="all">All</option>
             <option value="cash">Cash</option>
@@ -73,7 +71,7 @@ function TransactionActionBar({
           <select
             value={selectedTimePeriod}
             onChange={(event) => onTimePeriodChange(event.target.value)}
-            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm font-medium dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="today">Today</option>
             <option value="yesterday">Yesterday</option>
@@ -84,7 +82,7 @@ function TransactionActionBar({
 
         <div>
           <button
-            className="w-full md:w-auto bg-blue-700 hover:bg-blue-800 text-white font-medium px-5 py-3 rounded-xl flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-3 font-medium text-white hover:bg-brand-800 md:w-auto"
             onClick={onNewTransaction}
             type="button"
           >
@@ -94,7 +92,7 @@ function TransactionActionBar({
 
         <div>
           <button
-            className="w-full bg-white hover:bg-gray-50 text-gray-900 font-medium px-5 py-3 rounded-xl flex items-center justify-center gap-2 border border-gray-200 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-100 dark:border-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 font-medium text-gray-900 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-100 dark:hover:bg-panel-strong disabled:cursor-not-allowed disabled:opacity-60"
             onClick={onRefresh}
             type="button"
             disabled={!onRefresh || isRefreshing}

@@ -3,6 +3,7 @@
 import { ApiError } from "@/libs/api";
 import { getAdminHospitalOverview } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import { BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatCompactNumber, formatNaira } from "@/libs/helper";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
@@ -106,13 +107,13 @@ function HospitalOverviewPage() {
           ? Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className="h-36 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                className="h-36 animate-pulse rounded-xl border border-line-subtle bg-panel"
               />
             ))
           : stats.map((stat) => (
               <div
                 key={stat.title}
-                className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+                className="rounded-xl border border-line-subtle bg-panel p-5"
               >
                 <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
                   {stat.title}
@@ -130,8 +131,8 @@ function HospitalOverviewPage() {
             ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+        <div className="border-b border-line-subtle p-5">
           <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
             Revenue Trend
           </h2>
@@ -156,21 +157,21 @@ function HospitalOverviewPage() {
                 <Line
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#2563EB"
+                  stroke={BRAND_PRIMARY_CHART_COLOR}
                   strokeWidth={2}
                   dot={{ r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-200 text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-line-subtle text-sm text-gray-500 dark:text-slate-400">
               No revenue trend data available for this hospital yet.
             </div>
           )}
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+      <div className="rounded-xl border border-line-subtle bg-panel p-5">
         <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           Hospital Details
         </h2>

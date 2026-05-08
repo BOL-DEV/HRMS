@@ -31,11 +31,11 @@ function FoReceiptsTable({
   onReject,
 }: Props) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-gray-50 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
               {[
                 "Receipt No",
                 "Patient",
@@ -75,7 +75,7 @@ function FoReceiptsTable({
               rows.map((receipt) => (
                 <tr
                   key={receipt.request_id}
-                  className="border-t border-gray-100 hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                  className="border-t border-gray-100 hover:bg-gray-50 dark:border-line-subtle dark:hover:bg-panel-strong/50"
                 >
                   <td className="whitespace-nowrap px-4 py-4 font-semibold text-gray-900 dark:text-slate-100">
                     {receipt.receipt_no}
@@ -105,7 +105,7 @@ function FoReceiptsTable({
                               : receipt.request_id,
                           )
                         }
-                        className="rounded-lg border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                        className="rounded-xl border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-line-subtle dark:hover:bg-panel-strong"
                         aria-haspopup="true"
                         aria-expanded={openMenu === receipt.request_id}
                         type="button"
@@ -114,7 +114,7 @@ function FoReceiptsTable({
                       </button>
 
                       {openMenu === receipt.request_id ? (
-                        <div className="absolute right-0 z-10 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                        <div className="absolute right-0 z-10 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-line-subtle dark:bg-panel">
                           {[
                             {
                               label: "View Request",
@@ -149,7 +149,7 @@ function FoReceiptsTable({
                                   item.onClick();
                                   onOpenMenu(null);
                                 }}
-                                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-800 hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50 dark:text-slate-200 dark:hover:bg-panel-strong"
                                 aria-label={item.label}
                                 type="button"
                               >

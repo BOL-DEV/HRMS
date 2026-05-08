@@ -60,7 +60,7 @@ function Notification() {
                           onClick={() => toggle(item.key as "email" | "sms" | "push")}
                           className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${
                             notifications[item.key as "email" | "sms" | "push"]
-                              ? "bg-blue-600 justify-end"
+                              ? "bg-brand-600 justify-end"
                               : "bg-gray-300 justify-start"
                           }`}
                           aria-pressed={

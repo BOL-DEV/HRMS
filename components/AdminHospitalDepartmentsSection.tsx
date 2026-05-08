@@ -32,8 +32,8 @@ function AdminHospitalDepartmentsSection({
 }: Props) {
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+        <div className="border-b border-line-subtle p-5">
           <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
             Departments
           </h2>
@@ -42,7 +42,7 @@ function AdminHospitalDepartmentsSection({
           </p>
         </div>
 
-        <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-slate-700 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 border-b border-line-subtle p-5 lg:flex-row lg:items-center lg:justify-between">
           <AdminSearchField
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
@@ -52,7 +52,7 @@ function AdminHospitalDepartmentsSection({
           <button
             type="button"
             onClick={onOpenCreateModal}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             <FiPlus />
             Add Department
@@ -65,7 +65,7 @@ function AdminHospitalDepartmentsSection({
               {Array.from({ length: 6 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-12 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800"
+                  className="h-12 animate-pulse rounded-lg bg-panel-muted"
                 />
               ))}
             </div>
@@ -74,7 +74,7 @@ function AdminHospitalDepartmentsSection({
               {rows.map((department) => (
                 <div
                   key={department.id ?? department.name}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-950"
+                  className="rounded-xl border border-line-subtle bg-panel-muted px-4 py-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <p className="font-semibold text-gray-900 dark:text-slate-100">
@@ -86,7 +86,7 @@ function AdminHospitalDepartmentsSection({
                         <button
                           type="button"
                           onClick={() => onRename(department)}
-                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                          className="rounded-lg border border-line-subtle px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-panel dark:text-slate-200"
                         >
                           Rename
                         </button>
@@ -106,7 +106,7 @@ function AdminHospitalDepartmentsSection({
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-gray-200 px-6 py-10 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+            <div className="rounded-xl border border-dashed border-line-subtle px-6 py-10 text-center text-sm text-gray-500 dark:text-slate-400">
               No departments found for this hospital.
             </div>
           )}

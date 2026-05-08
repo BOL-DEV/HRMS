@@ -16,14 +16,14 @@ function FoTransactionsTable({
   toMethodLabel,
 }: Props) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <h2 className="mb-4 text-lg font-bold dark:text-slate-100">
         Transaction History
       </h2>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
               <th className="p-3 font-semibold">Date/Time</th>
               <th className="p-3 font-semibold">Receipt No</th>
               <th className="p-3 font-semibold">Patient</th>
@@ -57,7 +57,7 @@ function FoTransactionsTable({
               rows.map((item) => (
                 <tr
                   key={item.transaction_id}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-gray-100 dark:border-line-subtle"
                 >
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">
                     {formatDateTime(item.date_time)}

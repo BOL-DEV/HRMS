@@ -32,7 +32,7 @@ function FoReportsSummaryCards({
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900"
+          className="rounded-2xl border border-line-subtle bg-panel p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)]"
         >
           <p className="text-sm font-medium text-gray-500 dark:text-slate-400">
             {card.label}

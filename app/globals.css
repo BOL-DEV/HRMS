@@ -4,12 +4,87 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities"; */
 
+:root {
+  --brand-50: #f0fdfa;
+  --brand-100: #ccfbf1;
+  --brand-200: #99f6e4;
+  --brand-300: #5eead4;
+  --brand-400: #2dd4bf;
+  --brand-500: #14b8a6;
+  --brand-600: #0d9488;
+  --brand-700: #0f766e;
+  --brand-800: #115e59;
+  --brand-900: #134e4a;
+  --brand-950: #042f2e;
+  --surface-canvas: #f5fbfa;
+  --surface-canvas-alt: #edf7f5;
+  --surface-panel: #ffffff;
+  --surface-panel-muted: #f0f7f6;
+  --surface-panel-strong: #dff4f0;
+  --surface-border: #d7ebe6;
+  --surface-border-strong: #9bd9ce;
+  --surface-ring: rgba(20, 184, 166, 0.18);
+}
+
+.dark {
+  --surface-canvas: #030816;
+  --surface-canvas-alt: #0a1325;
+  --surface-panel: #111b31;
+  --surface-panel-muted: #0d1b2f;
+  --surface-panel-strong: #142841;
+  --surface-border: #21415b;
+  --surface-border-strong: #2f6171;
+  --surface-ring: rgba(45, 212, 191, 0.22);
+}
+
+@theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+  --color-canvas: var(--surface-canvas);
+  --color-canvas-alt: var(--surface-canvas-alt);
+  --color-panel: var(--surface-panel);
+  --color-panel-muted: var(--surface-panel-muted);
+  --color-panel-strong: var(--surface-panel-strong);
+  --color-line-subtle: var(--surface-border);
+  --color-line-strong: var(--surface-border-strong);
+}
+
 html,
 body {
   transition:
     background-color 180ms ease,
     color 180ms ease,
     border-color 180ms ease;
+}
+
+body {
+  background-color: var(--surface-canvas);
+}
+
+.dark body {
+  background-image:
+    radial-gradient(circle at top, rgba(20, 184, 166, 0.1), transparent 28%),
+    radial-gradient(circle at 100% 0, rgba(59, 130, 246, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(8, 47, 73, 0.18), transparent 42%);
+}
+
+* {
+  border-color: var(--surface-border);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--surface-ring);
 }
 
 html.dark {

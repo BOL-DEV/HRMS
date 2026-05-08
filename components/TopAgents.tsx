@@ -25,13 +25,13 @@ function TopAgents( ){
               className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
                   {idx + 1}
                 </div>
                 <p className="font-semibold text-gray-900">{agent.name}</p>
               </div>
 
-              <p className="font-bold text-blue-700">
+              <p className="font-bold text-brand-700">
                 {formatCurrency(agent.amount)}
               </p>
             </div>

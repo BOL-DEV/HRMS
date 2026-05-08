@@ -8,7 +8,7 @@ interface Props {
 function TagPill({ label, tone = "default" }: Props) {
   const className =
     tone === "info"
-      ? "bg-blue-100 border border-blue-200 text-blue-700 dark:bg-sky-500/15 dark:border-sky-500/20 dark:text-sky-300"
+      ? "border border-brand-200 bg-brand-100 text-brand-700 dark:border-brand-500/20 dark:bg-brand-500/15 dark:text-brand-300"
       : "bg-white border border-gray-200 text-gray-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100";
 
   return (

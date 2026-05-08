@@ -32,8 +32,8 @@ function AdminHospitalAgentsListSection({
   onView,
 }: Props) {
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-slate-700 md:flex-row md:items-center md:justify-between">
+    <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+      <div className="flex flex-col gap-4 border-b border-line-subtle p-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
             Hospital Agents
@@ -46,14 +46,14 @@ function AdminHospitalAgentsListSection({
         <button
           type="button"
           onClick={onOpenCreateModal}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           <FiUserPlus />
           Add Agent
         </button>
       </div>
 
-      <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="border-b border-line-subtle p-5">
         <AdminSearchField
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
@@ -64,7 +64,7 @@ function AdminHospitalAgentsListSection({
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Name</th>
               <th className="p-3 font-semibold">Email</th>
               <th className="p-3 font-semibold">Balance</th>
@@ -80,10 +80,10 @@ function AdminHospitalAgentsListSection({
               ? Array.from({ length: 6 }).map((_, index) => (
                   <tr
                     key={index}
-                    className="border-b border-gray-100 dark:border-slate-800"
+                    className="border-b border-line-subtle"
                   >
                     <td colSpan={8} className="p-3">
-                      <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
+                      <div className="h-10 animate-pulse rounded-lg bg-panel-muted" />
                     </td>
                   </tr>
                 ))
@@ -101,7 +101,7 @@ function AdminHospitalAgentsListSection({
                 : rows.map((agent) => (
                     <tr
                       key={agent.agent_id}
-                      className="border-b border-gray-100 dark:border-slate-800"
+                      className="border-b border-line-subtle"
                     >
                       <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                         {agent.agent_name}
@@ -118,7 +118,7 @@ function AdminHospitalAgentsListSection({
                       <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                         {formatNaira(agent.last_wallet_topup ?? 0)}
                       </td>
-                      <td className="p-3 font-semibold text-blue-700 dark:text-sky-300">
+                      <td className="p-3 font-semibold text-brand-700 dark:text-brand-300">
                         {formatNaira(agent.total_revenue_made)}
                       </td>
                       <td className="p-3">
@@ -129,7 +129,7 @@ function AdminHospitalAgentsListSection({
                           <button
                             type="button"
                             onClick={() => onView(agent)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-line-subtle px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-panel-muted dark:text-slate-200"
                           >
                             <FiEye />
                             View
@@ -137,14 +137,14 @@ function AdminHospitalAgentsListSection({
                           <button
                             type="button"
                             onClick={() => onEdit(agent)}
-                            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                            className="rounded-lg border border-line-subtle px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-panel-muted dark:text-slate-200"
                           >
                             Edit
                           </button>
                           <button
                             type="button"
                             onClick={() => onTopUp(agent)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-500/30 dark:text-brand-300 dark:hover:bg-brand-500/10"
                           >
                             <FiCreditCard />
                             Top Up
@@ -152,7 +152,7 @@ function AdminHospitalAgentsListSection({
                           <button
                             type="button"
                             onClick={() => onToggleStatus(agent)}
-                            className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
+                            className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-500/40 dark:text-brand-300 dark:hover:bg-brand-500/10"
                           >
                             {agent.status === "suspended"
                               ? "Reactivate"
