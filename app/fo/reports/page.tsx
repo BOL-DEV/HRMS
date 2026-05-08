@@ -294,7 +294,7 @@ function Page() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-white dark:bg-slate-950">
+    <div className="w-full min-h-screen bg-canvas">
       <Header
         title="Reports"
         Subtitle="Analyze hospital revenue and transaction performance"
@@ -303,7 +303,7 @@ function Page() {
             <button
               type="button"
               onClick={handlePrintReport}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
             >
               <FiPrinter />
               Print
@@ -311,7 +311,7 @@ function Page() {
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
             >
               <FiDownload />
               Export Report
@@ -389,7 +389,7 @@ function Page() {
 
         {pagination ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel dark:text-slate-300">
               Showing {detailedReport.length} transaction
               {detailedReport.length === 1 ? "" : "s"} on this page. Total
               matching transactions:{" "}
@@ -397,7 +397,7 @@ function Page() {
                 pagination.total_transactions}
               .
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
               <AdminPaginationFooter
                 currentPage={pagination.current_page}
                 totalPages={pagination.total_pages}

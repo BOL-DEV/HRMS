@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import StatusPill from "@/components/StatusPill";
 import {
   CartesianGrid,
@@ -44,8 +45,8 @@ function AgentProfileModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40">
-      <div className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl dark:bg-slate-900">
-        <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl dark:bg-panel">
+        <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-line-subtle">
           <div>
             <h2 className="text-xl font-bold dark:text-slate-100">
               Agent Profile
@@ -64,7 +65,7 @@ function AgentProfileModal({
         </div>
 
         <div className="space-y-6 p-5">
-          <div className="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 p-4 dark:border-slate-700 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 rounded-2xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted md:grid-cols-3">
             <div className="space-y-1">
               <p className="text-sm text-gray-500 dark:text-slate-400">Name</p>
               <p className="text-base font-semibold text-gray-900 dark:text-slate-100">
@@ -107,7 +108,7 @@ function AgentProfileModal({
             ].map((card) => (
               <div
                 key={card.label}
-                className="rounded-xl border border-gray-200 p-4 dark:border-slate-700"
+                className="rounded-2xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted"
               >
                 <p className="text-sm text-gray-600 dark:text-slate-400">
                   {card.label}
@@ -120,7 +121,7 @@ function AgentProfileModal({
           </div>
 
           {trend.length ? (
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
+            <div className="rounded-2xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
               <h3 className="text-lg font-semibold dark:text-slate-100">
                 Monthly Revenue Trend
               </h3>
@@ -151,7 +152,7 @@ function AgentProfileModal({
                     <Line
                       type="monotone"
                       dataKey="amount"
-                      stroke="#2563EB"
+                      stroke={BRAND_PRIMARY_CHART_COLOR}
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
@@ -162,11 +163,11 @@ function AgentProfileModal({
           ) : null}
 
           {patients.length ? (
-            <div className="rounded-xl border border-gray-200 p-4 dark:border-slate-700">
+            <div className="rounded-2xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
               <h3 className="mb-3 text-lg font-semibold dark:text-slate-100">
                 Top Patients
               </h3>
-              <div className="divide-y divide-gray-100 dark:divide-slate-800">
+              <div className="divide-y divide-gray-100 dark:divide-line-subtle">
                 {patients.map((patient) => (
                   <div
                     key={patient.name}
@@ -175,7 +176,7 @@ function AgentProfileModal({
                     <p className="font-medium text-gray-900 dark:text-slate-100">
                       {patient.name}
                     </p>
-                    <p className="font-semibold text-blue-700 dark:text-blue-300">
+                    <p className="font-semibold text-brand-700 dark:text-brand-300">
                       {usd(patient.revenue)}
                     </p>
                   </div>

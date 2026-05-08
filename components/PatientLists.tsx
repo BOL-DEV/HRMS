@@ -92,7 +92,7 @@ function PatientLists() {
                 <h2 className="text-lg font-bold text-gray-900">Patients</h2>
                 <button
                             onClick={() => setShowAddPatient(true)}
-                            className="bg-blue-700 hover:bg-blue-800 text-white font-medium px-5 py-3 rounded-xl flex items-center gap-2"
+                            className="flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-3 font-medium text-white hover:bg-brand-800"
                           >
                             <FiPlus className="text-lg" /> Add Patient
                           </button>

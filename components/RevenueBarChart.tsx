@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_CHART_PALETTE, BRAND_PERIOD_COLORS, BRAND_WEEKDAY_COLORS } from "@/libs/brand";
 import { RevenueChartDatum } from "@/libs/type";
 import {
   Bar,
@@ -19,32 +20,6 @@ interface Props {
   emptyMessage?: string;
 }
 
-const chartPalette = [
-  "#dc2626",
-  "#ec4899",
-  "#14b8a6",
-  "#6366f1",
-  "#f59e0b",
-  "#0ea5e9",
-  "#8b5cf6",
-];
-
-const labelColorMap: Record<string, string> = {
-  today: "#dc2626",
-  yesterday: "#ec4899",
-  "this week": "#14b8a6",
-  "current week": "#14b8a6",
-  "this month": "#6366f1",
-  "this year": "#f59e0b",
-  mon: "#2563eb",
-  tue: "#7c3aed",
-  wed: "#ec4899",
-  thu: "#f97316",
-  fri: "#14b8a6",
-  sat: "#eab308",
-  sun: "#ef4444",
-};
-
 function RevenueBarChart({
   title,
   subtitle,
@@ -55,13 +30,14 @@ function RevenueBarChart({
     ...item,
     fill:
       item.color ??
-      labelColorMap[item.name.trim().toLowerCase()] ??
-      chartPalette[index % chartPalette.length],
+      BRAND_PERIOD_COLORS[item.name.trim().toLowerCase()] ??
+      BRAND_WEEKDAY_COLORS[item.name.trim().toLowerCase()] ??
+      BRAND_CHART_PALETTE[index % BRAND_CHART_PALETTE.length],
   }));
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.05)] dark:border-slate-700 dark:bg-slate-900">
-      <div className="p-5 border-b border-gray-200 dark:border-slate-700">
+    <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel shadow-[0_16px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
+      <div className="border-b border-line-subtle p-5 dark:border-line-subtle">
         <h2 className="text-xl font-bold">{title}</h2>
         <p className="text-sm text-gray-600 dark:text-slate-400">{subtitle}</p>
       </div>

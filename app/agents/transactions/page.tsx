@@ -137,7 +137,7 @@ function Page() {
         : null;
 
   return (
-    <div className="min-h-screen w-full bg-gray-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto">
+    <div className="min-h-screen w-full overflow-y-auto bg-canvas text-slate-900 dark:text-slate-100">
       <Header
         title="Transactions"
         Subtitle="Review processed payments, filters, and receipt history"
@@ -165,7 +165,6 @@ function Page() {
           onNewTransaction={() => setOpenNewTransaction(true)}
           onRefresh={() => transactionsQuery.refetch()}
           isRefreshing={transactionsQuery.isFetching}
-          onExport={() => window.print()}
         />
 
         {statusMessage ? (
@@ -179,7 +178,7 @@ function Page() {
             ? Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-32 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900/40"
+                  className="h-32 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-line-subtle dark:bg-panel"
                 />
               ))
             : stats.map((s) => (
@@ -192,7 +191,7 @@ function Page() {
               ))}
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
           <TransactionList
             rows={rows}
             totalCount={pagination?.total_transactions ?? 0}
@@ -201,7 +200,7 @@ function Page() {
         </div>
 
         {pagination ? (
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm text-gray-600 dark:text-slate-300">
               Page {pagination.current_page} of {pagination.total_pages}
             </p>
@@ -211,7 +210,7 @@ function Page() {
                 type="button"
                 disabled={!pagination.has_previous}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 Previous
               </button>
@@ -219,7 +218,7 @@ function Page() {
                 type="button"
                 disabled={!pagination.has_next}
                 onClick={() => setPage((current) => current + 1)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 Next
               </button>

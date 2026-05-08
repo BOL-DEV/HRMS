@@ -29,7 +29,7 @@ function TransactionList({
 }: Props) {
   return (
     <div className="overflow-x-auto">
-      <div className="p-5 border-b border-gray-200 dark:border-slate-800">
+      <div className="border-b border-gray-200 p-5 dark:border-line-subtle">
         <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
           All Transactions
         </h2>
@@ -40,7 +40,7 @@ function TransactionList({
 
       <table className="min-w-195 w-full text-sm">
         <thead>
-          <tr className="text-left text-gray-600 bg-gray-100 dark:text-slate-300 dark:bg-slate-950">
+          <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
             <th className="p-3 font-semibold">Patient</th>
             <th className="p-3 font-semibold">Phone</th>
             <th className="p-3 font-semibold">Receipt No</th>
@@ -70,7 +70,7 @@ function TransactionList({
             rows.map((t) => (
               <tr
                 key={t.id}
-                className="border-b border-gray-100 dark:border-slate-800/60"
+                className="border-b border-gray-100 dark:border-line-subtle"
               >
                 <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                   {t.patientName}
@@ -94,7 +94,7 @@ function TransactionList({
                   <TagPill label={t.paymentType.toUpperCase()} tone="info" />
                 </td>
                 <td className="p-3">
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:bg-panel-strong dark:text-slate-200">
                     {t.status}
                   </span>
                 </td>

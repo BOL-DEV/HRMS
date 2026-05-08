@@ -136,7 +136,7 @@ function Page() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Hospitals"
         Subtitle="Manage registered hospitals across the platform"
@@ -144,7 +144,7 @@ function Page() {
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             Add Hospital
           </button>

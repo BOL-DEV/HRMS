@@ -24,7 +24,7 @@ function RecentTransactions({
     >
         <table className="min-w-195 w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-left text-xs uppercase tracking-[0.14em] text-gray-500 dark:bg-slate-800/70 dark:text-slate-400">
+            <tr className="bg-gray-50 text-left text-xs uppercase tracking-[0.14em] text-gray-500 dark:bg-panel-strong/70 dark:text-slate-400">
               <th className="px-5 py-3 font-semibold">Patient</th>
               <th className="px-5 py-3 font-semibold">Patient ID</th>
               <th className="px-5 py-3 font-semibold">Bill</th>
@@ -39,10 +39,10 @@ function RecentTransactions({
               Array.from({ length: 5 }).map((_, index) => (
                 <tr
                   key={index}
-                  className="border-t border-gray-100 dark:border-slate-800"
+                  className="border-t border-gray-100 dark:border-line-subtle"
                 >
                   <td className="px-5 py-4" colSpan={7}>
-                    <div className="h-4 w-full animate-pulse rounded-full bg-gray-100 dark:bg-slate-800" />
+                    <div className="h-4 w-full animate-pulse rounded-full bg-gray-100 dark:bg-panel-strong" />
                   </td>
                 </tr>
               ))
@@ -59,7 +59,7 @@ function RecentTransactions({
               rows.map((tx) => (
                 <tr
                   key={`${tx.patientId}-${tx.createdAt}-${tx.billName}`}
-                  className="border-t border-gray-100 dark:border-slate-800"
+                  className="border-t border-gray-100 dark:border-line-subtle"
                 >
                   <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-slate-100">
                     {tx.patientName}
@@ -77,7 +77,7 @@ function RecentTransactions({
                     {formatCurrency(tx.amount)}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700 dark:bg-slate-800 dark:text-slate-200">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-700 dark:bg-panel-strong dark:text-slate-200">
                       {tx.status}
                     </span>
                   </td>

@@ -15,8 +15,8 @@ function getStatusLabel(status: AdminHospitalListItem["status"]) {
 
 function AdminHospitalsTable({ rows, isLoading = false, onEdit }: Props) {
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-      <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+    <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+      <div className="border-b border-line-subtle p-5">
         <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           Hospitals List
         </h2>
@@ -28,7 +28,7 @@ function AdminHospitalsTable({ rows, isLoading = false, onEdit }: Props) {
       <div className="overflow-x-auto p-5">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Hospital Name</th>
               <th className="p-3 font-semibold">Code</th>
               <th className="p-3 font-semibold">Email</th>
@@ -47,10 +47,10 @@ function AdminHospitalsTable({ rows, isLoading = false, onEdit }: Props) {
               Array.from({ length: 6 }).map((_, index) => (
                 <tr
                   key={index}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-line-subtle"
                 >
                   <td colSpan={10} className="p-3">
-                    <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
+                    <div className="h-10 animate-pulse rounded-lg bg-panel-muted" />
                   </td>
                 </tr>
               ))
@@ -67,7 +67,7 @@ function AdminHospitalsTable({ rows, isLoading = false, onEdit }: Props) {
               rows.map((hospital) => (
                 <tr
                   key={hospital.hospital_id}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-line-subtle"
                 >
                   <td className="whitespace-nowrap p-3 font-semibold text-gray-900 dark:text-slate-100">
                     <Link
@@ -95,7 +95,7 @@ function AdminHospitalsTable({ rows, isLoading = false, onEdit }: Props) {
                   <td className="p-3 text-gray-700 dark:text-slate-300">
                     {hospital.transaction_count}
                   </td>
-                  <td className="whitespace-nowrap p-3 font-semibold text-blue-700 dark:text-sky-300">
+                  <td className="whitespace-nowrap p-3 font-semibold text-brand-700 dark:text-brand-300">
                     {formatNaira(hospital.total_revenue)}
                   </td>
                   <td className="p-3">
@@ -106,13 +106,13 @@ function AdminHospitalsTable({ rows, isLoading = false, onEdit }: Props) {
                       <button
                         type="button"
                         onClick={() => onEdit(hospital)}
-                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                        className="rounded-lg border border-line-subtle px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-panel-muted dark:text-slate-200"
                       >
                         Edit
                       </button>
                       <Link
                         href={`/admin/hospitals/${hospital.hospital_id}`}
-                        className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 dark:border-sky-500/40 dark:text-sky-300 dark:hover:bg-sky-500/10"
+                        className="rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-500/40 dark:text-brand-300 dark:hover:bg-brand-500/10"
                       >
                         Open
                       </Link>

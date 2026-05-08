@@ -33,7 +33,7 @@ function FoReceiptsSummaryCards({ summary, isLoading = false }: Props) {
       {metrics.map((metric) => (
         <div
           key={metric.label}
-          className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+          className="flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel"
         >
           <p className="text-sm text-gray-600 dark:text-slate-400">
             {metric.label}

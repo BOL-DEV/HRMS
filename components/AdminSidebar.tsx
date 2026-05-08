@@ -100,12 +100,12 @@ const AdminSidebar = () => {
       {isOpen ? (
         <IoMdClose
           onClick={toggleSidebar}
-          className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-45 top-7 z-50 dark:bg-slate-800 dark:text-slate-200"
+          className="fixed left-45 top-7 z-50 inline-flex items-center justify-center rounded-xl border border-line-subtle bg-panel p-2 text-4xl text-gray-700 shadow md:hidden dark:bg-panel-strong dark:text-slate-100"
         />
       ) : (
         <RxHamburgerMenu
           onClick={toggleSidebar}
-          className="inline-flex items-center justify-center rounded-lg bg-white p-2 text-4xl text-gray-700 shadow md:hidden fixed left-4 top-5 z-50 dark:bg-slate-800 dark:text-slate-200"
+          className="fixed left-4 top-5 z-50 inline-flex items-center justify-center rounded-xl border border-line-subtle bg-panel p-2 text-4xl text-gray-700 shadow md:hidden dark:bg-panel-strong dark:text-slate-100"
         />
       )}
 

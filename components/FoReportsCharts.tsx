@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_CHART_PALETTE, BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatNaira } from "@/libs/helper";
 import {
   Bar,
@@ -34,7 +35,7 @@ type Props = {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 px-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+    <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 px-6 text-center text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
       {message}
     </div>
   );
@@ -48,7 +49,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <h2 className="mb-2 text-lg font-bold dark:text-slate-100">{title}</h2>
       {children}
     </div>
@@ -95,7 +96,7 @@ function FoReportsCharts({
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#2563EB"
+                    stroke={BRAND_PRIMARY_CHART_COLOR}
                     strokeWidth={2}
                     dot={{ r: 4 }}
                   />
@@ -133,7 +134,7 @@ function FoReportsCharts({
                     axisLine={{ stroke: "currentColor" }}
                     tickLine={{ stroke: "currentColor" }}
                   />
-                  <Bar dataKey="value" fill="#22C55E" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="value" fill={BRAND_CHART_PALETTE[0]} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -161,9 +162,7 @@ function FoReportsCharts({
                       <Cell
                         key={entry.name}
                         fill={
-                          ["#F59E0B", "#22C55E", "#6366F1", "#F97316", "#3B82F6"][
-                            idx % 5
-                          ]
+                          BRAND_CHART_PALETTE[idx % BRAND_CHART_PALETTE.length]
                         }
                       />
                     ))}
@@ -206,7 +205,7 @@ function FoReportsCharts({
                     axisLine={{ stroke: "currentColor" }}
                     tickLine={{ stroke: "currentColor" }}
                   />
-                  <Bar dataKey="value" fill="#3B82F6" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="value" fill={BRAND_CHART_PALETTE[2]} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

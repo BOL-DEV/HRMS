@@ -115,7 +115,7 @@ export default function HospitalActivityLogsPage() {
         <AdminPageError message={logsQuery.error.message} />
       ) : null}
 
-      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+      <div className="rounded-xl border border-line-subtle bg-panel p-5">
         <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
           Total Logs
         </p>
@@ -127,8 +127,8 @@ export default function HospitalActivityLogsPage() {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+        <div className="border-b border-line-subtle p-5">
           <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
             Activity Timeline
           </h2>
@@ -161,7 +161,7 @@ export default function HospitalActivityLogsPage() {
                     event.target.value as (typeof ACTION_OPTIONS)[number]["value"],
                   )
                 }
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
               >
                 {ACTION_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>

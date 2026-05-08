@@ -82,26 +82,26 @@ function FoReportsFilterPanel({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 dark:border-slate-700 dark:bg-slate-900">
+    <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           onClick={() => applyRange(getTodayRange())}
-          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-line-subtle dark:text-slate-300 dark:hover:border-brand-500/50 dark:hover:bg-panel-strong dark:hover:text-brand-200"
         >
           Today
         </button>
         <button
           type="button"
           onClick={() => applyRange(getLastSevenDaysRange())}
-          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-line-subtle dark:text-slate-300 dark:hover:border-brand-500/50 dark:hover:bg-panel-strong dark:hover:text-brand-200"
         >
           Last 7 Days
         </button>
         <button
           type="button"
           onClick={() => applyRange(getThisMonthRange())}
-          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+          className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-line-subtle dark:text-slate-300 dark:hover:border-brand-500/50 dark:hover:bg-panel-strong dark:hover:text-brand-200"
         >
           This Month
         </button>
@@ -115,7 +115,7 @@ function FoReportsFilterPanel({
           <select
             value={department}
             onChange={(e) => onDepartmentChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="All">All</option>
             {departmentOptions.map((item) => (
@@ -133,7 +133,7 @@ function FoReportsFilterPanel({
           <select
             value={incomeHead}
             onChange={(e) => onIncomeHeadChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="All">All</option>
             {incomeHeadOptions.map((item) => (
@@ -151,7 +151,7 @@ function FoReportsFilterPanel({
           <select
             value={agent}
             onChange={(e) => onAgentChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="All">All</option>
             {agentOptions.map((item) => (
@@ -171,7 +171,7 @@ function FoReportsFilterPanel({
             onChange={(e) =>
               onPaymentMethodChange(e.target.value as PaymentMethod | "All")
             }
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           >
             <option value="All">All Methods</option>
             <option value="Cash">Cash</option>
@@ -188,7 +188,7 @@ function FoReportsFilterPanel({
             type="date"
             value={startDate}
             onChange={(e) => onStartDateChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           />
         </div>
 
@@ -201,7 +201,7 @@ function FoReportsFilterPanel({
             value={endDate}
             min={startDate}
             onChange={(e) => onEndDateChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           />
         </div>
       </div>
@@ -212,7 +212,7 @@ function FoReportsFilterPanel({
             type="button"
             onClick={onViewAllReports}
             disabled={isViewAllDisabled}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
           >
             View All Reports
           </button>

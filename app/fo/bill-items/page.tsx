@@ -241,7 +241,7 @@ function Page() {
 
   if (isManualHospital) {
     return (
-      <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+      <div className="min-h-screen w-full bg-canvas">
         <Header
           title="Bill Items"
           Subtitle="Bill items are only available for hospitals on automatic revenue type"
@@ -257,7 +257,7 @@ function Page() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Bill Items"
         Subtitle="Create and maintain FO bill items for automatic revenue hospitals"
@@ -268,7 +268,7 @@ function Page() {
               setModalDepartmentId("");
               setIsCreateOpen(true);
             }}
-            className="hidden rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 md:block"
+            className="hidden rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 md:block"
           >
             Add Bill Item
           </button>
@@ -283,7 +283,7 @@ function Page() {
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Total Bill Items
             </p>
@@ -292,7 +292,7 @@ function Page() {
             </h2>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Active On This View
             </p>
@@ -301,7 +301,7 @@ function Page() {
             </h2>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Total Listed Value
             </p>
@@ -311,7 +311,7 @@ function Page() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <AdminSearchField
               value={search}
@@ -331,7 +331,7 @@ function Page() {
                   setIncomeHeadId("All");
                   setPage(1);
                 }}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
               >
                 <option value="All">All Departments</option>
                 {departmentOptions.map((option) => (
@@ -348,7 +348,7 @@ function Page() {
                   setPage(1);
                 }}
                 disabled={departmentId === "All"}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100 dark:disabled:bg-panel-strong"
               >
                 <option value="All">
                   {departmentId === "All"
@@ -368,7 +368,7 @@ function Page() {
                   setModalDepartmentId("");
                   setIsCreateOpen(true);
                 }}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 md:hidden"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 md:hidden"
               >
                 Add Bill Item
               </button>
@@ -386,7 +386,7 @@ function Page() {
         />
 
         {pagination ? (
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm text-gray-600 dark:text-slate-300">
               Page {pagination.page} of {pagination.total_pages}
             </p>
@@ -396,7 +396,7 @@ function Page() {
                 type="button"
                 disabled={!pagination.has_previous_page}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 Previous
               </button>
@@ -404,7 +404,7 @@ function Page() {
                 type="button"
                 disabled={!pagination.has_next_page}
                 onClick={() => setPage((current) => current + 1)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 Next
               </button>

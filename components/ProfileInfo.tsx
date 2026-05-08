@@ -16,10 +16,10 @@ function ProfileInfo({ profile }: Props) {
   const roleLabel = profile.role === "FO" ? "financial office" : "agent";
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex gap-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-orange-700 dark:bg-orange-500/15 dark:text-orange-300">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-xl font-bold text-orange-700 dark:bg-brand-500/15 dark:text-brand-200">
             {initials}
           </div>
 
@@ -47,7 +47,7 @@ function ProfileInfo({ profile }: Props) {
             isAgentProfile ? "sm:grid-cols-2 lg:w-136" : "sm:grid-cols-2 lg:w-112"
           }`}
         >
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-line-subtle dark:bg-panel-muted">
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
               Hospital
             </p>
@@ -59,7 +59,7 @@ function ProfileInfo({ profile }: Props) {
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-line-subtle dark:bg-panel-muted">
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
               Account Status
             </p>
@@ -73,7 +73,7 @@ function ProfileInfo({ profile }: Props) {
 
           {isAgentProfile ? (
             <>
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-line-subtle dark:bg-panel-muted">
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
                   Wallet Balance
                 </p>
@@ -85,7 +85,7 @@ function ProfileInfo({ profile }: Props) {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-line-subtle dark:bg-panel-muted">
                 <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
                   Last Wallet Update
                 </p>
@@ -98,7 +98,7 @@ function ProfileInfo({ profile }: Props) {
               </div>
             </>
           ) : (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800 sm:col-span-2">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-line-subtle dark:bg-panel-muted sm:col-span-2">
               <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
                 Last Activity
               </p>

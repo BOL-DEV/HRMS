@@ -126,7 +126,7 @@ function Page() {
   const summary = agentsQuery.data?.data.summary;
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 dark:bg-slate-950">
+    <div className="w-full min-h-screen bg-canvas">
       <Header
         title="Agents"
         Subtitle="Manage agents and monitor performance"

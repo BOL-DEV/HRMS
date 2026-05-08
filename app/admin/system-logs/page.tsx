@@ -128,7 +128,7 @@ export default function Page() {
   const hospitals = optionsQuery.data?.data.hospitals ?? [];
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="System Logs"
         Subtitle="Platform-wide audit logs for admin, FO, and agent activity"
@@ -139,7 +139,7 @@ export default function Page() {
           <AdminPageError message={logsQuery.error.message} />
         ) : null}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-xl border border-line-subtle bg-panel p-5">
           <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
             Total Logs
           </p>
@@ -148,8 +148,8 @@ export default function Page() {
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+        <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+          <div className="border-b border-line-subtle p-5">
             <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
               Platform Activity
             </h2>
@@ -168,11 +168,11 @@ export default function Page() {
             isInvalid={dateRangeIsInvalid}
           />
 
-          <div className="flex flex-col gap-4 border-b border-gray-200 p-5 dark:border-slate-700 md:flex-row md:items-center">
+          <div className="flex flex-col gap-4 border-b border-line-subtle p-5 md:flex-row md:items-center">
             <select
               value={hospitalIdInput}
               onChange={(event) => setHospitalIdInput(event.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              className="rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
             >
               <option value="all">All Hospitals</option>
               {hospitals.map((hospital) => (
@@ -193,7 +193,7 @@ export default function Page() {
                     | "AGENT",
                 )
               }
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+              className="rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
             >
               <option value="all">All Roles</option>
               <option value="PLATFORM_ADMIN">Platform Admin</option>
@@ -205,7 +205,7 @@ export default function Page() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+                <tr className="bg-panel-muted text-left text-slate-600 dark:text-slate-300">
                   <th className="p-3 font-semibold">Hospital</th>
                   <th className="p-3 font-semibold">Username</th>
                   <th className="p-3 font-semibold">Email</th>
@@ -221,10 +221,10 @@ export default function Page() {
                   Array.from({ length: 6 }).map((_, index) => (
                     <tr
                       key={index}
-                      className="border-b border-gray-100 dark:border-slate-800"
+                      className="border-b border-line-subtle"
                     >
                       <td colSpan={8} className="p-3">
-                        <div className="h-10 animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
+                        <div className="h-10 animate-pulse rounded-lg bg-panel-muted" />
                       </td>
                     </tr>
                   ))
@@ -241,7 +241,7 @@ export default function Page() {
                   rows.map((log) => (
                     <tr
                       key={log.log_id}
-                      className="border-b border-gray-100 dark:border-slate-800"
+                      className="border-b border-line-subtle"
                     >
                       <td className="p-3 text-gray-700 dark:text-slate-300">
                         {log.hospital?.hospital_name ?? "Platform"}

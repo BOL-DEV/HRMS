@@ -56,7 +56,7 @@ function Page() {
   const pagination = receiptsQuery.data?.data.pagination;
 
   return (
-    <div className="min-h-screen w-full bg-gray-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto">
+    <div className="min-h-screen w-full overflow-y-auto bg-canvas text-slate-900 dark:text-slate-100">
       <Header title="Receipts" Subtitle="View and reprint patient receipts" />
 
       <div className="p-6 space-y-6">
@@ -76,7 +76,6 @@ function Page() {
             setTimePeriod(value);
             setPage(1);
           }}
-          onExport={() => window.print()}
         />
 
         {receiptsQuery.error instanceof Error ? (
@@ -92,7 +91,7 @@ function Page() {
         />
 
         {pagination ? (
-          <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm text-gray-600 dark:text-slate-300">
               Page {pagination.current_page} of {pagination.total_pages}
             </p>
@@ -102,7 +101,7 @@ function Page() {
                 type="button"
                 disabled={!pagination.has_previous}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 Previous
               </button>
@@ -110,7 +109,7 @@ function Page() {
                 type="button"
                 disabled={!pagination.has_next}
                 onClick={() => setPage((current) => current + 1)}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 Next
               </button>

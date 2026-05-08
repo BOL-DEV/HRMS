@@ -90,12 +90,12 @@ export default function HospitalLayout({
   const hospital = overviewQuery.data?.data.hospital;
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
-      <div className="border-b border-blue-100 bg-blue-50 dark:border-sky-500/10 dark:bg-sky-950/20">
+    <div className="min-h-screen w-full bg-canvas">
+      <div className="border-b border-brand-100 bg-brand-50 dark:border-line-subtle dark:bg-[linear-gradient(180deg,rgba(8,47,73,0.16),rgba(17,27,49,0.92))]">
         <div className="px-6 pb-6 pt-4">
           <Link
             href="/admin/hospitals"
-            className="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-sky-300"
+            className="inline-flex items-center gap-2 text-sm text-brand-600 dark:text-brand-300"
           >
             <FiArrowLeft />
             <span>Back to Hospitals</span>
@@ -103,7 +103,7 @@ export default function HospitalLayout({
 
           <div className="mt-3 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
-              <h1 className="truncate text-4xl font-bold text-gray-900 dark:text-slate-100">
+              <h1 className="truncate text-4xl font-bold text-slate-900 dark:text-slate-100">
                 {hospital?.hospital_name ?? "Hospital"}
               </h1>
               <p className="mt-1 text-gray-600 dark:text-slate-400">
@@ -124,7 +124,7 @@ export default function HospitalLayout({
       </div>
 
       <div className="px-6">
-        <div className="mt-4 flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-slate-900">
+        <div className="mt-4 flex flex-wrap gap-1 rounded-2xl border border-line-subtle bg-panel/70 p-1.5 backdrop-blur-sm">
           {tabs.map((tab) => {
             const href = tab.href(id);
             const active = pathname === href;
@@ -135,8 +135,8 @@ export default function HospitalLayout({
                 href={href}
                 className={
                   active
-                    ? "rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
-                    : "rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-100"
+                    ? "rounded-xl bg-panel px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm dark:bg-panel-strong dark:text-slate-100"
+                    : "rounded-xl px-4 py-2 text-sm font-semibold text-gray-700 hover:text-gray-900 dark:text-slate-300 dark:hover:bg-panel-muted dark:hover:text-slate-100"
                 }
               >
                 {tab.label}

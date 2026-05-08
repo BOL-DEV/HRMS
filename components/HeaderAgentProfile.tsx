@@ -96,8 +96,8 @@ export default function HeaderAgentProfile() {
         <h1 className="mr-2 hidden text-sm font-medium text-gray-900 md:block dark:text-slate-200">
           {fallbackLabel}
         </h1>
-        <span className="rounded-full bg-blue-200 p-3 dark:bg-sky-500/15">
-          <FaUser className="text-lg text-blue-500 dark:text-sky-300" />
+        <span className="rounded-full bg-brand-100 p-3 dark:bg-brand-500/15">
+          <FaUser className="text-lg text-brand-500 dark:text-brand-300" />
         </span>
       </div>
     );
@@ -113,8 +113,8 @@ export default function HeaderAgentProfile() {
         <h1 className="hidden text-sm font-medium text-gray-900 md:block dark:text-slate-200">
           {displayName ?? (profileQuery.isLoading ? "Loading..." : fallbackLabel)}
         </h1>
-        <span className="rounded-full bg-blue-200 p-3 dark:bg-sky-500/15">
-          <FaUser className="text-lg text-blue-500 dark:text-sky-300" />
+        <span className="rounded-full bg-brand-100 p-3 dark:bg-brand-500/15">
+          <FaUser className="text-lg text-brand-500 dark:text-brand-300" />
         </span>
         <FiChevronDown className="hidden text-gray-500 md:block dark:text-slate-400" />
       </button>

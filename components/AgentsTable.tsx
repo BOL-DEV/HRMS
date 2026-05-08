@@ -57,7 +57,7 @@ function AgentsTable({
                   <td className="p-3 text-gray-700 dark:text-slate-300">
                     {row.transactions}
                   </td>
-                  <td className="p-3 font-semibold text-blue-700 dark:text-blue-300">
+                  <td className="p-3 font-semibold text-brand-700 dark:text-brand-300">
                     {formatNaira(row.revenue)}
                   </td>
                   <td className="whitespace-nowrap p-3 text-gray-700 dark:text-slate-300">

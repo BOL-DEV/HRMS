@@ -82,15 +82,15 @@ type Props = {
 function AdminHospitalActivityTimeline({ rows, isLoading = false }: Props) {
   return (
     <div className="p-5">
-      <div className="divide-y divide-blue-100 dark:divide-slate-800">
+      <div className="divide-y divide-line-subtle">
         {isLoading
           ? Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="flex gap-4 py-5">
-                <div className="h-8 w-8 animate-pulse rounded-full bg-blue-100 dark:bg-slate-800" />
+                <div className="h-8 w-8 animate-pulse rounded-full bg-panel-muted" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-48 animate-pulse rounded bg-gray-100 dark:bg-slate-800" />
-                  <div className="h-3 w-72 animate-pulse rounded bg-gray-100 dark:bg-slate-800" />
-                  <div className="h-3 w-60 animate-pulse rounded bg-gray-100 dark:bg-slate-800" />
+                  <div className="h-4 w-48 animate-pulse rounded bg-panel-muted" />
+                  <div className="h-3 w-72 animate-pulse rounded bg-panel-muted" />
+                  <div className="h-3 w-60 animate-pulse rounded bg-panel-muted" />
                 </div>
               </div>
             ))
@@ -101,7 +101,7 @@ function AdminHospitalActivityTimeline({ rows, isLoading = false }: Props) {
                 return (
                   <div key={log.log_id} className="flex gap-4 py-5">
                     <div className="pt-1">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-blue-600 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-brand-100 bg-brand-50 text-brand-600 dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-brand-300">
                         <FiClock />
                       </span>
                     </div>
@@ -123,7 +123,7 @@ function AdminHospitalActivityTimeline({ rows, isLoading = false }: Props) {
                               {details.map((item) => (
                                 <span
                                   key={`${log.log_id}-${item.label}`}
-                                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                  className="rounded-full border border-line-subtle bg-canvas-alt px-3 py-1 text-xs text-gray-700 dark:text-slate-300"
                                 >
                                   {item.label}: {item.value}
                                 </span>

@@ -89,7 +89,7 @@ export default function FoDepartmentsPage() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Departments"
         Subtitle="Browse and manage hospital departments in the FO workspace"
@@ -97,7 +97,7 @@ export default function FoDepartmentsPage() {
           <button
             type="button"
             onClick={() => setIsCreateOpen(true)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             Add Department
           </button>
@@ -112,7 +112,7 @@ export default function FoDepartmentsPage() {
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Total Departments
             </p>
@@ -123,7 +123,7 @@ export default function FoDepartmentsPage() {
             </h2>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
             <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Search Departments
             </p>
@@ -138,8 +138,8 @@ export default function FoDepartmentsPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
+          <div className="border-b border-gray-200 p-5 dark:border-line-subtle">
             <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
               Department Directory
             </h2>
@@ -151,7 +151,7 @@ export default function FoDepartmentsPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+                <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
                   <th className="p-3 font-semibold">Department</th>
                   <th className="p-3 font-semibold">Status</th>
                   <th className="p-3 font-semibold">Created</th>
@@ -182,7 +182,7 @@ export default function FoDepartmentsPage() {
                   rows.map((department) => (
                     <tr
                       key={department.department_id}
-                      className="border-b border-gray-100 dark:border-slate-800"
+                      className="border-b border-gray-100 dark:border-line-subtle"
                     >
                       <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                         {department.name}
@@ -200,7 +200,7 @@ export default function FoDepartmentsPage() {
                         <button
                           type="button"
                           onClick={() => setEditingDepartment(department)}
-                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                          className="rounded-xl border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
                         >
                           Edit
                         </button>

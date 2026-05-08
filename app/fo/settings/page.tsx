@@ -39,7 +39,7 @@ function Page() {
   }, [profileQuery.error, router]);
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-gray-100 dark:bg-slate-950">
+    <div className="min-h-screen w-full overflow-y-auto bg-canvas">
       <Header title="Settings" Subtitle="Manage your account and preferences" />
 
       <div className="space-y-6 p-6">
@@ -50,7 +50,7 @@ function Page() {
         ) : null}
 
         {profileQuery.isLoading ? (
-          <div className="h-52 animate-pulse rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900" />
+          <div className="h-52 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-line-subtle dark:bg-panel" />
         ) : profileQuery.data ? (
           <ProfileInfo profile={profileQuery.data.data} />
         ) : null}

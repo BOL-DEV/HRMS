@@ -278,7 +278,7 @@ export default function HospitalBillItemsPage() {
       />
 
       {pagination ? (
-        <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex items-center justify-between rounded-xl border border-line-subtle bg-panel px-5 py-4">
           <p className="text-sm text-gray-600 dark:text-slate-300">
             Page {pagination.page} of {pagination.total_pages}
           </p>
@@ -288,7 +288,7 @@ export default function HospitalBillItemsPage() {
               type="button"
               disabled={!pagination.has_previous_page}
               onClick={() => setPage((current) => Math.max(current - 1, 1))}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium text-gray-700 hover:bg-panel-muted disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-panel-strong"
             >
               Previous
             </button>
@@ -296,7 +296,7 @@ export default function HospitalBillItemsPage() {
               type="button"
               disabled={!pagination.has_next_page}
               onClick={() => setPage((current) => current + 1)}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              className="rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium text-gray-700 hover:bg-panel-muted disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-200 dark:hover:bg-panel-strong"
             >
               Next
             </button>

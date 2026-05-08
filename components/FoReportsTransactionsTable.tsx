@@ -11,14 +11,14 @@ type Props = {
 
 function FoReportsTransactionsTable({ rows, toMethodLabel }: Props) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-2xl border border-line-subtle bg-panel p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)]">
       <h2 className="mb-4 text-lg font-bold dark:text-slate-100">
         All Transactions
       </h2>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Receipt No</th>
               <th className="p-3 font-semibold">Patient</th>
               <th className="p-3 font-semibold">Amount</th>
@@ -42,7 +42,7 @@ function FoReportsTransactionsTable({ rows, toMethodLabel }: Props) {
               rows.map((item) => (
                 <tr
                   key={item.transaction_id}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-line-subtle"
                 >
                   <td className="p-3 font-semibold text-gray-900 whitespace-nowrap dark:text-slate-100">
                     {item.receipt_id}

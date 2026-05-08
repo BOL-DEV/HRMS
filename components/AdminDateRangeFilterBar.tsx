@@ -23,14 +23,14 @@ function AdminDateRangeFilterBar({
 }: Props) {
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 border-b border-gray-200 p-5 dark:border-slate-700 lg:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
+      <div className="grid grid-cols-1 gap-4 border-b border-line-subtle p-5 lg:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
         {leadSlot ?? <div className="hidden lg:block" />}
 
         <input
           type="date"
           value={startDate}
           onChange={(event) => onStartDateChange(event.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="rounded-xl border border-line-subtle bg-canvas-alt px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           aria-label="Start date"
         />
 
@@ -38,7 +38,7 @@ function AdminDateRangeFilterBar({
           type="date"
           value={endDate}
           onChange={(event) => onEndDateChange(event.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="rounded-xl border border-line-subtle bg-canvas-alt px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           aria-label="End date"
         />
 
@@ -47,14 +47,14 @@ function AdminDateRangeFilterBar({
             type="button"
             onClick={onApply}
             disabled={isInvalid}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Apply
           </button>
           <button
             type="button"
             onClick={onClear}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="rounded-xl border border-line-subtle bg-panel px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-panel-muted dark:text-slate-200"
           >
             Clear
           </button>

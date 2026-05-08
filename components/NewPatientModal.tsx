@@ -180,7 +180,7 @@ function NewPatientModal(props: Props) {
               >
                 Cancel
               </button>
-              <button className="px-5 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-semibold">
+              <button className="rounded-lg bg-brand-700 px-5 py-2 font-semibold text-white hover:bg-brand-800">
                 Save
               </button>
             </div>

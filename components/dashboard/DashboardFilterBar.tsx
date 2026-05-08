@@ -11,10 +11,10 @@ type Props = {
 
 const accentTone = {
   admin:
-    "from-blue-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40",
-  fo: "from-emerald-50 via-white to-cyan-50 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/40",
+    "from-brand-50 via-white to-canvas-alt dark:from-panel dark:via-panel dark:to-brand-950/40",
+  fo: "from-brand-50 via-white to-brand-100 dark:from-panel dark:via-panel dark:to-brand-950/40",
   agent:
-    "from-amber-50 via-white to-blue-50 dark:from-slate-900 dark:via-slate-900 dark:to-amber-950/40",
+    "from-brand-100 via-white to-canvas-alt dark:from-panel dark:via-panel dark:to-brand-900/40",
 };
 
 function DashboardFilterBar({
@@ -27,7 +27,7 @@ function DashboardFilterBar({
 }: Props) {
   return (
     <section
-      className={`rounded-2xl border border-gray-200 bg-gradient-to-r px-5 py-5 shadow-[0_16px_45px_rgba(15,23,42,0.04)] dark:border-slate-700 ${accentTone[accent]} ${className ?? ""}`}
+      className={`rounded-2xl border border-line-subtle bg-gradient-to-r px-5 py-5 shadow-[0_16px_45px_rgba(15,23,42,0.04)] dark:border-line-subtle ${accentTone[accent]} ${className ?? ""}`}
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">

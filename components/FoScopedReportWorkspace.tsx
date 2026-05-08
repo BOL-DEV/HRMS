@@ -309,7 +309,7 @@ function FoScopedReportWorkspace({
   };
 
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title={title}
         Subtitle={subtitle}
@@ -319,7 +319,7 @@ function FoScopedReportWorkspace({
               <button
                 type="button"
                 onClick={onPrint}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 <FiPrinter />
                 Print
@@ -329,7 +329,7 @@ function FoScopedReportWorkspace({
               <button
                 type="button"
                 onClick={onExport}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
               >
                 <FiDownload />
                 Export CSV
@@ -352,7 +352,7 @@ function FoScopedReportWorkspace({
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-[240px] flex-1 space-y-1">
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
@@ -363,7 +363,7 @@ function FoScopedReportWorkspace({
                   value={filterValue}
                   onChange={(event) => onFilterChange(event.target.value)}
                   disabled={isFilterLoading}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
                 >
                   <option value="All">All</option>
                   {filterOptions.map((item) => (
@@ -378,10 +378,10 @@ function FoScopedReportWorkspace({
                     value={filterValue}
                     onChange={(event) => onFilterChange(event.target.value)}
                     placeholder={filterPlaceholder}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
                   />
                   {filterValue.trim() && !isFilterOptionSelected ? (
-                    <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                    <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-line-subtle dark:bg-panel">
                       {isFilterSearchLoading ? (
                         <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
                           Searching...
@@ -397,7 +397,7 @@ function FoScopedReportWorkspace({
                               <button
                                 type="button"
                                 onClick={() => onFilterOptionSelect?.(item)}
-                                className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                                className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-line-subtle dark:hover:bg-panel-strong"
                               >
                                 <span className="font-semibold text-gray-900 dark:text-slate-100">
                                   {item.name}
@@ -420,7 +420,7 @@ function FoScopedReportWorkspace({
                   value={filterValue}
                   onChange={(event) => onFilterChange(event.target.value)}
                   placeholder={filterPlaceholder}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
                 />
               )}
             </div>
@@ -429,21 +429,21 @@ function FoScopedReportWorkspace({
               <button
                 type="button"
                 onClick={() => applyRange(getTodayRange())}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-line-subtle dark:text-slate-300 dark:hover:border-brand-500/50 dark:hover:bg-panel-strong dark:hover:text-brand-200"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => applyRange(getLastSevenDaysRange())}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-line-subtle dark:text-slate-300 dark:hover:border-brand-500/50 dark:hover:bg-panel-strong dark:hover:text-brand-200"
               >
                 Last 7 Days
               </button>
               <button
                 type="button"
                 onClick={() => applyRange(getThisMonthRange())}
-                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500/50 dark:hover:bg-slate-800 dark:hover:text-blue-200"
+                className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 dark:border-line-subtle dark:text-slate-300 dark:hover:border-brand-500/50 dark:hover:bg-panel-strong dark:hover:text-brand-200"
               >
                 This Month
               </button>
@@ -457,7 +457,7 @@ function FoScopedReportWorkspace({
                   <button
                     type="button"
                     onClick={onViewAllReports}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
                   >
                     See All
                   </button>
@@ -473,7 +473,7 @@ function FoScopedReportWorkspace({
                 type="date"
                 value={startDate}
                 onChange={(event) => onStartDateChange(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
               />
             </div>
 
@@ -486,7 +486,7 @@ function FoScopedReportWorkspace({
                 value={endDate}
                 min={startDate}
                 onChange={(event) => onEndDateChange(event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
               />
             </div>
           </div>
@@ -513,12 +513,12 @@ function FoScopedReportWorkspace({
 
         {pagination && onPreviousPage && onNextPage ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-600 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel dark:text-slate-300">
               Showing {rows.length} transaction{rows.length === 1 ? "" : "s"} on
               this page. Total matching transactions:{" "}
               {pagination.total_transactions}.
             </div>
-            <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
               <AdminPaginationFooter
                 currentPage={pagination.current_page}
                 totalPages={pagination.total_pages}

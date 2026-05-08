@@ -10,6 +10,7 @@ import RevenueByDepartment from "@/components/RevenueByDepartment";
 import RevenueTrend from "@/components/RevenueTrend";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import { BRAND_CHART_PALETTE, BRAND_PERIOD_COLORS } from "@/libs/brand";
 import { getFoDashboard, getFoStats, getFoTransactions } from "@/libs/fo-auth";
 import { formatCompactNumber, formatDateTime, formatNaira } from "@/libs/helper";
 import {
@@ -34,20 +35,24 @@ const periodOptions: Array<{
 
 const summaryAccents = [
   {
-    surface: "bg-red-50 dark:bg-red-500/10",
-    text: "text-red-700 dark:text-red-300",
+    surface: "bg-brand-50 dark:bg-brand-500/10",
+    text: "text-brand-700 dark:text-brand-300",
+    bar: "bg-brand-600 dark:bg-brand-400",
   },
   {
-    surface: "bg-emerald-50 dark:bg-emerald-500/10",
-    text: "text-emerald-700 dark:text-emerald-300",
+    surface: "bg-brand-100 dark:bg-brand-500/12",
+    text: "text-brand-800 dark:text-brand-200",
+    bar: "bg-brand-700 dark:bg-brand-500",
   },
   {
-    surface: "bg-pink-50 dark:bg-pink-500/10",
-    text: "text-pink-700 dark:text-pink-300",
+    surface: "bg-canvas-alt dark:bg-brand-700/18",
+    text: "text-brand-700 dark:text-brand-200",
+    bar: "bg-brand-600 dark:bg-brand-500",
   },
   {
-    surface: "bg-amber-50 dark:bg-amber-500/10",
-    text: "text-amber-700 dark:text-amber-300",
+    surface: "bg-brand-200/45 dark:bg-brand-600/18",
+    text: "text-brand-900 dark:text-brand-100",
+    bar: "bg-brand-800 dark:bg-brand-600",
   },
 ];
 
@@ -164,10 +169,10 @@ function Page() {
 
   const revenueTrendData: RevenueChartDatum[] = periods
     ? [
-        { name: "Today", value: todayPeriod.total_revenue, color: "#dc2626" },
-        { name: "Last Month", value: lastMonthPeriod.total_revenue, color: "#10b981" },
-        { name: "This Month", value: monthPeriod.total_revenue, color: "#ec4899" },
-        { name: "This Year", value: yearPeriod.total_revenue, color: "#f59e0b" },
+        { name: "Today", value: todayPeriod.total_revenue, color: BRAND_PERIOD_COLORS.today },
+        { name: "Last Month", value: lastMonthPeriod.total_revenue, color: BRAND_PERIOD_COLORS["last month"] },
+        { name: "This Month", value: monthPeriod.total_revenue, color: BRAND_PERIOD_COLORS["this month"] },
+        { name: "This Year", value: yearPeriod.total_revenue, color: BRAND_PERIOD_COLORS["this year"] },
       ]
     : [];
 
@@ -182,7 +187,7 @@ function Page() {
 
   const paymentMethodData = useMemo(() => {
     const methods = statsData?.payment_methods ?? [];
-    const colors = ["#2563EB", "#10B981", "#F59E0B", "#EF4444"];
+    const colors = BRAND_CHART_PALETTE;
 
     return methods.map((item, index) => ({
       name:
@@ -222,7 +227,7 @@ function Page() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Financial Office Dashboard"
         Subtitle="Monitor hospital revenue, people, and transactions"
@@ -267,7 +272,7 @@ function Page() {
               {Array.from({ length: 4 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-32 animate-pulse rounded-2xl bg-gray-50 dark:bg-slate-800"
+                  className="h-32 animate-pulse rounded-2xl bg-panel-muted"
                 />
               ))}
             </div>
@@ -276,8 +281,12 @@ function Page() {
               {summaryMetrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className={`rounded-2xl px-4 py-4 ${metric.surface}`}
+                  className={`relative overflow-hidden rounded-2xl px-4 py-4 ${metric.surface}`}
                 >
+                  <div
+                    aria-hidden="true"
+                    className={`absolute inset-x-0 top-0 h-1 ${metric.bar}`}
+                  />
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${metric.text}`}>
@@ -287,11 +296,11 @@ function Page() {
                         {formatNaira(metric.revenue)}
                       </p>
                     </div>
-                    <div className={`rounded-xl bg-white/70 p-2.5 ${metric.text} dark:bg-slate-900/40`}>
+                    <div className={`rounded-xl bg-white/70 p-2.5 ${metric.text} dark:bg-panel/55`}>
                       <FiCalendar className="text-lg" />
                     </div>
                   </div>
-                  <div className="mt-4 border-t border-white/70 pt-4 dark:border-slate-700/60">
+                  <div className="mt-4 border-t border-white/70 pt-4 dark:border-line-subtle">
                     <p className="text-xs font-medium uppercase tracking-[0.12em] text-gray-500 dark:text-slate-400">
                       Transactions
                     </p>
@@ -328,7 +337,7 @@ function Page() {
           >
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left text-xs uppercase tracking-[0.14em] text-gray-500 dark:bg-slate-800/70 dark:text-slate-400">
+                <tr className="bg-gray-50 text-left text-xs uppercase tracking-[0.14em] text-gray-500 dark:bg-panel-strong dark:text-slate-400">
                   <th className="px-5 py-3 font-semibold">Rank</th>
                   <th className="px-5 py-3 font-semibold">Agent</th>
                   <th className="px-5 py-3 font-semibold text-right">Count</th>
@@ -340,10 +349,10 @@ function Page() {
                   Array.from({ length: 5 }).map((_, index) => (
                     <tr
                       key={index}
-                      className="border-t border-gray-100 dark:border-slate-800"
+                      className="border-t border-gray-100 dark:border-line-subtle"
                     >
                       <td className="px-5 py-4" colSpan={4}>
-                        <div className="h-4 w-full animate-pulse rounded-full bg-gray-100 dark:bg-slate-800" />
+                        <div className="h-4 w-full animate-pulse rounded-full bg-gray-100 dark:bg-panel-strong" />
                       </td>
                     </tr>
                   ))
@@ -360,12 +369,12 @@ function Page() {
                   leaderboardRows.map((row) => (
                     <tr
                       key={row.rank}
-                      className="border-t border-gray-100 dark:border-slate-800"
+                      className="border-t border-gray-100 dark:border-line-subtle"
                     >
                       <td className="px-5 py-3.5 font-medium text-gray-700 dark:text-slate-300">
                         {row.rank}
                       </td>
-                      <td className="px-5 py-3.5 font-semibold text-emerald-700 dark:text-emerald-300">
+                      <td className="px-5 py-3.5 font-semibold text-brand-700 dark:text-brand-300">
                         {row.name}
                       </td>
                       <td className="px-5 py-3.5 text-right text-gray-600 dark:text-slate-300">

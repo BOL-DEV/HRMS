@@ -7,14 +7,14 @@ type Props = {
 
 function FoPatientReportTable({ rows }: Props) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <h2 className="mb-4 text-lg font-bold dark:text-slate-100">
         Patient Transactions
       </h2>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
               <th className="p-3 font-semibold">Patient ID</th>
               <th className="p-3 font-semibold">Patient Name</th>
               <th className="p-3 font-semibold">Department</th>
@@ -39,7 +39,7 @@ function FoPatientReportTable({ rows }: Props) {
               rows.map((item, index) => (
                 <tr
                   key={`${item.patient_id}-${item.date_time}-${index}`}
-                  className="border-b border-gray-100 dark:border-slate-800"
+                  className="border-b border-gray-100 dark:border-line-subtle"
                 >
                   <td className="p-3 font-semibold whitespace-nowrap text-gray-900 dark:text-slate-100">
                     {item.patient_id}

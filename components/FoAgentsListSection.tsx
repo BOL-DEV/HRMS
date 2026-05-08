@@ -16,7 +16,7 @@ function FoAgentsListSection({
   onToggleStatus,
 }: Props) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold dark:text-slate-100">Agents</h2>
@@ -27,7 +27,7 @@ function FoAgentsListSection({
 
         <button
           onClick={onOpenCreateModal}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           <FiUserPlus className="text-lg" /> Create Agent
         </button>

@@ -102,12 +102,12 @@ function Sidebar({ title, links, isOpen = false }: Props) {
       className={`fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-200 ease-out ${mobileState} ${desktopRailWidthClass} md:sticky md:top-0 md:h-screen md:translate-x-0`}
     >
       <aside
-        className={`h-full w-64 border-r border-gray-200 bg-white shadow-sm transition-[width] duration-150 ease-out dark:border-slate-800 dark:bg-slate-950 md:w-full md:overflow-x-hidden md:overflow-y-auto ${
+        className={`h-full w-64 border-r border-line-subtle bg-panel shadow-sm transition-[width] duration-150 ease-out dark:border-line-subtle dark:bg-panel md:w-full md:overflow-x-hidden md:overflow-y-auto ${
           isDesktopPinned || isDesktopHovered ? "md:shadow-sm" : "md:shadow-none"
         }`}
       >
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-200 p-5 dark:border-slate-800">
+        <div className="flex items-center justify-between gap-3 border-b border-line-subtle p-5 dark:border-line-subtle">
           <div className="min-w-0 flex-1 overflow-hidden">
             <SidebarBrand title={title} isExpanded={isDesktopExpanded} />
           </div>
@@ -115,7 +115,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
           <button
             type="button"
             onClick={handleDesktopToggle}
-            className="hidden rounded-lg border border-gray-200 bg-gray-50 p-2 text-gray-700 transition hover:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 md:inline-flex"
+            className="hidden rounded-lg border border-line-subtle bg-canvas-alt p-2 text-gray-700 transition hover:bg-brand-50 dark:border-line-subtle dark:bg-panel-muted dark:text-slate-200 dark:hover:bg-panel-strong md:inline-flex"
             aria-label={
               isDesktopPinned ? "Collapse sidebar" : "Pin sidebar open"
             }
@@ -159,7 +159,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
                     }
                     className={`flex w-full items-center rounded-xl font-medium transition ${
                       link.active
-                        ? "bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-50 dark:hover:bg-emerald-500/30"
+                        ? "bg-brand-700 text-white hover:bg-brand-600 dark:bg-brand-500/20 dark:text-brand-50 dark:hover:bg-brand-500/30"
                         : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
                     } ${
                       isDesktopExpanded
@@ -197,7 +197,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
                     href={link.link}
                     className={`flex items-center rounded-xl font-medium transition ${
                       link.active
-                        ? "bg-emerald-700 text-white hover:bg-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-50 dark:hover:bg-emerald-500/30"
+                        ? "bg-brand-700 text-white hover:bg-brand-600 dark:bg-brand-500/20 dark:text-brand-50 dark:hover:bg-brand-500/30"
                         : "text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
                     } ${
                       isDesktopExpanded
@@ -241,7 +241,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
                           href={child.link}
                           className={`block rounded-lg px-3 py-2 text-sm font-medium transition ${
                             child.active
-                              ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
+                              ? "bg-brand-50 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200"
                               : "text-gray-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-slate-800"
                           }`}
                         >
@@ -257,7 +257,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
           ))}
         </ul>
 
-        <div className="mt-auto border-t border-gray-200 p-4 dark:border-slate-800">
+        <div className="mt-auto border-t border-line-subtle p-4 dark:border-line-subtle">
           <div
             className={`flex items-center ${isDesktopExpanded ? "justify-between" : "justify-center"}`}
           >

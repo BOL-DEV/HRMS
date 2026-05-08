@@ -206,7 +206,7 @@ export default function Page() {
 
       {applied.department !== "All" && pagination ? (
         <div className="-mt-6 px-6 pb-6">
-          <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+          <div className="rounded-xl border border-line-subtle bg-panel">
             <AdminPaginationFooter
               currentPage={pagination.current_page}
               totalPages={pagination.total_pages}

@@ -71,7 +71,7 @@ function PatientsTable({ rows, onViewProfile }: Props) {
                 <td className="p-3 text-gray-700">{p.gender}</td>
                 <td className="p-3 text-gray-700">{p.age}</td>
                 <td className="p-3 text-gray-700">{p.totalVisits}</td>
-                <td className="p-3 text-blue-700 font-semibold">{usd(p.totalPaid)}</td>
+                <td className="p-3 font-semibold text-brand-700">{usd(p.totalPaid)}</td>
                 <td className="p-3 text-gray-700 whitespace-nowrap">{p.lastVisit}</td>
                 <td className="p-3 text-gray-700 whitespace-nowrap">{p.assignedAgent}</td>
                 <td className="p-3">

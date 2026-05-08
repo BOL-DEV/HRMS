@@ -515,10 +515,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         onClick={closeModal}
       >
         <div
-          className="mx-auto my-6 w-full max-w-4xl rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+          className="mx-auto my-6 w-full max-w-4xl rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-6 dark:border-slate-800">
+          <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-6 dark:border-line-subtle">
             <div>
               <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                 Process Payment
@@ -530,7 +530,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             </div>
 
             <button
-              className="rounded-xl border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              className="rounded-xl border border-gray-200 p-2 text-gray-600 hover:bg-gray-50 dark:border-line-subtle dark:text-slate-300 dark:hover:bg-panel-strong"
               onClick={closeModal}
               type="button"
               aria-label="Close"
@@ -555,7 +555,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 </div>
               ) : null}
 
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-slate-800">
+              <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
@@ -567,7 +567,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </div>
 
                   {patientStepReady ? (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                       <FiCheckCircle />
                       Ready
                     </span>
@@ -603,19 +603,19 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             phoneNumber: "",
                           }));
                         }}
-                        className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                         placeholder="Search by patient ID or name"
                       />
 
                       {patientSearchInput.trim() && showPatientSuggestions ? (
-                        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-line-subtle dark:bg-panel">
                           <div className="max-h-72 overflow-y-auto p-3">
                             {patientSearchQuery.isLoading ? (
-                              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
                                 Searching patients...
                               </div>
                             ) : patientSuggestions.length === 0 ? (
-                              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                              <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
                                 No patients matched this search.
                               </div>
                             ) : (
@@ -634,8 +634,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                       }
                                       className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                                         isSelected
-                                          ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20"
-                                          : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                                          ? "border-brand-300 bg-brand-50 dark:border-brand-800 dark:bg-brand-950/20"
+                                            : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:hover:border-line-strong dark:hover:bg-panel-strong"
                                       }`}
                                     >
                                       <p className="font-semibold text-slate-900 dark:text-slate-100">
@@ -681,7 +681,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         }))
                       }
                       disabled={form.patientExists}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-line-subtle dark:bg-canvas dark:text-slate-100 dark:disabled:bg-panel-strong"
                       placeholder="John Doe"
                     />
                   </label>
@@ -699,7 +699,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         }))
                       }
                       disabled={form.patientExists}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-line-subtle dark:bg-canvas dark:text-slate-100 dark:disabled:bg-panel-strong"
                       placeholder="08012345678"
                       inputMode="tel"
                     />
@@ -707,7 +707,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-slate-800">
+              <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
@@ -719,7 +719,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </div>
 
                   {paymentStepReady ? (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                       <FiCheckCircle />
                       Ready
                     </span>
@@ -737,7 +737,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         handleDepartmentChange(event.target.value)
                       }
                       disabled={departmentsQuery.isLoading}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                     >
                       <option value="">
                         {departmentsQuery.isLoading
@@ -765,7 +765,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             .value as NewTransactionForm["paymentType"],
                         }))
                       }
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                     >
                       <option value="cash">Cash</option>
                       <option value="transfer">Transfer</option>
@@ -787,7 +787,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                       disabled={
                         !form.departmentId || incomeHeadsQuery.isLoading
                       }
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                     >
                       <option value="">
                         {!form.departmentId
@@ -834,7 +834,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                           }}
                           onFocus={() => setShowBillItemList(true)}
                           disabled={!form.incomeHeadId}
-                          className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-slate-800"
+                          className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-panel-strong"
                           placeholder={
                             form.incomeHeadId
                               ? "Search and select a bill item"
@@ -843,14 +843,14 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         />
 
                         {form.incomeHeadId && showBillItemList ? (
-                          <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                          <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-line-subtle dark:bg-panel">
                             <div className="max-h-72 overflow-y-auto p-3">
                               {billItemsQuery.isLoading ? (
-                                <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                                <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
                                   Loading bill items...
                                 </div>
                               ) : billItems.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+                                <div className="rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
                                   No bill items matched this search.
                                 </div>
                               ) : (
@@ -868,8 +868,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                         }
                                         className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                                           isSelected
-                                            ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20"
-                                            : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800"
+                                            ? "border-brand-300 bg-brand-50 dark:border-brand-700 dark:bg-brand-950/22"
+                                            : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:hover:border-line-strong dark:hover:bg-panel-strong"
                                         }`}
                                       >
                                         <div className="flex items-start justify-between gap-4">
@@ -887,7 +887,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                               {formatCurrency(billItem.amount)}
                                             </p>
                                             {isSelected ? (
-                                              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
                                                 Selected
                                               </p>
                                             ) : null}
@@ -916,7 +916,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             billName: event.target.value,
                           }))
                         }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                         placeholder="X-Ray payment"
                       />
                     </label>
@@ -924,7 +924,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 </div>
 
                 {paymentMode === "automatic" ? (
-                  <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                  <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-line-subtle dark:bg-canvas/70">
                     {!form.incomeHeadId ? (
                       <p className="text-sm text-amber-700 dark:text-amber-300">
                         Select an income head first before searching for bill
@@ -939,7 +939,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                       <input
                         value={form.amount}
                         readOnly
-                        className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm dark:border-line-subtle dark:bg-panel-strong dark:text-slate-100"
                         placeholder="Auto-filled from selected bill item"
                       />
                     </label>
@@ -958,7 +958,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             amount: event.target.value,
                           }))
                         }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                         placeholder="5000"
                         inputMode="decimal"
                       />
@@ -969,7 +969,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             </div>
 
             <aside className="self-start space-y-5 xl:sticky xl:top-6">
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-slate-800">
+              <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                   Submission Preview
                 </h3>
@@ -1028,7 +1028,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 </dl>
               </section>
 
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-slate-800">
+              <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                   Quick Guide
                 </h3>
@@ -1049,7 +1049,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     paymentConfigQuery.isLoading ||
                     departmentsQuery.isLoading
                   }
-                  className="rounded-2xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-2xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {paymentMutation.isPending
                     ? "Processing payment..."
@@ -1059,7 +1059,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 <button
                   onClick={closeModal}
                   type="button"
-                  className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+                  className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-gray-50 dark:border-line-subtle dark:text-slate-100 dark:hover:bg-panel-strong"
                 >
                   Cancel
                 </button>

@@ -122,7 +122,7 @@ function HospitalSettingsForm({
             onChange={(event) =>
               setForm((current) => ({ ...current, name: event.target.value }))
             }
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
             required
           />
         </label>
@@ -131,7 +131,7 @@ function HospitalSettingsForm({
           <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
             Hospital Code
           </span>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
+          <div className="rounded-lg border border-line-subtle bg-panel-muted px-4 py-3 text-sm text-gray-600 dark:text-slate-300">
             {hospitalCode ?? "--"}
           </div>
         </div>
@@ -146,7 +146,7 @@ function HospitalSettingsForm({
             onChange={(event) =>
               setForm((current) => ({ ...current, email: event.target.value }))
             }
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
             required
           />
         </label>
@@ -160,7 +160,7 @@ function HospitalSettingsForm({
             onChange={(event) =>
               setForm((current) => ({ ...current, phone: event.target.value }))
             }
-            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
             required
           />
         </label>
@@ -177,7 +177,7 @@ function HospitalSettingsForm({
                 revenueType: event.target.value as "manual" | "automatic",
               }))
             }
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm dark:text-slate-100"
           >
             <option value="automatic">Automatic</option>
             <option value="manual">Manual</option>
@@ -196,7 +196,7 @@ function HospitalSettingsForm({
                 status: event.target.value as AdminHospitalStatus,
               }))
             }
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm dark:text-slate-100"
           >
             <option value="active">Active</option>
             <option value="suspended">Suspended</option>
@@ -212,17 +212,17 @@ function HospitalSettingsForm({
             onChange={(event) =>
               setForm((current) => ({ ...current, address: event.target.value }))
             }
-            className="min-h-28 w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="min-h-28 w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
             required
           />
         </label>
       </div>
 
-      <div className="flex justify-end border-t border-gray-200 pt-5 dark:border-slate-700">
+      <div className="flex justify-end border-t border-line-subtle pt-5">
         <button
           type="submit"
           disabled={isSaving || isLoading}
-          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving ? "Saving..." : "Save Changes"}
         </button>
@@ -296,8 +296,8 @@ export default function HospitalSettingsPage() {
         <AdminPageError message={overviewQuery.error.message} />
       ) : null}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
+        <div className="border-b border-line-subtle p-5">
           <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
             Hospital Settings
           </h2>

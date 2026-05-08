@@ -44,7 +44,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-white text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100`}
+        className={`${geistSans.variable} ${geistMono.variable} bg-canvas text-slate-900 antialiased dark:text-slate-100`}
       >
         <ThemeHydrationFix />
         <QueryProvider>

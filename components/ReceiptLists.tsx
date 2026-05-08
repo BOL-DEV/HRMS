@@ -150,8 +150,8 @@ function ReceiptLists({
   );
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-      <div className="p-6 border-b border-gray-200 dark:border-slate-800">
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
+      <div className="border-b border-gray-200 p-6 dark:border-line-subtle">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">All Receipts</h2>
         <p className="text-sm text-gray-600 dark:text-slate-300">
           Showing {totalCount} receipts
@@ -161,7 +161,7 @@ function ReceiptLists({
       <div className="p-5 overflow-x-auto">
         <table className="min-w-195 w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-600 bg-gray-100 dark:text-slate-300 dark:bg-slate-950">
+            <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
               <th className="p-3 font-semibold">Receipt No</th>
               <th className="p-3 font-semibold">Patient</th>
               <th className="p-3 font-semibold">Patient ID</th>
@@ -192,7 +192,7 @@ function ReceiptLists({
               </tr>
             ) : (
               rows.map((receipt) => (
-                <tr key={receipt.id} className="border-b border-gray-100 dark:border-slate-800/60">
+                <tr key={receipt.id} className="border-b border-gray-100 dark:border-line-subtle">
                   <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                     {receipt.receipt_no}
                   </td>
@@ -204,7 +204,7 @@ function ReceiptLists({
                   <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.department}</td>
                   <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.income_head}</td>
                   <td className="p-3 text-gray-700 dark:text-slate-200">{receipt.bill_name}</td>
-                  <td className="p-3 font-semibold text-blue-700 dark:text-sky-300">
+                  <td className="p-3 font-semibold text-brand-700 dark:text-brand-300">
                     {formatCurrency(Number(receipt.amount))}
                   </td>
                   <td className="p-3">
@@ -222,7 +222,7 @@ function ReceiptLists({
                       {getReprintLabel(receipt.reprint_status)}
                     </span>
                   </td>
-                  <td className="p-3 text-gray-700">
+                  <td className="p-3 text-gray-700 dark:text-slate-200">
                     {formatDateTime(receipt.date_time)}
                   </td>
                   <td className="p-3 text-right">
@@ -233,7 +233,7 @@ function ReceiptLists({
                             prev === receipt.id ? null : receipt.id,
                           )
                         }
-                        className="p-2 rounded-lg hover:bg-gray-100 border border-transparent hover:border-gray-200 dark:hover:bg-slate-800 dark:hover:border-slate-700"
+                        className="rounded-xl border border-transparent p-2 hover:border-gray-200 hover:bg-gray-100 dark:hover:border-line-subtle dark:hover:bg-panel-strong"
                         aria-haspopup="true"
                         aria-expanded={openMenu === receipt.id}
                         type="button"
@@ -242,7 +242,7 @@ function ReceiptLists({
                       </button>
 
                       {openMenu === receipt.id ? (
-                        <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 dark:bg-slate-900 dark:border-slate-700">
+                        <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-line-subtle dark:bg-panel">
                           {menuItems(receipt).map((item) => (
                             <button
                               key={item.label}
@@ -251,7 +251,7 @@ function ReceiptLists({
                                 item.onClick();
                                 setOpenMenu(null);
                               }}
-                              className={`w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-800 ${
+                              className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-panel-strong ${
                                 item.disabled
                                   ? "opacity-60 cursor-not-allowed"
                                   : ""
@@ -279,8 +279,8 @@ function ReceiptLists({
 
       {requesting ? (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-2xl dark:bg-slate-900 dark:border-slate-800">
-            <div className="p-5 border-b border-gray-200 dark:border-slate-800">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+            <div className="border-b border-gray-200 p-5 dark:border-line-subtle">
               <h3 className="text-lg font-bold">
                 {requesting.reprint_status === "rejected"
                   ? "Request Receipt Again"
@@ -298,18 +298,18 @@ function ReceiptLists({
               <textarea
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
-                className="w-full min-h-28 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-sky-500/20"
+                className="w-full min-h-28 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-brand-100 dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-brand-500/20"
                 placeholder="E.g. Customer misplaced the receipt"
               />
             </div>
 
-            <div className="p-5 border-t border-gray-200 flex items-center justify-end gap-3 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 p-5 dark:border-line-subtle">
               <button
                 onClick={() => {
                   setRequesting(null);
                   setReason("");
                 }}
-                className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-100 dark:hover:bg-panel-strong"
                 type="button"
               >
                 Cancel
@@ -326,7 +326,7 @@ function ReceiptLists({
                     reason: reason.trim(),
                   });
                 }}
-                className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-70"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-70"
                 type="button"
                 disabled={requestMutation.isPending}
               >
@@ -339,8 +339,8 @@ function ReceiptLists({
 
       {viewing ? (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white rounded-2xl border border-gray-200 shadow-2xl dark:bg-slate-900 dark:border-slate-800">
-            <div className="p-5 border-b border-gray-200 flex items-start justify-between gap-4 dark:border-slate-800">
+          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5 dark:border-line-subtle">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Receipt Details</h3>
                 <p className="text-sm text-gray-600 dark:text-slate-300">{viewing.receipt_no}</p>
@@ -357,53 +357,53 @@ function ReceiptLists({
 
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                   <p className="text-sm text-gray-600 dark:text-slate-300">Patient</p>
                   <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                     {viewing.patient_name}
                   </p>
                 </div>
-                <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                   <p className="text-sm text-gray-600 dark:text-slate-300">Patient ID</p>
                   <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                     {viewing.patient_id}
                   </p>
                 </div>
-                <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                   <p className="text-sm text-gray-600 dark:text-slate-300">Phone</p>
                   <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                     {viewing.phone_number}
                   </p>
                 </div>
-                <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                   <p className="text-sm text-gray-600 dark:text-slate-300">Department</p>
                   <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                     {viewing.department}
                   </p>
                 </div>
-                <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+                <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                   <p className="text-sm text-gray-600 dark:text-slate-300">Amount</p>
-                  <p className="text-base font-semibold text-blue-700 dark:text-sky-300 mt-1">
+                  <p className="mt-1 text-base font-semibold text-brand-700 dark:text-brand-300">
                     {formatCurrency(Number(viewing.amount))}
                   </p>
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+              <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                 <p className="text-sm text-gray-600 dark:text-slate-300">Income Head</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                   {viewing.income_head}
                 </p>
               </div>
 
-              <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+              <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                 <p className="text-sm text-gray-600 dark:text-slate-300">Bill Name</p>
                 <p className="text-base font-semibold text-gray-900 dark:text-slate-100 mt-1">
                   {viewing.bill_name}
                 </p>
               </div>
 
-              <div className="border border-gray-200 rounded-xl p-4 dark:border-slate-800">
+              <div className="rounded-xl border border-gray-200 p-4 dark:border-line-subtle dark:bg-panel-muted">
                 <p className="text-sm text-gray-600 dark:text-slate-300">Reprint Status</p>
                 <p className="mt-2">
                   <span
@@ -417,10 +417,10 @@ function ReceiptLists({
               </div>
             </div>
 
-            <div className="p-5 border-t border-gray-200 flex items-center justify-end gap-3 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 p-5 dark:border-line-subtle">
               <button
                 onClick={() => setViewing(null)}
-                className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:text-slate-100 dark:hover:bg-panel-strong"
                 type="button"
               >
                 Close

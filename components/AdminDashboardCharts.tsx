@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_CHART_PALETTE, BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatNaira } from "@/libs/helper";
 import {
   Bar,
@@ -43,8 +44,8 @@ function AdminDashboardCharts({
   return (
     <>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+        <div className="rounded-xl border border-line-subtle bg-panel">
+          <div className="border-b border-line-subtle p-5">
             <h2 className="text-xl font-bold">Revenue Trend</h2>
             <p className="text-sm text-gray-600 dark:text-slate-400">
               Monthly revenue across platform
@@ -82,7 +83,7 @@ function AdminDashboardCharts({
                   type="monotone"
                   dataKey="revenue"
                   name="revenue"
-                  stroke="#2563EB"
+                  stroke={BRAND_PRIMARY_CHART_COLOR}
                   strokeWidth={2}
                   dot={{ r: 4 }}
                 />
@@ -91,8 +92,8 @@ function AdminDashboardCharts({
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-          <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+        <div className="rounded-xl border border-line-subtle bg-panel">
+          <div className="border-b border-line-subtle p-5">
             <h2 className="text-xl font-bold">
               Transactions by Payment Method
             </h2>
@@ -134,7 +135,7 @@ function AdminDashboardCharts({
                 <Bar
                   dataKey="transactions"
                   name="transactions"
-                  fill="#2563EB"
+                  fill={BRAND_CHART_PALETTE[0]}
                   radius={[6, 6, 0, 0]}
                 />
               </BarChart>
@@ -143,8 +144,8 @@ function AdminDashboardCharts({
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white dark:border-slate-700 dark:bg-slate-900">
-        <div className="border-b border-gray-200 p-5 dark:border-slate-700">
+      <div className="rounded-xl border border-line-subtle bg-panel">
+        <div className="border-b border-line-subtle p-5">
           <h2 className="text-xl font-bold">Top Hospitals by Revenue</h2>
           <p className="text-sm text-gray-600 dark:text-slate-400">
             Hospitals ranked by revenue generated
@@ -183,7 +184,7 @@ function AdminDashboardCharts({
               />
               <Bar
                 dataKey="revenue"
-                fill="#2563EB"
+                fill={BRAND_CHART_PALETTE[1]}
                 radius={[0, 6, 6, 0]}
               />
             </BarChart>

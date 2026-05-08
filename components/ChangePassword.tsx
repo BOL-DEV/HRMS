@@ -54,7 +54,7 @@ function ChangePassword({ workspaceLabel = "account" }: Props) {
   };
 
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
+    <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
       <div>
         <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
           Change Password
@@ -102,11 +102,11 @@ function ChangePassword({ workspaceLabel = "account" }: Props) {
           }
         />
 
-        <div className="flex justify-end border-t border-gray-200 pt-4 dark:border-slate-700">
+        <div className="flex justify-end border-t border-gray-200 pt-4 dark:border-line-subtle">
           <button
             type="submit"
             disabled={passwordMutation.isPending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {passwordMutation.isPending ? "Updating..." : "Update Password"}
           </button>
@@ -139,7 +139,7 @@ function PasswordField({
           type={visible ? "text" : "password"}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-11 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+          className="w-full rounded-xl border border-gray-200 px-3 py-2.5 pr-11 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
           required
         />
         <button

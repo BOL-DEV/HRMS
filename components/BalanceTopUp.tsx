@@ -20,7 +20,7 @@ function BalanceTopUp() {
   const totals = useMemo(() => {
     return [
       { key: "initial" as const, label: "Initial Balance", tone: "text-amber-700", bg: "bg-amber-50" },
-      { key: "main" as const, label: "Main Balance", tone: "text-blue-700", bg: "bg-blue-50" },
+      { key: "main" as const, label: "Main Balance", tone: "text-brand-700", bg: "bg-brand-50" },
     ];
   }, []);
 
@@ -77,7 +77,7 @@ function BalanceTopUp() {
               />
               <button
                 onClick={() => handleTopUp(item.key)}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
               >
                 <FiPlusCircle />
                 Top Up

@@ -104,7 +104,7 @@ function Page() {
   }, [query, rows]);
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Receipts Approval"
         Subtitle="View and manage all hospital receipt reprint requests"

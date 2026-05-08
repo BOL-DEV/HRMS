@@ -36,7 +36,7 @@ function AdminHospitalsFilters({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search hospital name or code"
-          className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="w-full rounded-lg border border-line-subtle bg-canvas-alt py-2 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
         />
       </div>
 
@@ -44,14 +44,14 @@ function AdminHospitalsFilters({
         value={hospitalName}
         onChange={(event) => onHospitalNameChange(event.target.value)}
         placeholder="Filter by hospital name"
-        className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
       />
 
       <input
         value={hospitalCode}
         onChange={(event) => onHospitalCodeChange(event.target.value)}
         placeholder="Filter by code"
-        className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
       />
 
       <select
@@ -59,7 +59,7 @@ function AdminHospitalsFilters({
         onChange={(event) =>
           onStatusChange(event.target.value as AdminHospitalStatus | "all")
         }
-        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className="rounded-lg border border-line-subtle bg-canvas-alt px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
         aria-label="Filter hospitals by status"
       >
         <option value="all">All Status</option>
@@ -72,7 +72,7 @@ function AdminHospitalsFilters({
         onChange={(event) =>
           onSortChange(event.target.value as "newest" | "oldest")
         }
-        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className="rounded-lg border border-line-subtle bg-canvas-alt px-4 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
         aria-label="Sort hospitals"
       >
         <option value="newest">Newest</option>

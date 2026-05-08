@@ -95,7 +95,7 @@ export default function HeaderHospitalBrand() {
   }
 
   return (
-    <div className="hidden min-w-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-linear-to-r from-slate-50 via-white to-blue-50 px-3 py-2 shadow-sm lg:flex dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800">
+    <div className="hidden min-w-0 items-center gap-3 rounded-2xl border border-line-subtle bg-linear-to-r from-brand-50 via-white to-canvas-alt px-3 py-2 shadow-sm lg:flex dark:border-line-subtle dark:from-panel dark:via-panel dark:to-panel-strong">
       <div className="relative h-12 w-12 overflow-hidden rounded-2xl border border-white/70 bg-slate-200 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {brand.imageUrl ? (
           <img
@@ -104,7 +104,7 @@ export default function HeaderHospitalBrand() {
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-white">
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-brand-700 to-brand-400 text-white">
             <FiActivity className="text-lg" />
           </div>
         )}

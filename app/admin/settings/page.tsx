@@ -38,7 +38,7 @@ export default function Page() {
   }, [sessionQuery.error, router]);
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-screen w-full bg-canvas">
       <Header
         title="Admin Settings"
         Subtitle="Manage security actions for your platform admin session"
