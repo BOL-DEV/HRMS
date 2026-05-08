@@ -98,18 +98,17 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
     <div
       className={
         isEmbedded
-          ? "w-full rounded-[1.6rem] border border-white/55 bg-white/55 p-5 shadow-[0_24px_80px_rgba(13,148,136,0.14)] backdrop-blur-xl dark:border-white/8 dark:bg-slate-900/45 dark:shadow-[0_24px_80px_rgba(2,6,23,0.4)]"
+          ? "w-full rounded-[2rem] border border-white/70 bg-white/88 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_28px_90px_rgba(2,6,23,0.45)] sm:p-8"
           : "w-full max-w-xl rounded-4xl border border-line-subtle bg-panel p-6 shadow-[0_30px_80px_rgba(15,118,110,0.12)] dark:border-line-subtle dark:bg-panel sm:p-8"
       }
     >
-      <div>
-        <p className="text-sm uppercase tracking-[0.3em] text-brand-700 dark:text-brand-300">
-          Secure access
+      <div className="text-center">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          Sign in to continue
         </p>
-        <h2 className="mt-4 text-3xl font-semibold text-slate-950 dark:text-white">
-          Login to your workspace
+        <h2 className="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">
+          Login to SwiftRev
         </h2>
-   
       </div>
 
       <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -120,7 +119,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
           <input
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-2xl border border-line-subtle bg-canvas-alt/90 px-4 py-3 text-slate-950 outline-none transition focus:border-brand-500 focus:bg-white dark:border-line-subtle dark:bg-slate-950/70 dark:text-white dark:focus:border-brand-400 dark:focus:bg-slate-950"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-slate-950 outline-none transition focus:border-brand-500 focus:bg-white dark:border-line-subtle dark:bg-slate-950/70 dark:text-white dark:focus:border-brand-400 dark:focus:bg-slate-950"
             type="email"
             placeholder="you@hospital.com"
             required
@@ -135,7 +134,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
             <input
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-2xl border border-line-subtle bg-canvas-alt/90 px-4 py-3 pr-12 text-slate-950 outline-none transition focus:border-brand-500 focus:bg-white dark:border-line-subtle dark:bg-slate-950/70 dark:text-white dark:focus:border-brand-400 dark:focus:bg-slate-950"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5 pr-12 text-slate-950 outline-none transition focus:border-brand-500 focus:bg-white dark:border-line-subtle dark:bg-slate-950/70 dark:text-white dark:focus:border-brand-400 dark:focus:bg-slate-950"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               required
@@ -154,7 +153,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
         <button
           type="submit"
           disabled={loginMutation.isPending}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-5 py-4 text-base font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-4 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-brand-600 dark:hover:bg-brand-700"
         >
           {loginMutation.isPending ? "Please wait..." : "Login"}
           <FiArrowRight />
