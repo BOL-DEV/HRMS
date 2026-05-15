@@ -23,6 +23,7 @@ import type {
   AgentReceiptSearchType,
   AgentTransactionsResponse,
   AgentTransactionsTimePeriod,
+  AgentSelfTopupHistoryResponse,
   AuthRefreshResponse,
   HospitalImageUrlResponse,
   HospitalPatientSearchResponse,
@@ -296,6 +297,25 @@ export async function getAgentReceipts(params: {
   return withAgentSessionRetry((accessToken) =>
     getJson<AgentReceiptsResponse>(
       `/api/agent/receipts?${searchParams.toString()}`,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+export async function getAgentTopupHistory(params?: {
+  page?: number;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams({
+    page: String(params?.page ?? 1),
+    limit: String(params?.limit ?? 15),
+  });
+
+  return withAgentSessionRetry((accessToken) =>
+    getJson<AgentSelfTopupHistoryResponse>(
+      `/api/agent/topup-history?${searchParams.toString()}`,
       {
         headers: getAgentAuthHeaders(accessToken),
       },

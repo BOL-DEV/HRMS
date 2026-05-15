@@ -13,6 +13,9 @@ import { IoMdClose } from "react-icons/io";
 import { TbReportMedical } from "react-icons/tb";
 import { PiFilesLight } from "react-icons/pi";
 import { FiCreditCard } from "react-icons/fi";
+import { useQuery } from "@tanstack/react-query";
+import { getAccessToken } from "@/libs/auth";
+import { getFoProfile } from "@/libs/fo-auth";
 
 const sidebarData = {
   title: "FO",
@@ -105,22 +108,35 @@ const sidebarData = {
 const FoSidebar = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const accessToken = getAccessToken();
 
-  const links = useMemo(
-    () =>
-      sidebarData.links.map((link) => ({
-        ...link,
-        active:
-          link.link === "/fo/reports"
-            ? pathname === "/fo/reports" || pathname.startsWith("/fo/reports/")
-            : pathname === link.link,
-        children: link.children?.map((child) => ({
-          ...child,
-          active: pathname === child.link,
-        })),
+  const profileQuery = useQuery({
+    queryKey: ["fo-profile"],
+    queryFn: getFoProfile,
+    enabled: Boolean(accessToken),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const revenueType = profileQuery.data?.data.revenue_type;
+  const showBillItems = revenueType !== "manual";
+
+  const links = useMemo(() => {
+    const sourceLinks = showBillItems
+      ? sidebarData.links
+      : sidebarData.links.filter((link) => link.link !== "/fo/bill-items");
+
+    return sourceLinks.map((link) => ({
+      ...link,
+      active:
+        link.link === "/fo/reports"
+          ? pathname === "/fo/reports" || pathname.startsWith("/fo/reports/")
+          : pathname === link.link,
+      children: link.children?.map((child) => ({
+        ...child,
+        active: pathname === child.link,
       })),
-    [pathname]
-  );
+    }));
+  }, [pathname, showBillItems]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);
