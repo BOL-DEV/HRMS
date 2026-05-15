@@ -36,6 +36,7 @@ function AgentTopupHistoryWorkspace({
 }: Props) {
   const selectedAgent =
     agents.find((agent) => agent.agent_id === selectedAgentId) ?? null;
+  const recordCount = pagination?.total ?? topups.length;
 
   return (
     <div className="overflow-hidden rounded-xl border border-line-subtle bg-panel">
@@ -62,7 +63,7 @@ function AgentTopupHistoryWorkspace({
             onChange={(event) => onAgentChange(event.target.value)}
             className="w-full rounded-xl border border-line-subtle bg-canvas-alt px-4 py-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
           >
-            <option value="">Select an agent</option>
+            <option value="">All agents</option>
             {agents.map((agent) => (
               <option key={agent.agent_id} value={agent.agent_id}>
                 {agent.agent_name}
@@ -72,26 +73,28 @@ function AgentTopupHistoryWorkspace({
         </div>
       </div>
 
-      {selectedAgent ? (
+      {selectedAgent || !selectedAgentId ? (
         <div className="flex flex-col gap-3 border-b border-line-subtle bg-panel-muted/40 p-5 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <p className="truncate text-base font-semibold text-gray-900 dark:text-slate-100">
-              {selectedAgent.agent_name}
+              {selectedAgent?.agent_name ?? "All hospital agents"}
             </p>
             <p className="truncate text-sm text-gray-600 dark:text-slate-400">
-              {selectedAgent.email}
+              {selectedAgent?.email ?? "Showing wallet funding activity across all agents"}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <StatusPill
-              status={
-                selectedAgent.status === "suspended" ? "Suspended" : "Active"
-              }
-            />
+            {selectedAgent ? (
+              <StatusPill
+                status={
+                  selectedAgent.status === "suspended" ? "Suspended" : "Active"
+                }
+              />
+            ) : null}
             <p className="text-sm text-gray-600 dark:text-slate-400">
-              {pagination?.total ?? topups.length} top-up record
-              {(pagination?.total ?? topups.length) === 1 ? "" : "s"}
+              {recordCount} top-up record
+              {recordCount === 1 ? "" : "s"}
             </p>
           </div>
         </div>
@@ -126,22 +129,15 @@ function AgentTopupHistoryWorkspace({
                   No agents are available for this hospital yet.
                 </td>
               </tr>
-            ) : !selectedAgentId ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
-                >
-                  Select an agent to view top-up history.
-                </td>
-              </tr>
             ) : topups.length === 0 ? (
               <tr>
                 <td
                   colSpan={5}
                   className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
                 >
-                  No top-up history was found for the selected agent.
+                  {selectedAgentId
+                    ? "No top-up history was found for the selected agent."
+                    : "No top-up history was found for this hospital yet."}
                 </td>
               </tr>
             ) : (
@@ -169,7 +165,7 @@ function AgentTopupHistoryWorkspace({
         </table>
       </div>
 
-      {selectedAgentId && pagination && pagination.total_pages > 1 ? (
+      {pagination && pagination.total_pages > 1 ? (
         <AdminPaginationFooter
           currentPage={pagination.page}
           totalPages={pagination.total_pages}

@@ -376,9 +376,18 @@ export type ProcessPaymentPayload = {
   phone_number?: string;
   payment_type?: AgentPaymentType;
   bill_item_id?: string;
+  bill_item_ids?: string[];
+  bill_items?: Array<{
+    bill_item_id: string;
+  }>;
   income_head_id?: string;
   bill_name?: string;
   amount?: number;
+  manual_items?: Array<{
+    income_head_id: string;
+    bill_name: string;
+    amount: number;
+  }>;
 };
 
 export type ProcessPaymentResponse = {
@@ -404,6 +413,13 @@ export type ProcessPaymentResponse = {
       status: string;
       created_at: string;
     };
+    receipt_items?: Array<{
+      bill_item_id: string | null;
+      income_head_id: string | null;
+      item_name: string;
+      amount: number;
+      item_order: number;
+    }>;
     updated_balance: number;
     receipt: {
       receiptNo: string;
@@ -569,6 +585,7 @@ export type FoProfileResponse = {
     hospital_id: string;
     hospital_code: string;
     hospital_name: string;
+    revenue_type?: AgentRevenueType;
     role: "FO";
     is_active: boolean;
     last_activity: string;
@@ -807,6 +824,41 @@ export type AgentTopupHistoryPagination = {
   limit: number;
   total: number;
   total_pages: number;
+};
+
+export type AgentSelfTopupHistoryActorRole =
+  | "PLATFORM_ADMIN"
+  | "FO"
+  | "AGENT"
+  | "HOSPITAL_ADMIN"
+  | string;
+
+export type AgentSelfTopupHistoryRecord = {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  hospital_id: string;
+  topped_up_by: string;
+  topped_up_by_name: string;
+  topped_up_by_email: string;
+  topped_up_by_role: AgentSelfTopupHistoryActorRole;
+  before_top_up_amount: number;
+  top_up_amount: number;
+  balance_after_topup: number;
+  created_at: string;
+};
+
+export type AgentSelfTopupHistoryResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    agent: AgentTopupHistoryAgentItem;
+    current_balance: number;
+    last_wallet_topup: number;
+    topups: AgentSelfTopupHistoryRecord[];
+    pagination: AgentTopupHistoryPagination;
+  };
 };
 
 export type AdminHospitalAgentTopupHistoryResponse = {

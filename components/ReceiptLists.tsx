@@ -15,7 +15,7 @@ import TagPill from "@/components/TagPill";
 import {
   formatCurrency,
   formatDateTime,
-  openPrintWindowFromHtml,
+  openReceiptPrintWindowFromHtml,
 } from "@/libs/helper";
 import {
   printApprovedAgentReceipt,
@@ -31,7 +31,7 @@ type Props = {
 };
 
 function printReceiptHtml(receiptHTML: string) {
-  const didOpenWindow = openPrintWindowFromHtml(receiptHTML);
+  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML);
 
   if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");

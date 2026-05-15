@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { BRAND_CHART_PALETTE, BRAND_PERIOD_COLORS, BRAND_WEEKDAY_COLORS } from "@/libs/brand";
 import { RevenueChartDatum } from "@/libs/type";
 import {
@@ -42,9 +43,24 @@ function RevenueBarChart({
         <p className="text-sm text-gray-600 dark:text-slate-400">{subtitle}</p>
       </div>
 
-      <div className="w-full h-120 lg:p-10 p-5">
+      <div className="relative h-120 w-full p-5 lg:p-10">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 opacity-[0.07]">
+            <Image
+              src="/swiftRev.png"
+              alt="SwiftRev watermark"
+              width={112}
+              height={112}
+              className="h-28 w-28 object-contain"
+            />
+            <span className="text-3xl font-bold uppercase tracking-[0.45em] text-slate-900 dark:text-slate-100">
+              SwiftRev
+            </span>
+          </div>
+        </div>
+
         {data.length === 0 ? (
-          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 px-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
+          <div className="relative z-10 flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 px-6 text-center text-sm text-gray-500 dark:border-slate-700 dark:text-slate-400">
             {emptyMessage}
           </div>
         ) : (

@@ -5,6 +5,7 @@ import { FaRegChartBar } from "react-icons/fa";
 import { GrDocumentCloud } from "react-icons/gr";
 // import { GrDocumentStore } from "react-icons/gr";
 import { BsReceipt } from "react-icons/bs";
+import { FiCreditCard } from "react-icons/fi";
 import { IoSettingsOutline } from "react-icons/io5";
 import Sidebar from "./Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
@@ -36,6 +37,12 @@ const sidebarData = {
       name: "Receipts",
       link: "/agents/receipts",
       label: <BsReceipt className="inline" />,
+      active: false,
+    },
+    {
+      name: "Top-Up History",
+      link: "/agents/topup-history",
+      label: <FiCreditCard className="inline" />,
       active: false,
     },
     // {

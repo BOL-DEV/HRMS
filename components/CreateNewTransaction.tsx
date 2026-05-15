@@ -10,8 +10,15 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
-import { FiCheckCircle, FiRefreshCw, FiSearch, FiX } from "react-icons/fi";
-import { formatCurrency, openPrintWindowFromHtml } from "@/libs/helper";
+import {
+  FiCheckCircle,
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+  FiTrash2,
+  FiX,
+} from "react-icons/fi";
+import { formatCurrency, openReceiptPrintWindowFromHtml } from "@/libs/helper";
 import type {
   AgentBillItem,
   AgentIncomeHead,
@@ -34,6 +41,22 @@ interface Props {
   onSuccess?: () => unknown | Promise<unknown>;
 }
 
+type SelectedAutomaticItem = {
+  billItemId: string;
+  billItemName: string;
+  incomeHeadId: string;
+  incomeHeadName: string;
+  amount: number;
+};
+
+type SelectedManualItem = {
+  id: string;
+  incomeHeadId: string;
+  incomeHeadName: string;
+  billName: string;
+  amount: number;
+};
+
 function getInitialForm(): NewTransactionForm {
   return {
     patientId: "",
@@ -53,7 +76,7 @@ function getInitialForm(): NewTransactionForm {
 }
 
 function printReceipt(receiptHTML: string) {
-  const didOpenWindow = openPrintWindowFromHtml(receiptHTML);
+  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML);
 
   if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");
@@ -65,12 +88,29 @@ function isDigitsOnly(value: string) {
 }
 
 function isValidPhoneNumber(value: string) {
-  return /^\d{10,15}$/.test(value);
+  return /^\d{11}$/.test(value);
+}
+
+function sanitizePhoneNumber(value: string) {
+  return value.replace(/\D/g, "").slice(0, 11);
+}
+
+function sanitizeAmountInput(value: string) {
+  const normalized = value.replace(/[^\d.]/g, "");
+  const [whole = "", ...fractionParts] = normalized.split(".");
+
+  if (fractionParts.length === 0) {
+    return normalized;
+  }
+
+  return `${whole}.${fractionParts.join("")}`;
 }
 
 function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
+  const [selectedBillItems, setSelectedBillItems] = useState<SelectedAutomaticItem[]>([]);
+  const [selectedManualItems, setSelectedManualItems] = useState<SelectedManualItem[]>([]);
   const [billSearch, setBillSearch] = useState("");
   const [showBillItemList, setShowBillItemList] = useState(true);
   const [patientSearchInput, setPatientSearchInput] = useState("");
@@ -99,20 +139,14 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const incomeHeadsQuery = useQuery({
     queryKey: ["agent-income-heads", form.departmentId],
     queryFn: () => getAgentIncomeHeads(form.departmentId),
-    enabled: open && Boolean(form.departmentId),
+    enabled: open && paymentMode === "manual" && Boolean(form.departmentId),
   });
 
   const billItemsQuery = useQuery({
-    queryKey: [
-      "agent-bill-items",
-      form.departmentId,
-      form.incomeHeadId,
-      billSearch,
-    ],
+    queryKey: ["agent-bill-items", form.departmentId, billSearch],
     queryFn: () =>
       getAgentBillItems({
         departmentId: form.departmentId,
-        incomeHeadId: form.incomeHeadId || undefined,
         billName: billSearch || undefined,
       }),
     enabled: open && paymentMode === "automatic" && Boolean(form.departmentId),
@@ -148,6 +182,14 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     [patientSearchQuery.data],
   );
 
+  const totalAmount = useMemo(() => {
+    if (paymentMode === "automatic") {
+      return selectedBillItems.reduce((sum, item) => sum + item.amount, 0);
+    }
+
+    return selectedManualItems.reduce((sum, item) => sum + item.amount, 0);
+  }, [paymentMode, selectedBillItems, selectedManualItems]);
+
   const patientLookupMutation = useMutation({
     mutationFn: lookupAgentPatient,
     onSuccess: (response) => {
@@ -172,8 +214,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       setForm((current) => ({
         ...current,
         patientExists: false,
-        patientName: "",
-        phoneNumber: "",
+        patientName: current.patientName,
+        phoneNumber: current.phoneNumber,
       }));
     },
     onError: (error) => {
@@ -209,6 +251,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       await onSuccess?.();
       printReceipt(response.data.receipt.receiptHTML);
       setForm(getInitialForm());
+      setSelectedBillItems([]);
+      setSelectedManualItems([]);
       setBillSearch("");
       setPatientSearchInput("");
       setShowPatientSuggestions(true);
@@ -231,10 +275,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     Boolean(form.departmentId) &&
     Boolean(form.paymentType) &&
     (paymentMode === "automatic"
-      ? Boolean(form.incomeHeadId && form.billItemId)
-      : Boolean(
-          form.incomeHeadId && form.billName.trim() && form.amount.trim(),
-        ));
+      ? selectedBillItems.length > 0
+      : selectedManualItems.length > 0);
 
   const triggerPatientLookup = useEffectEvent(() => {
     const patientId = form.patientId.trim();
@@ -280,6 +322,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       billName: "",
       amount: "",
     }));
+    setSelectedBillItems([]);
+    setSelectedManualItems([]);
     setBillSearch("");
     setShowBillItemList(true);
   };
@@ -292,8 +336,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       ...current,
       incomeHeadId: value,
       incomeHeadName: selectedIncomeHead?.name ?? "",
-      billItemId: "",
-      billItemName: "",
+      billItemId: paymentMode === "automatic" ? current.billItemId : "",
+      billItemName: paymentMode === "automatic" ? current.billItemName : "",
       billName: paymentMode === "manual" ? current.billName : "",
       amount: paymentMode === "manual" ? current.amount : "",
     }));
@@ -313,6 +357,88 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     }));
     setBillSearch(billItem.name);
     setShowBillItemList(false);
+  };
+
+  const handleAddItem = () => {
+    if (paymentMode === "automatic") {
+      if (!form.billItemId || !form.billItemName || !form.amount) {
+        toast.error("Select a bill item to add.");
+        return;
+      }
+
+      const amount = Number(form.amount);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error("Select a valid bill item amount.");
+        return;
+      }
+
+      if (selectedBillItems.some((item) => item.billItemId === form.billItemId)) {
+        toast.error("This bill item has already been added.");
+        return;
+      }
+
+      setSelectedBillItems((current) => [
+        ...current,
+        {
+          billItemId: form.billItemId,
+          billItemName: form.billItemName,
+          incomeHeadId: form.incomeHeadId,
+          incomeHeadName: form.incomeHeadName,
+          amount,
+        },
+      ]);
+      setForm((current) => ({
+        ...current,
+        billItemId: "",
+        billItemName: "",
+        billName: "",
+        amount: "",
+      }));
+      setBillSearch("");
+      setShowBillItemList(true);
+      return;
+    }
+
+    if (!form.incomeHeadId || !form.billName.trim() || !form.amount.trim()) {
+      toast.error("Income head, bill name, and amount are required.");
+      return;
+    }
+
+    const amount = Number(form.amount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
+      return;
+    }
+
+    setSelectedManualItems((current) => [
+      ...current,
+      {
+        id: `${form.incomeHeadId}-${form.billName.trim()}-${Date.now()}`,
+        incomeHeadId: form.incomeHeadId,
+        incomeHeadName: form.incomeHeadName,
+        billName: form.billName.trim(),
+        amount,
+      },
+    ]);
+    setForm((current) => ({
+      ...current,
+      billName: "",
+      amount: "",
+    }));
+  };
+
+  const removeAutomaticItem = (billItemId: string) => {
+    setSelectedBillItems((current) =>
+      current.filter((item) => item.billItemId !== billItemId),
+    );
+  };
+
+  const removeManualItem = (id: string) => {
+    setSelectedManualItems((current) =>
+      current.filter((item) => item.id !== id),
+    );
   };
 
   useEffect(() => {
@@ -426,8 +552,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     }
 
     if (paymentMode === "automatic") {
-      if (!form.billItemId) {
-        toast.error("Select a bill item.");
+      if (selectedBillItems.length === 0) {
+        toast.error("Add at least one bill item.");
         return;
       }
 
@@ -436,21 +562,16 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         department_id: form.departmentId,
         patient_name: form.patientExists ? undefined : patientName,
         phone_number: form.patientExists ? undefined : phoneNumber,
-        bill_item_id: form.billItemId,
+        bill_items: selectedBillItems.map((item) => ({
+          bill_item_id: item.billItemId,
+        })),
         payment_type: form.paymentType,
       });
       return;
     }
 
-    if (!form.incomeHeadId || !form.billName.trim() || !form.amount.trim()) {
-      toast.error("Income head, bill name, and amount are required.");
-      return;
-    }
-
-    const amount = Number(form.amount);
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Enter a valid amount.");
+    if (selectedManualItems.length === 0) {
+      toast.error("Add at least one manual bill item.");
       return;
     }
 
@@ -459,9 +580,11 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       department_id: form.departmentId,
       patient_name: form.patientExists ? undefined : patientName,
       phone_number: form.patientExists ? undefined : phoneNumber,
-      income_head_id: form.incomeHeadId,
-      bill_name: form.billName.trim(),
-      amount,
+      manual_items: selectedManualItems.map((item) => ({
+        income_head_id: item.incomeHeadId,
+        bill_name: item.billName,
+        amount: item.amount,
+      })),
       payment_type: form.paymentType,
     });
   };
@@ -472,6 +595,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     }
 
     setForm(getInitialForm());
+    setSelectedBillItems([]);
+    setSelectedManualItems([]);
     setBillSearch("");
     setPatientSearchInput("");
     setShowPatientSuggestions(true);
@@ -515,7 +640,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         onClick={closeModal}
       >
         <div
-          className="mx-auto my-6 w-full max-w-4xl rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
+          className="mx-auto my-6 w-full max-w-5xl rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-6 dark:border-line-subtle">
@@ -524,8 +649,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 Process Payment
               </h2>
               <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">
-                Follow the steps, choose the correct bill item when needed, and
-                print the receipt immediately after payment.
+                Add one or more bill items, confirm the total, and print both
+                the customer and audit copies after payment.
               </p>
             </div>
 
@@ -539,7 +664,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             </button>
           </div>
 
-          <div className="grid gap-6 p-6 xl:grid-cols-[1.35fr_0.85fr]">
+          <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_0.9fr]">
             <div className="min-w-0 space-y-5">
               {configError ||
               departmentsError ||
@@ -599,8 +724,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             ...current,
                             patientId: digitsOnly,
                             patientExists: false,
-                            patientName: "",
-                            phoneNumber: "",
+                            patientName: current.patientName,
+                            phoneNumber: current.phoneNumber,
                           }));
                         }}
                         className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
@@ -635,7 +760,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                       className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                                         isSelected
                                           ? "border-brand-300 bg-brand-50 dark:border-brand-800 dark:bg-brand-950/20"
-                                            : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:hover:border-line-strong dark:hover:bg-panel-strong"
+                                          : "border-gray-200 bg-white hover:border-slate-300 hover:bg-gray-50 dark:border-line-subtle dark:bg-panel dark:hover:border-line-strong dark:hover:bg-panel-strong"
                                       }`}
                                     >
                                       <p className="font-semibold text-slate-900 dark:text-slate-100">
@@ -656,7 +781,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </label>
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                     You can search by patient ID or patient name. If no match
-                    appears, you can still continue with a new patient.
+                    appears, the details you entered will stay in place.
                   </p>
                 </div>
 
@@ -695,9 +820,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                       onChange={(event) =>
                         setForm((current) => ({
                           ...current,
-                          phoneNumber: event.target.value.replace(/\D/g, ""),
+                          phoneNumber: sanitizePhoneNumber(event.target.value),
                         }))
                       }
+                      maxLength={11}
                       disabled={form.patientExists}
                       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-line-subtle dark:bg-canvas dark:text-slate-100 dark:disabled:bg-panel-strong"
                       placeholder="08012345678"
@@ -774,35 +900,37 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </label>
                 </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                      Income Head
-                    </span>
-                    <select
-                      value={form.incomeHeadId}
-                      onChange={(event) =>
-                        handleIncomeHeadChange(event.target.value)
-                      }
-                      disabled={
-                        !form.departmentId || incomeHeadsQuery.isLoading
-                      }
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                    >
-                      <option value="">
-                        {!form.departmentId
-                          ? "Select department first"
-                          : incomeHeadsQuery.isLoading
-                            ? "Loading income heads..."
-                            : "Select income head"}
-                      </option>
-                      {incomeHeads.map((incomeHead: AgentIncomeHead) => (
-                        <option key={incomeHead.id} value={incomeHead.id}>
-                          {incomeHead.name}
+                <div
+                  className={`mt-4 grid gap-4 ${paymentMode === "manual" ? "md:grid-cols-2" : ""}`}
+                >
+                  {paymentMode === "manual" ? (
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Income Head
+                      </span>
+                      <select
+                        value={form.incomeHeadId}
+                        onChange={(event) =>
+                          handleIncomeHeadChange(event.target.value)
+                        }
+                        disabled={!form.departmentId || incomeHeadsQuery.isLoading}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                      >
+                        <option value="">
+                          {!form.departmentId
+                            ? "Select department first"
+                            : incomeHeadsQuery.isLoading
+                              ? "Loading income heads..."
+                              : "Select income head"}
                         </option>
-                      ))}
-                    </select>
-                  </label>
+                        {incomeHeads.map((incomeHead: AgentIncomeHead) => (
+                          <option key={incomeHead.id} value={incomeHead.id}>
+                            {incomeHead.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
 
                   {paymentMode === "automatic" ? (
                     <label className="space-y-2">
@@ -833,16 +961,16 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             }
                           }}
                           onFocus={() => setShowBillItemList(true)}
-                          disabled={!form.incomeHeadId}
+                          disabled={!form.departmentId}
                           className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-panel-strong"
                           placeholder={
-                            form.incomeHeadId
+                            form.departmentId
                               ? "Search and select a bill item"
-                              : "Select income head first"
+                              : "Select department first"
                           }
                         />
 
-                        {form.incomeHeadId && showBillItemList ? (
+                        {form.departmentId && showBillItemList ? (
                           <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-20 rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-line-subtle dark:bg-panel">
                             <div className="max-h-72 overflow-y-auto p-3">
                               {billItemsQuery.isLoading ? (
@@ -858,6 +986,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                   {billItems.map((billItem: AgentBillItem) => {
                                     const isSelected =
                                       billItem.bill_item_id === form.billItemId;
+                                    const isAdded = selectedBillItems.some(
+                                      (item) =>
+                                        item.billItemId === billItem.bill_item_id,
+                                    );
 
                                     return (
                                       <button
@@ -886,7 +1018,11 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                             <p className="font-semibold text-slate-900 dark:text-slate-100">
                                               {formatCurrency(billItem.amount)}
                                             </p>
-                                            {isSelected ? (
+                                            {isAdded ? (
+                                              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                                Added
+                                              </p>
+                                            ) : isSelected ? (
                                               <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
                                                 Selected
                                               </p>
@@ -925,12 +1061,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
 
                 {paymentMode === "automatic" ? (
                   <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-line-subtle dark:bg-canvas/70">
-                    {!form.incomeHeadId ? (
-                      <p className="text-sm text-amber-700 dark:text-amber-300">
-                        Select an income head first before searching for bill
-                        items.
-                      </p>
-                    ) : null}
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      Search across the selected department before adding bill
+                      items.
+                    </p>
 
                     <label className="mt-4 block space-y-2">
                       <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
@@ -943,6 +1077,16 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         placeholder="Auto-filled from selected bill item"
                       />
                     </label>
+
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      disabled={!form.billItemId}
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-700/60 dark:bg-brand-950/20 dark:text-brand-300"
+                    >
+                      <FiPlus />
+                      Add Item
+                    </button>
                   </div>
                 ) : (
                   <div className="mt-4">
@@ -955,7 +1099,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         onChange={(event) =>
                           setForm((current) => ({
                             ...current,
-                            amount: event.target.value,
+                            amount: sanitizeAmountInput(event.target.value),
                           }))
                         }
                         className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
@@ -963,8 +1107,110 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         inputMode="decimal"
                       />
                     </label>
+
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      disabled={
+                        !form.incomeHeadId ||
+                        !form.billName.trim() ||
+                        !form.amount.trim()
+                      }
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-700/60 dark:bg-brand-950/20 dark:text-brand-300"
+                    >
+                      <FiPlus />
+                      Add Item
+                    </button>
                   </div>
                 )}
+
+                <div className="mt-5 rounded-2xl border border-gray-200 bg-white/80 p-4 dark:border-line-subtle dark:bg-panel/70">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        Added Items
+                      </h4>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        Review the bill list before processing payment.
+                      </p>
+                    </div>
+                    <p className="text-sm font-semibold text-brand-700 dark:text-brand-300">
+                      Total: {formatCurrency(totalAmount)}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {paymentMode === "automatic" ? (
+                      selectedBillItems.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
+                          No bill items added yet.
+                        </div>
+                      ) : (
+                        selectedBillItems.map((item) => (
+                          <div
+                            key={item.billItemId}
+                            className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 px-4 py-3 dark:border-line-subtle"
+                          >
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                {item.billItemName}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                                {item.incomeHeadName}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">
+                                {formatCurrency(item.amount)}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => removeAutomaticItem(item.billItemId)}
+                                className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/30"
+                                aria-label={`Remove ${item.billItemName}`}
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )
+                    ) : selectedManualItems.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500 dark:border-line-subtle dark:text-slate-400">
+                        No manual items added yet.
+                      </div>
+                    ) : (
+                      selectedManualItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 px-4 py-3 dark:border-line-subtle"
+                        >
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">
+                              {item.billName}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                              {item.incomeHeadName}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">
+                              {formatCurrency(item.amount)}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeManualItem(item.id)}
+                              className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/30"
+                              aria-label={`Remove ${item.billName}`}
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </section>
             </div>
 
@@ -1001,14 +1247,20 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </div>
                   <div className="flex items-start justify-between gap-4">
                     <dt className="text-gray-600 dark:text-slate-300">
-                      Income Head
+                      Added Items
                     </dt>
                     <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                      {form.incomeHeadName || "Not set"}
+                      {paymentMode === "automatic"
+                        ? `${selectedBillItems.length} item${
+                            selectedBillItems.length === 1 ? "" : "s"
+                          }`
+                        : `${selectedManualItems.length} item${
+                            selectedManualItems.length === 1 ? "" : "s"
+                          }`}
                     </dd>
                   </div>
                   <div className="flex items-start justify-between gap-4">
-                    <dt className="text-gray-600 dark:text-slate-300">Bill</dt>
+                    <dt className="text-gray-600 dark:text-slate-300">Draft</dt>
                     <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
                       {paymentMode === "automatic"
                         ? form.billItemName || "Not set"
@@ -1017,12 +1269,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </div>
                   <div className="flex items-start justify-between gap-4">
                     <dt className="text-gray-600 dark:text-slate-300">
-                      Amount
+                      Total
                     </dt>
                     <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                      {form.amount
-                        ? formatCurrency(Number(form.amount))
-                        : "Not set"}
+                      {formatCurrency(totalAmount)}
                     </dd>
                   </div>
                 </dl>
@@ -1035,8 +1285,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 <ol className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
                   <li>1. Search by patient ID or name and select a match when available.</li>
                   <li>2. If no patient exists, enter name and phone manually.</li>
-                  <li>3. Choose department, payment type, and income head.</li>
-                  <li>4. Search and select the correct bill item, then review and print.</li>
+                  <li>3. Choose department and payment type, then add one or more items.</li>
+                  <li>4. Review the total and print both customer and audit copies.</li>
                 </ol>
               </section>
 
