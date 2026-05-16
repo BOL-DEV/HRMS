@@ -109,8 +109,12 @@ function sanitizeAmountInput(value: string) {
 function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
-  const [selectedBillItems, setSelectedBillItems] = useState<SelectedAutomaticItem[]>([]);
-  const [selectedManualItems, setSelectedManualItems] = useState<SelectedManualItem[]>([]);
+  const [selectedBillItems, setSelectedBillItems] = useState<
+    SelectedAutomaticItem[]
+  >([]);
+  const [selectedManualItems, setSelectedManualItems] = useState<
+    SelectedManualItem[]
+  >([]);
   const [billSearch, setBillSearch] = useState("");
   const [showBillItemList, setShowBillItemList] = useState(true);
   const [patientSearchInput, setPatientSearchInput] = useState("");
@@ -373,7 +377,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         return;
       }
 
-      if (selectedBillItems.some((item) => item.billItemId === form.billItemId)) {
+      if (
+        selectedBillItems.some((item) => item.billItemId === form.billItemId)
+      ) {
         toast.error("This bill item has already been added.");
         return;
       }
@@ -913,7 +919,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         onChange={(event) =>
                           handleIncomeHeadChange(event.target.value)
                         }
-                        disabled={!form.departmentId || incomeHeadsQuery.isLoading}
+                        disabled={
+                          !form.departmentId || incomeHeadsQuery.isLoading
+                        }
                         className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                       >
                         <option value="">
@@ -988,7 +996,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                       billItem.bill_item_id === form.billItemId;
                                     const isAdded = selectedBillItems.some(
                                       (item) =>
-                                        item.billItemId === billItem.bill_item_id,
+                                        item.billItemId ===
+                                        billItem.bill_item_id,
                                     );
 
                                     return (
@@ -1165,7 +1174,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                               </p>
                               <button
                                 type="button"
-                                onClick={() => removeAutomaticItem(item.billItemId)}
+                                onClick={() =>
+                                  removeAutomaticItem(item.billItemId)
+                                }
                                 className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/30"
                                 aria-label={`Remove ${item.billItemName}`}
                               >
@@ -1268,9 +1279,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     </dd>
                   </div>
                   <div className="flex items-start justify-between gap-4">
-                    <dt className="text-gray-600 dark:text-slate-300">
-                      Total
-                    </dt>
+                    <dt className="text-gray-600 dark:text-slate-300">Total</dt>
                     <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
                       {formatCurrency(totalAmount)}
                     </dd>
@@ -1283,10 +1292,21 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   Quick Guide
                 </h3>
                 <ol className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <li>1. Search by patient ID or name and select a match when available.</li>
-                  <li>2. If no patient exists, enter name and phone manually.</li>
-                  <li>3. Choose department and payment type, then add one or more items.</li>
-                  <li>4. Review the total and print both customer and audit copies.</li>
+                  <li>
+                    1. Search by patient ID or name and select a match when
+                    available.
+                  </li>
+                  <li>
+                    2. If no patient exists, enter name and phone manually.
+                  </li>
+                  <li>
+                    3. Choose department and payment type, then add one or more
+                    items.
+                  </li>
+                  <li>
+                    4. Review the total and print both customer and audit
+                    copies.
+                  </li>
                 </ol>
               </section>
 
