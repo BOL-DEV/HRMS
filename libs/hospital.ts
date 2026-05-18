@@ -1,4 +1,4 @@
-import { formatUsd } from "@/libs/helper";
+import { formatNaira } from "@/libs/helper";
 
 export type HospitalStatus = "Active" | "Suspended";
 
@@ -110,7 +110,7 @@ const hospitals: Hospital[] = [
     pendingRefunds: 12,
     revenueDeltaLabel: "+5.2% this month",
     transactionsLabel: "82 per day",
-    agentsLabel: `${formatUsd(8555.56)} revenue per agent`,
+    agentsLabel: `${formatNaira(8555.56)} revenue per agent`,
     patientsLabel: "Active users",
     refundsLabel: "Awaiting review",
     revenueTrend: [
@@ -489,9 +489,9 @@ export function getHospitalDisplayId(id: string): string {
 }
 
 export function formatHospitalMoney(value: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: "USD",
+    currency: "NGN",
     minimumFractionDigits: 0,
   }).format(value);
 }

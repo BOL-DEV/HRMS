@@ -1,5 +1,7 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
+import { formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/StatusPill";
 import {
   Line,
@@ -28,13 +30,6 @@ export type PatientProfile = {
   paymentTrend?: PatientPaymentPoint[];
   recentTransactions?: PatientRecentTx[];
 };
-
-const usd = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(value);
 
 function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; onClose: () => void }) {
   const trend = patient.paymentTrend ?? [];
@@ -94,7 +89,7 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[{ label: "Total Amount Paid", value: usd(patient.totalPaid) }, { label: "Total Visits", value: patient.totalVisits }, { label: "Last Visit", value: patient.lastVisit }].map((card) => (
+            {[{ label: "Total Amount Paid", value: formatNaira(patient.totalPaid) }, { label: "Total Visits", value: patient.totalVisits }, { label: "Last Visit", value: patient.lastVisit }].map((card) => (
               <div key={card.label} className="border border-gray-200 rounded-xl p-4">
                 <p className="text-sm text-gray-600">{card.label}</p>
                 <p className="text-2xl font-bold mt-1">{card.value}</p>
@@ -105,12 +100,13 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
           {trend.length ? (
             <div className="border border-gray-200 rounded-xl p-4">
               <h3 className="text-lg font-semibold">Monthly Payment Trend</h3>
-              <div className="h-64">
+              <div className="relative h-64">
+                <ChartWatermark />
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trend} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(v) => usd(Number(v)).replace("$", "")} width={60} />
+                    <YAxis tickFormatter={(v) => formatNaira(Number(v)).replace("NGN", "").trim()} width={60} />
                     <Line type="monotone" dataKey="amount" stroke="#111827" strokeWidth={2} dot={{ r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -128,7 +124,7 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
                       <p className="font-medium text-gray-900">{t.name}</p>
                       <p className="text-sm text-gray-500">{t.invoice} • {t.date}</p>
                     </div>
-                    <p className="font-semibold text-brand-700">{usd(t.amount)}</p>
+                    <p className="font-semibold text-brand-700">{formatNaira(t.amount)}</p>
                   </div>
                 ))}
               </div>

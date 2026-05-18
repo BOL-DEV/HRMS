@@ -2,7 +2,7 @@ import StatCard from "@/components/StatCard";
 import { formatCompactNumber, formatNaira } from "@/libs/helper";
 import {
   FiActivity,
-  FiDollarSign,
+  FiCreditCard,
   FiFileText,
   FiUsers,
 } from "react-icons/fi";
@@ -34,7 +34,7 @@ function AdminDashboardSummaryCards({ isLoading = false, summary }: Props) {
     {
       title: "Total Platform Revenue",
       value: formatNaira(summary.totalRevenue),
-      icon: <FiDollarSign className="text-xl" />,
+      icon: <FiCreditCard className="text-xl" />,
     },
     {
       title: "Total Transactions",

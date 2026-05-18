@@ -3,6 +3,7 @@
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import StatusPill from "@/components/StatusPill";
+import ChartWatermark from "@/components/ChartWatermark";
 import React from "react";
 import {
   CartesianGrid,
@@ -18,17 +19,17 @@ import {
 } from "recharts";
 import {
   FiClock,
-  FiDollarSign,
+  FiCreditCard,
   FiFileText,
   FiPrinter,
   FiRefreshCcw,
   FiDownload,
 } from "react-icons/fi";
 
-const usd = (value: number) =>
-  new Intl.NumberFormat("en-US", {
+const formatAmount = (value: number) =>
+  new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: "USD",
+    currency: "NGN",
     maximumFractionDigits: 0,
   }).format(value);
 
@@ -49,10 +50,10 @@ const filterOptions = {
 const stats = [
   {
     title: "Total Revenue",
-    value: usd(11800),
+    value: formatAmount(11800),
     delta: "+8.5% from previous period",
     deltaTone: "positive" as const,
-    icon: <FiDollarSign className="text-xl" />,
+    icon: <FiCreditCard className="text-xl" />,
   },
   {
     title: "Total Transactions",
@@ -63,7 +64,7 @@ const stats = [
   },
   {
     title: "Pending Amount",
-    value: usd(550),
+    value: formatAmount(550),
     delta: "Awaiting payment",
     deltaTone: "neutral" as const,
     icon: <FiClock className="text-xl" />,
@@ -224,7 +225,8 @@ function Page() {
               <p className="text-sm text-gray-600">Daily revenue performance</p>
             </div>
 
-            <div className="p-5 h-80">
+            <div className="relative p-5 h-80">
+              <ChartWatermark />
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart
                   margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
@@ -247,7 +249,8 @@ function Page() {
               </p>
             </div>
 
-            <div className="p-5 h-80">
+            <div className="relative p-5 h-80">
+              <ChartWatermark />
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -328,7 +331,7 @@ function Page() {
                       {tx.revenueHead}
                     </td>
                     <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">
-                      {usd(tx.amount)}
+                      {formatAmount(tx.amount)}
                     </td>
                     <td className="p-3 text-gray-700 whitespace-nowrap">
                       {tx.paymentMethod}

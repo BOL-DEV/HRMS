@@ -1,6 +1,6 @@
 import StatCard from "@/components/StatCard";
 import { formatCompactNumber, formatNaira } from "@/libs/helper";
-import { FiDollarSign, FiSlash } from "react-icons/fi";
+import { FiCreditCard, FiSlash } from "react-icons/fi";
 import { LuHospital } from "react-icons/lu";
 
 type Props = {
@@ -30,7 +30,7 @@ function AdminHospitalsSummaryCards({
     {
       title: "Total Platform Revenue",
       value: formatNaira(summary.totalRevenue),
-      icon: <FiDollarSign className="text-xl" />,
+      icon: <FiCreditCard className="text-xl" />,
     },
   ];
 

@@ -1,5 +1,6 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
 import {
   Cell,
   Pie,
@@ -64,7 +65,8 @@ function PaymentMethodBreakdown({
           </div>
         ) : (
           <>
-            <div className="h-[24rem] w-full">
+            <div className="relative h-[24rem] w-full">
+              <ChartWatermark />
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie

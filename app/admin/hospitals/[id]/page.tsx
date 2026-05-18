@@ -1,5 +1,6 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
 import { ApiError } from "@/libs/api";
 import { getAdminHospitalOverview } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
@@ -141,28 +142,31 @@ function HospitalOverviewPage() {
           </p>
         </div>
 
-        <div className="h-96 p-6">
+        <div className="relative h-96 p-6">
           {revenueTrend.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={revenueTrend}
-                margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis tickFormatter={(value) => String(value)} />
-                <Tooltip
-                  formatter={(value) => [formatNaira(Number(value)), "Revenue"]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke={BRAND_PRIMARY_CHART_COLOR}
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <>
+              <ChartWatermark />
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={revenueTrend}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis tickFormatter={(value) => String(value)} />
+                  <Tooltip
+                    formatter={(value) => [formatNaira(Number(value)), "Revenue"]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke={BRAND_PRIMARY_CHART_COLOR}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </>
           ) : (
             <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-line-subtle text-sm text-gray-500 dark:text-slate-400">
               No revenue trend data available for this hospital yet.

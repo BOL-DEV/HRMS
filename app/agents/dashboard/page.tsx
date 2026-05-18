@@ -21,7 +21,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   FiActivity,
   FiCreditCard,
-  FiDollarSign,
   FiFileText,
 } from "react-icons/fi";
 
@@ -227,7 +226,7 @@ function Page() {
                       </div>
 
                       <div className="rounded-2xl bg-brand-100 p-3 text-brand-700 dark:bg-brand-500/14 dark:text-brand-200">
-                        <FiDollarSign className="text-2xl" />
+                        <FiCreditCard className="text-2xl" />
                       </div>
                     </div>
 

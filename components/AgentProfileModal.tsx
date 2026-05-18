@@ -1,6 +1,8 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
 import { BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
+import { formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/StatusPill";
 import {
   CartesianGrid,
@@ -25,13 +27,6 @@ export type AgentProfile = {
   topPatients?: { name: string; revenue: number }[];
   revenueTrend?: { month: string; amount: number }[];
 };
-
-const usd = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(value);
 
 function AgentProfileModal({
   agent,
@@ -102,7 +97,7 @@ function AgentProfileModal({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {[
-              { label: "Total Revenue", value: usd(agent.revenue) },
+              { label: "Total Revenue", value: formatNaira(agent.revenue) },
               { label: "Transactions", value: agent.transactions },
               { label: "Pending", value: agent.pending },
             ].map((card) => (
@@ -125,7 +120,8 @@ function AgentProfileModal({
               <h3 className="text-lg font-semibold dark:text-slate-100">
                 Monthly Revenue Trend
               </h3>
-              <div className="h-64">
+              <div className="relative h-64">
+                <ChartWatermark />
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={trend}
@@ -143,7 +139,7 @@ function AgentProfileModal({
                       tickLine={{ stroke: "currentColor" }}
                     />
                     <YAxis
-                      tickFormatter={(v) => usd(Number(v)).replace("$", "")}
+                      tickFormatter={(v) => formatNaira(Number(v)).replace("NGN", "").trim()}
                       width={60}
                       tick={{ fill: "currentColor" }}
                       axisLine={{ stroke: "currentColor" }}
@@ -177,7 +173,7 @@ function AgentProfileModal({
                       {patient.name}
                     </p>
                     <p className="font-semibold text-brand-700 dark:text-brand-300">
-                      {usd(patient.revenue)}
+                      {formatNaira(patient.revenue)}
                     </p>
                   </div>
                 ))}
