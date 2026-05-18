@@ -30,12 +30,7 @@ export default function Page() {
   const [patientId, setPatientId] = useState("");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
-  const [applied, setApplied] = useState({
-    hospitalId: "",
-    patientId: "",
-    startDate: today,
-    endDate: today,
-  });
+  const [showAll, setShowAll] = useState(false);
 
   const optionsQuery = useQuery({
     queryKey: ["admin-patient-report-options"],
@@ -57,35 +52,20 @@ export default function Page() {
     enabled: Boolean(accessToken && applied.hospitalId),
   });
 
-  useEffect(() => {
-    if (!selectedHospitalId) {
-      return;
-    }
-
-    const trimmedPatientId = patientId.trim();
-    const patientIdIsValid = !trimmedPatientId || isNumericPatientId(trimmedPatientId);
-    const dateRangeIsInvalid = Boolean(startDate && endDate && startDate > endDate);
-
-    if (!patientIdIsValid || dateRangeIsInvalid) {
-      return;
-    }
-
-    setApplied((current) => {
-      const next = {
-        hospitalId: selectedHospitalId,
-        patientId: trimmedPatientId,
-        startDate,
-        endDate,
-      };
-
-      return current.hospitalId === next.hospitalId &&
-        current.patientId === next.patientId &&
-        current.startDate === next.startDate &&
-        current.endDate === next.endDate
-        ? current
-        : next;
-    });
-  }, [endDate, patientId, selectedHospitalId, startDate]);
+  const trimmedPatientId = patientId.trim();
+  const patientIdIsValid =
+    !trimmedPatientId || isNumericPatientId(trimmedPatientId);
+  const dateRangeIsInvalid =
+    !showAll && Boolean(startDate && endDate && startDate > endDate);
+  const applied =
+    !selectedHospitalId || !patientIdIsValid || dateRangeIsInvalid
+      ? null
+      : {
+          hospitalId: selectedHospitalId,
+          patientId: trimmedPatientId,
+          startDate: showAll ? "" : startDate,
+          endDate: showAll ? "" : endDate,
+        };
 
   useEffect(() => {
     if (!accessToken) {
@@ -119,20 +99,26 @@ export default function Page() {
       hospitalId={selectedHospitalId}
       onHospitalChange={(value) => {
         setHospitalId(value);
-        setApplied((current) => ({
-          ...current,
-          hospitalId: "",
-        }));
+        setShowAll(false);
       }}
       hospitalOptions={hospitals}
       filterLabel="Patient ID"
       filterValue={patientId}
-      onFilterChange={setPatientId}
+      onFilterChange={(value) => {
+        setPatientId(value);
+        setShowAll(false);
+      }}
       filterPlaceholder="Enter patient ID"
       startDate={startDate}
       endDate={endDate}
-      onStartDateChange={setStartDate}
-      onEndDateChange={setEndDate}
+      onStartDateChange={(value) => {
+        setStartDate(value);
+        setShowAll(false);
+      }}
+      onEndDateChange={(value) => {
+        setEndDate(value);
+        setShowAll(false);
+      }}
       onViewAllReports={() => {
         if (!selectedHospitalId) {
           toast.error("Select a hospital to view reports.");
@@ -146,14 +132,9 @@ export default function Page() {
           return;
         }
 
+        setShowAll(true);
         setStartDate("");
         setEndDate("");
-        setApplied({
-          hospitalId: selectedHospitalId,
-          patientId: trimmedPatientId,
-          startDate: "",
-          endDate: "",
-        });
       }}
       onExport={() =>
         !applied.hospitalId

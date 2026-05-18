@@ -30,13 +30,7 @@ export default function Page() {
   const [department, setDepartment] = useState("All");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
-  const [applied, setApplied] = useState({
-    hospitalId: "",
-    department: "All",
-    startDate: today,
-    endDate: today,
-    page: 1,
-  });
+  const [page, setPage] = useState(1);
 
   const optionsQuery = useQuery({
     queryKey: ["admin-department-report-options"],
@@ -111,30 +105,16 @@ export default function Page() {
   const pagination = reportQuery.data?.data.pagination;
   const dateRangeIsInvalid =
     Boolean(startDate && endDate && startDate > endDate);
-
-  useEffect(() => {
-    if (!selectedHospitalId || dateRangeIsInvalid) {
-      return;
-    }
-
-    setApplied((current) => {
-      const next = {
-        hospitalId: selectedHospitalId,
-        department,
-        startDate,
-        endDate,
-        page: 1,
-      };
-
-      return current.hospitalId === next.hospitalId &&
-        current.department === next.department &&
-        current.startDate === next.startDate &&
-        current.endDate === next.endDate &&
-        current.page === next.page
-        ? current
-        : next;
-    });
-  }, [dateRangeIsInvalid, department, endDate, selectedHospitalId, startDate]);
+  const applied =
+    !selectedHospitalId || dateRangeIsInvalid
+      ? null
+      : {
+          hospitalId: selectedHospitalId,
+          department,
+          startDate,
+          endDate,
+          page,
+        };
 
   return (
     <>
@@ -146,23 +126,28 @@ export default function Page() {
         onHospitalChange={(value) => {
           setHospitalId(value);
           setDepartment("All");
-          setApplied((current) => ({
-            ...current,
-            hospitalId: "",
-            page: 1,
-          }));
+          setPage(1);
         }}
         hospitalOptions={hospitals}
         filterLabel="Department"
         filterType="select"
         filterValue={department}
-        onFilterChange={setDepartment}
+        onFilterChange={(value) => {
+          setDepartment(value);
+          setPage(1);
+        }}
         filterOptions={departmentOptions}
         isFilterLoading={departmentsQuery.isLoading}
         startDate={startDate}
         endDate={endDate}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
+        onStartDateChange={(value) => {
+          setStartDate(value);
+          setPage(1);
+        }}
+        onEndDateChange={(value) => {
+          setEndDate(value);
+          setPage(1);
+        }}
         onExport={() =>
           !applied.hospitalId
             ? Promise.resolve(toast.error("Select a hospital to export reports."))
@@ -212,17 +197,9 @@ export default function Page() {
               totalPages={pagination.total_pages}
               hasPrevious={pagination.has_previous}
               hasNext={pagination.has_next}
-              onPrevious={() =>
-                setApplied((current) => ({
-                  ...current,
-                  page: Math.max(current.page - 1, 1),
-                }))
-              }
+              onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
               onNext={() =>
-                setApplied((current) => ({
-                  ...current,
-                  page: Math.min(current.page + 1, pagination.total_pages),
-                }))
+                setPage((current) => Math.min(current + 1, pagination.total_pages))
               }
             />
           </div>

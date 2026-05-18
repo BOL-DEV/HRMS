@@ -83,17 +83,8 @@ export default function Page() {
   const [paymentMethod, setPaymentMethod] = useState<AdminReportPaymentType | "all">(
     "all",
   );
-  const [applied, setApplied] = useState({
-    hospitalId: "",
-    startDate: today,
-    endDate: today,
-    showAll: false,
-    departmentId: "All",
-    incomeHeadId: "All",
-    agentId: "All",
-    paymentMethod: "all" as AdminReportPaymentType | "all",
-    page: 1,
-  });
+  const [showAll, setShowAll] = useState(false);
+  const [page, setPage] = useState(1);
 
   const optionsQuery = useQuery({
     queryKey: ["admin-revenue-report-options"],
@@ -214,48 +205,21 @@ export default function Page() {
   const summary = reportQuery.data?.data.summary;
   const pagination = reportQuery.data?.data.pagination;
   const dateRangeIsInvalid =
-    Boolean(startDate && endDate && startDate > endDate);
-
-  useEffect(() => {
-    if (!selectedHospitalId || dateRangeIsInvalid) {
-      return;
-    }
-
-    setApplied((current) => {
-      const next = {
-        hospitalId: selectedHospitalId,
-        startDate,
-        endDate,
-        showAll: Boolean(!startDate && !endDate),
-        departmentId,
-        incomeHeadId,
-        agentId,
-        paymentMethod,
-        page: 1,
-      };
-
-      return current.hospitalId === next.hospitalId &&
-        current.startDate === next.startDate &&
-        current.endDate === next.endDate &&
-        current.showAll === next.showAll &&
-        current.departmentId === next.departmentId &&
-        current.incomeHeadId === next.incomeHeadId &&
-        current.agentId === next.agentId &&
-        current.paymentMethod === next.paymentMethod &&
-        current.page === next.page
-        ? current
-        : next;
-    });
-  }, [
-    agentId,
-    dateRangeIsInvalid,
-    departmentId,
-    endDate,
-    incomeHeadId,
-    paymentMethod,
-    selectedHospitalId,
-    startDate,
-  ]);
+    !showAll && Boolean(startDate && endDate && startDate > endDate);
+  const applied =
+    !selectedHospitalId || dateRangeIsInvalid
+      ? null
+      : {
+          hospitalId: selectedHospitalId,
+          startDate: showAll ? "" : startDate,
+          endDate: showAll ? "" : endDate,
+          showAll,
+          departmentId,
+          incomeHeadId,
+          agentId,
+          paymentMethod,
+          page,
+        };
 
   return (
     <div className="min-h-screen w-full bg-canvas">
@@ -360,6 +324,8 @@ export default function Page() {
                   setDepartmentId("All");
                   setIncomeHeadId("All");
                   setAgentId("All");
+                  setShowAll(false);
+                  setPage(1);
                 }}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
@@ -381,6 +347,8 @@ export default function Page() {
                 onChange={(event) => {
                   setDepartmentId(event.target.value);
                   setIncomeHeadId("All");
+                  setShowAll(false);
+                  setPage(1);
                 }}
                 disabled={!selectedHospitalId || departmentsQuery.isLoading}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
@@ -400,7 +368,11 @@ export default function Page() {
               </p>
               <select
                 value={incomeHeadId}
-                onChange={(event) => setIncomeHeadId(event.target.value)}
+                onChange={(event) => {
+                  setIncomeHeadId(event.target.value);
+                  setShowAll(false);
+                  setPage(1);
+                }}
                 disabled={!selectedHospitalId || incomeHeadsQuery.isLoading}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
@@ -419,7 +391,11 @@ export default function Page() {
               </p>
               <select
                 value={agentId}
-                onChange={(event) => setAgentId(event.target.value)}
+                onChange={(event) => {
+                  setAgentId(event.target.value);
+                  setShowAll(false);
+                  setPage(1);
+                }}
                 disabled={!selectedHospitalId || agentsQuery.isLoading}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
@@ -439,7 +415,11 @@ export default function Page() {
               <select
                 value={paymentMethod}
                 onChange={(event) =>
-                  setPaymentMethod(event.target.value as AdminReportPaymentType | "all")
+                  {
+                    setPaymentMethod(event.target.value as AdminReportPaymentType | "all");
+                    setShowAll(false);
+                    setPage(1);
+                  }
                 }
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               >
@@ -457,7 +437,11 @@ export default function Page() {
               <input
                 type="date"
                 value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
+                onChange={(event) => {
+                  setStartDate(event.target.value);
+                  setShowAll(false);
+                  setPage(1);
+                }}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               />
             </div>
@@ -470,7 +454,11 @@ export default function Page() {
                 type="date"
                 value={endDate}
                 min={startDate}
-                onChange={(event) => setEndDate(event.target.value)}
+                onChange={(event) => {
+                  setEndDate(event.target.value);
+                  setShowAll(false);
+                  setPage(1);
+                }}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm dark:text-slate-100"
               />
             </div>
@@ -491,19 +479,10 @@ export default function Page() {
                   return;
                 }
 
+                setShowAll(true);
+                setPage(1);
                 setStartDate("");
                 setEndDate("");
-                setApplied({
-                  hospitalId: selectedHospitalId,
-                  startDate: "",
-                  endDate: "",
-                  showAll: true,
-                  departmentId,
-                  incomeHeadId,
-                  agentId,
-                  paymentMethod,
-                  page: 1,
-                });
               }}
               disabled={!selectedHospitalId}
               className="rounded-lg border border-line-subtle px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-panel-muted disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-200"
@@ -540,17 +519,9 @@ export default function Page() {
                 totalPages={pagination.total_pages}
                 hasPrevious={pagination.has_previous}
                 hasNext={pagination.has_next}
-                onPrevious={() =>
-                  setApplied((current) => ({
-                    ...current,
-                    page: Math.max(current.page - 1, 1),
-                  }))
-                }
+                onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
                 onNext={() =>
-                  setApplied((current) => ({
-                    ...current,
-                    page: Math.min(current.page + 1, pagination.total_pages),
-                  }))
+                  setPage((current) => Math.min(current + 1, pagination.total_pages))
                 }
               />
             </div>
