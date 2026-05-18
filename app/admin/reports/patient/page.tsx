@@ -41,17 +41,6 @@ export default function Page() {
   const hospitals = optionsQuery.data?.data.hospitals ?? [];
   const selectedHospitalId = hospitalId || hospitals[0]?.hospital_id || "";
 
-  const reportQuery = useQuery({
-    queryKey: ["admin-patient-report", applied],
-    queryFn: () =>
-      getAdminHospitalPatientReport(applied.hospitalId, {
-        patientId: applied.patientId,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-      }),
-    enabled: Boolean(accessToken && applied.hospitalId),
-  });
-
   const trimmedPatientId = patientId.trim();
   const patientIdIsValid =
     !trimmedPatientId || isNumericPatientId(trimmedPatientId);
@@ -66,6 +55,24 @@ export default function Page() {
           startDate: showAll ? "" : startDate,
           endDate: showAll ? "" : endDate,
         };
+
+  const reportQuery = useQuery({
+    queryKey: ["admin-patient-report", applied],
+    queryFn: () => {
+      const current = applied;
+
+      if (!current?.hospitalId) {
+        throw new Error("Select a hospital to view reports.");
+      }
+
+      return getAdminHospitalPatientReport(current.hospitalId, {
+        patientId: current.patientId,
+        startDate: current.startDate,
+        endDate: current.endDate,
+      });
+    },
+    enabled: Boolean(accessToken && applied?.hospitalId),
+  });
 
   useEffect(() => {
     if (!accessToken) {
@@ -137,30 +144,46 @@ export default function Page() {
         setEndDate("");
       }}
       onExport={() =>
-        !applied.hospitalId
-          ? Promise.resolve(toast.error("Select a hospital to export reports."))
-          : exportAdminHospitalPatientReportCsv(applied.hospitalId, {
-              patientId: applied.patientId || undefined,
-              startDate: applied.startDate,
-              endDate: applied.endDate,
-            }).catch((error) =>
-              toast.error(
-                error instanceof Error ? error.message : "Unable to export report.",
-              ),
-            )
+        {
+          const current = applied;
+
+          if (!current?.hospitalId) {
+            return Promise.resolve(
+              toast.error("Select a hospital to export reports."),
+            );
+          }
+
+          return exportAdminHospitalPatientReportCsv(current.hospitalId, {
+            patientId: current.patientId || undefined,
+            startDate: current.startDate,
+            endDate: current.endDate,
+          }).catch((error) =>
+            toast.error(
+              error instanceof Error ? error.message : "Unable to export report.",
+            ),
+          );
+        }
       }
       onPrint={() =>
-        !applied.hospitalId
-          ? Promise.resolve(toast.error("Select a hospital to print reports."))
-          : printAdminHospitalPatientReport(applied.hospitalId, {
-              patientId: applied.patientId || undefined,
-              startDate: applied.startDate,
-              endDate: applied.endDate,
-            }).catch((error) =>
-              toast.error(
-                error instanceof Error ? error.message : "Unable to print report.",
-              ),
-            )
+        {
+          const current = applied;
+
+          if (!current?.hospitalId) {
+            return Promise.resolve(
+              toast.error("Select a hospital to print reports."),
+            );
+          }
+
+          return printAdminHospitalPatientReport(current.hospitalId, {
+            patientId: current.patientId || undefined,
+            startDate: current.startDate,
+            endDate: current.endDate,
+          }).catch((error) =>
+            toast.error(
+              error instanceof Error ? error.message : "Unable to print report.",
+            ),
+          );
+        }
       }
       errorMessage={
         reportQuery.error instanceof Error

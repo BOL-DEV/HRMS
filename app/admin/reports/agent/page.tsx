@@ -47,17 +47,37 @@ export default function Page() {
     enabled: Boolean(accessToken && selectedHospitalId),
   });
 
+  const dateRangeIsInvalid =
+    Boolean(startDate && endDate && startDate > endDate);
+  const applied =
+    !selectedHospitalId || dateRangeIsInvalid
+      ? null
+      : {
+          hospitalId: selectedHospitalId,
+          agentId,
+          startDate,
+          endDate,
+          page,
+        };
+
   const reportQuery = useQuery({
     queryKey: ["admin-agent-report", applied],
-    queryFn: () =>
-      getAdminHospitalAgentReport(applied.hospitalId, {
-        agentId: applied.agentId === "All" ? undefined : applied.agentId,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-        page: applied.agentId === "All" ? undefined : applied.page,
-        limit: applied.agentId === "All" ? undefined : REPORTS_PER_PAGE,
-      }),
-    enabled: Boolean(accessToken && applied.hospitalId),
+    queryFn: () => {
+      const current = applied;
+
+      if (!current?.hospitalId) {
+        throw new Error("Select a hospital to view reports.");
+      }
+
+      return getAdminHospitalAgentReport(current.hospitalId, {
+        agentId: current.agentId === "All" ? undefined : current.agentId,
+        startDate: current.startDate,
+        endDate: current.endDate,
+        page: current.agentId === "All" ? undefined : current.page,
+        limit: current.agentId === "All" ? undefined : REPORTS_PER_PAGE,
+      });
+    },
+    enabled: Boolean(accessToken && applied?.hospitalId),
   });
 
   useEffect(() => {
@@ -96,18 +116,6 @@ export default function Page() {
   );
 
   const pagination = reportQuery.data?.data.pagination;
-  const dateRangeIsInvalid =
-    Boolean(startDate && endDate && startDate > endDate);
-  const applied =
-    !selectedHospitalId || dateRangeIsInvalid
-      ? null
-      : {
-          hospitalId: selectedHospitalId,
-          agentId,
-          startDate,
-          endDate,
-          page,
-        };
 
   return (
     <>
@@ -141,32 +149,44 @@ export default function Page() {
           setEndDate(value);
           setPage(1);
         }}
-        onExport={() =>
-          !applied.hospitalId
-            ? Promise.resolve(toast.error("Select a hospital to export reports."))
-            : exportAdminHospitalAgentReportCsv(applied.hospitalId, {
-                agentId: applied.agentId === "All" ? undefined : applied.agentId,
-                startDate: applied.startDate,
-                endDate: applied.endDate,
-              }).catch((error) =>
-                toast.error(
-                  error instanceof Error ? error.message : "Unable to export report.",
-                ),
-              )
-        }
-        onPrint={() =>
-          !applied.hospitalId
-            ? Promise.resolve(toast.error("Select a hospital to print reports."))
-            : printAdminHospitalAgentReport(applied.hospitalId, {
-                agentId: applied.agentId === "All" ? undefined : applied.agentId,
-                startDate: applied.startDate,
-                endDate: applied.endDate,
-              }).catch((error) =>
-                toast.error(
-                  error instanceof Error ? error.message : "Unable to print report.",
-                ),
-              )
-        }
+        onExport={() => {
+          const current = applied;
+
+          if (!current?.hospitalId) {
+            return Promise.resolve(
+              toast.error("Select a hospital to export reports."),
+            );
+          }
+
+          return exportAdminHospitalAgentReportCsv(current.hospitalId, {
+            agentId: current.agentId === "All" ? undefined : current.agentId,
+            startDate: current.startDate,
+            endDate: current.endDate,
+          }).catch((error) =>
+            toast.error(
+              error instanceof Error ? error.message : "Unable to export report.",
+            ),
+          );
+        }}
+        onPrint={() => {
+          const current = applied;
+
+          if (!current?.hospitalId) {
+            return Promise.resolve(
+              toast.error("Select a hospital to print reports."),
+            );
+          }
+
+          return printAdminHospitalAgentReport(current.hospitalId, {
+            agentId: current.agentId === "All" ? undefined : current.agentId,
+            startDate: current.startDate,
+            endDate: current.endDate,
+          }).catch((error) =>
+            toast.error(
+              error instanceof Error ? error.message : "Unable to print report.",
+            ),
+          );
+        }}
         errorMessage={
           reportQuery.error instanceof Error
             ? reportQuery.error.message
@@ -180,7 +200,7 @@ export default function Page() {
         data={reportQuery.data?.data}
       />
 
-      {applied.agentId !== "All" && pagination ? (
+      {applied && applied.agentId !== "All" && pagination ? (
         <div className="-mt-6 px-6 pb-6">
           <div className="rounded-xl border border-line-subtle bg-panel">
             <AdminPaginationFooter

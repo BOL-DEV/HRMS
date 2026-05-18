@@ -116,24 +116,48 @@ export default function Page() {
     enabled: Boolean(accessToken && selectedHospitalId),
   });
 
+  const dateRangeIsInvalid =
+    !showAll && Boolean(startDate && endDate && startDate > endDate);
+  const applied =
+    !selectedHospitalId || dateRangeIsInvalid
+      ? null
+      : {
+          hospitalId: selectedHospitalId,
+          startDate: showAll ? "" : startDate,
+          endDate: showAll ? "" : endDate,
+          showAll,
+          departmentId,
+          incomeHeadId,
+          agentId,
+          paymentMethod,
+          page,
+        };
+
   const reportQuery = useQuery({
     queryKey: ["admin-revenue-report", applied],
-    queryFn: () =>
-      getAdminHospitalRevenueReport(applied.hospitalId, {
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-        showAll: applied.showAll,
+    queryFn: () => {
+      const current = applied;
+
+      if (!current?.hospitalId) {
+        throw new Error("Select a hospital to view reports.");
+      }
+
+      return getAdminHospitalRevenueReport(current.hospitalId, {
+        startDate: current.startDate,
+        endDate: current.endDate,
+        showAll: current.showAll,
         departments:
-          applied.departmentId === "All" ? undefined : [applied.departmentId],
+          current.departmentId === "All" ? undefined : [current.departmentId],
         incomeHeads:
-          applied.incomeHeadId === "All" ? undefined : [applied.incomeHeadId],
-        agents: applied.agentId === "All" ? undefined : [applied.agentId],
+          current.incomeHeadId === "All" ? undefined : [current.incomeHeadId],
+        agents: current.agentId === "All" ? undefined : [current.agentId],
         paymentMethod:
-          applied.paymentMethod === "all" ? undefined : applied.paymentMethod,
-        page: applied.page,
+          current.paymentMethod === "all" ? undefined : current.paymentMethod,
+        page: current.page,
         limit: REPORTS_PER_PAGE,
-      }),
-    enabled: Boolean(accessToken && applied.hospitalId),
+      });
+    },
+    enabled: Boolean(accessToken && applied?.hospitalId),
   });
 
   useEffect(() => {
@@ -204,22 +228,6 @@ export default function Page() {
   const rows = reportQuery.data?.data.transactions ?? [];
   const summary = reportQuery.data?.data.summary;
   const pagination = reportQuery.data?.data.pagination;
-  const dateRangeIsInvalid =
-    !showAll && Boolean(startDate && endDate && startDate > endDate);
-  const applied =
-    !selectedHospitalId || dateRangeIsInvalid
-      ? null
-      : {
-          hospitalId: selectedHospitalId,
-          startDate: showAll ? "" : startDate,
-          endDate: showAll ? "" : endDate,
-          showAll,
-          departmentId,
-          incomeHeadId,
-          agentId,
-          paymentMethod,
-          page,
-        };
 
   return (
     <div className="min-h-screen w-full bg-canvas">
@@ -230,35 +238,39 @@ export default function Page() {
           <div className="hidden items-center gap-2 md:flex">
             <button
               type="button"
-              onClick={() =>
-                !applied.hospitalId
-                  ? toast.error("Select a hospital to print reports.")
-                  : printAdminHospitalRevenueReport(applied.hospitalId, {
-                      startDate: applied.startDate,
-                      endDate: applied.endDate,
-                      showAll: applied.showAll,
-                      departments:
-                        applied.departmentId === "All"
-                          ? undefined
-                          : [applied.departmentId],
-                      incomeHeads:
-                        applied.incomeHeadId === "All"
-                          ? undefined
-                          : [applied.incomeHeadId],
-                      agents:
-                        applied.agentId === "All" ? undefined : [applied.agentId],
-                      paymentMethod:
-                        applied.paymentMethod === "all"
-                          ? undefined
-                          : applied.paymentMethod,
-                    }).catch((error) =>
-                      toast.error(
-                        error instanceof Error
-                          ? error.message
-                          : "Unable to print report.",
-                      ),
-                    )
-              }
+              onClick={() => {
+                const current = applied;
+
+                if (!current?.hospitalId) {
+                  toast.error("Select a hospital to print reports.");
+                  return;
+                }
+
+                printAdminHospitalRevenueReport(current.hospitalId, {
+                  startDate: current.startDate,
+                  endDate: current.endDate,
+                  showAll: current.showAll,
+                  departments:
+                    current.departmentId === "All"
+                      ? undefined
+                      : [current.departmentId],
+                  incomeHeads:
+                    current.incomeHeadId === "All"
+                      ? undefined
+                      : [current.incomeHeadId],
+                  agents: current.agentId === "All" ? undefined : [current.agentId],
+                  paymentMethod:
+                    current.paymentMethod === "all"
+                      ? undefined
+                      : current.paymentMethod,
+                }).catch((error) =>
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to print report.",
+                  ),
+                );
+              }}
               className="inline-flex items-center gap-2 rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200"
             >
               <FiPrinter />
@@ -266,35 +278,39 @@ export default function Page() {
             </button>
             <button
               type="button"
-              onClick={() =>
-                !applied.hospitalId
-                  ? toast.error("Select a hospital to export reports.")
-                  : exportAdminHospitalRevenueReportCsv(applied.hospitalId, {
-                      startDate: applied.startDate,
-                      endDate: applied.endDate,
-                      showAll: applied.showAll,
-                      departments:
-                        applied.departmentId === "All"
-                          ? undefined
-                          : [applied.departmentId],
-                      incomeHeads:
-                        applied.incomeHeadId === "All"
-                          ? undefined
-                          : [applied.incomeHeadId],
-                      agents:
-                        applied.agentId === "All" ? undefined : [applied.agentId],
-                      paymentMethod:
-                        applied.paymentMethod === "all"
-                          ? undefined
-                          : applied.paymentMethod,
-                    }).catch((error) =>
-                      toast.error(
-                        error instanceof Error
-                          ? error.message
-                          : "Unable to export report.",
-                      ),
-                    )
-              }
+              onClick={() => {
+                const current = applied;
+
+                if (!current?.hospitalId) {
+                  toast.error("Select a hospital to export reports.");
+                  return;
+                }
+
+                exportAdminHospitalRevenueReportCsv(current.hospitalId, {
+                  startDate: current.startDate,
+                  endDate: current.endDate,
+                  showAll: current.showAll,
+                  departments:
+                    current.departmentId === "All"
+                      ? undefined
+                      : [current.departmentId],
+                  incomeHeads:
+                    current.incomeHeadId === "All"
+                      ? undefined
+                      : [current.incomeHeadId],
+                  agents: current.agentId === "All" ? undefined : [current.agentId],
+                  paymentMethod:
+                    current.paymentMethod === "all"
+                      ? undefined
+                      : current.paymentMethod,
+                }).catch((error) =>
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to export report.",
+                  ),
+                );
+              }}
               className="inline-flex items-center gap-2 rounded-lg border border-line-subtle px-4 py-2 text-sm font-medium text-gray-800 hover:bg-panel-muted dark:text-slate-200"
             >
               <FiDownload />
