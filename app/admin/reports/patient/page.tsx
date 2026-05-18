@@ -30,12 +30,7 @@ export default function Page() {
   const [patientId, setPatientId] = useState("");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
-  const [applied, setApplied] = useState({
-    hospitalId: "",
-    patientId: "",
-    startDate: today,
-    endDate: today,
-  });
+  const [showAll, setShowAll] = useState(false);
 
   const optionsQuery = useQuery({
     queryKey: ["admin-patient-report-options"],
@@ -46,46 +41,38 @@ export default function Page() {
   const hospitals = optionsQuery.data?.data.hospitals ?? [];
   const selectedHospitalId = hospitalId || hospitals[0]?.hospital_id || "";
 
+  const trimmedPatientId = patientId.trim();
+  const patientIdIsValid =
+    !trimmedPatientId || isNumericPatientId(trimmedPatientId);
+  const dateRangeIsInvalid =
+    !showAll && Boolean(startDate && endDate && startDate > endDate);
+  const applied =
+    !selectedHospitalId || !patientIdIsValid || dateRangeIsInvalid
+      ? null
+      : {
+          hospitalId: selectedHospitalId,
+          patientId: trimmedPatientId,
+          startDate: showAll ? "" : startDate,
+          endDate: showAll ? "" : endDate,
+        };
+
   const reportQuery = useQuery({
     queryKey: ["admin-patient-report", applied],
-    queryFn: () =>
-      getAdminHospitalPatientReport(applied.hospitalId, {
-        patientId: applied.patientId,
-        startDate: applied.startDate,
-        endDate: applied.endDate,
-      }),
-    enabled: Boolean(accessToken && applied.hospitalId),
+    queryFn: () => {
+      const current = applied;
+
+      if (!current?.hospitalId) {
+        throw new Error("Select a hospital to view reports.");
+      }
+
+      return getAdminHospitalPatientReport(current.hospitalId, {
+        patientId: current.patientId,
+        startDate: current.startDate,
+        endDate: current.endDate,
+      });
+    },
+    enabled: Boolean(accessToken && applied?.hospitalId),
   });
-
-  useEffect(() => {
-    if (!selectedHospitalId) {
-      return;
-    }
-
-    const trimmedPatientId = patientId.trim();
-    const patientIdIsValid = !trimmedPatientId || isNumericPatientId(trimmedPatientId);
-    const dateRangeIsInvalid = Boolean(startDate && endDate && startDate > endDate);
-
-    if (!patientIdIsValid || dateRangeIsInvalid) {
-      return;
-    }
-
-    setApplied((current) => {
-      const next = {
-        hospitalId: selectedHospitalId,
-        patientId: trimmedPatientId,
-        startDate,
-        endDate,
-      };
-
-      return current.hospitalId === next.hospitalId &&
-        current.patientId === next.patientId &&
-        current.startDate === next.startDate &&
-        current.endDate === next.endDate
-        ? current
-        : next;
-    });
-  }, [endDate, patientId, selectedHospitalId, startDate]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -119,20 +106,26 @@ export default function Page() {
       hospitalId={selectedHospitalId}
       onHospitalChange={(value) => {
         setHospitalId(value);
-        setApplied((current) => ({
-          ...current,
-          hospitalId: "",
-        }));
+        setShowAll(false);
       }}
       hospitalOptions={hospitals}
       filterLabel="Patient ID"
       filterValue={patientId}
-      onFilterChange={setPatientId}
+      onFilterChange={(value) => {
+        setPatientId(value);
+        setShowAll(false);
+      }}
       filterPlaceholder="Enter patient ID"
       startDate={startDate}
       endDate={endDate}
-      onStartDateChange={setStartDate}
-      onEndDateChange={setEndDate}
+      onStartDateChange={(value) => {
+        setStartDate(value);
+        setShowAll(false);
+      }}
+      onEndDateChange={(value) => {
+        setEndDate(value);
+        setShowAll(false);
+      }}
       onViewAllReports={() => {
         if (!selectedHospitalId) {
           toast.error("Select a hospital to view reports.");
@@ -146,40 +139,51 @@ export default function Page() {
           return;
         }
 
+        setShowAll(true);
         setStartDate("");
         setEndDate("");
-        setApplied({
-          hospitalId: selectedHospitalId,
-          patientId: trimmedPatientId,
-          startDate: "",
-          endDate: "",
-        });
       }}
       onExport={() =>
-        !applied.hospitalId
-          ? Promise.resolve(toast.error("Select a hospital to export reports."))
-          : exportAdminHospitalPatientReportCsv(applied.hospitalId, {
-              patientId: applied.patientId || undefined,
-              startDate: applied.startDate,
-              endDate: applied.endDate,
-            }).catch((error) =>
-              toast.error(
-                error instanceof Error ? error.message : "Unable to export report.",
-              ),
-            )
+        {
+          const current = applied;
+
+          if (!current?.hospitalId) {
+            return Promise.resolve(
+              toast.error("Select a hospital to export reports."),
+            );
+          }
+
+          return exportAdminHospitalPatientReportCsv(current.hospitalId, {
+            patientId: current.patientId || undefined,
+            startDate: current.startDate,
+            endDate: current.endDate,
+          }).catch((error) =>
+            toast.error(
+              error instanceof Error ? error.message : "Unable to export report.",
+            ),
+          );
+        }
       }
       onPrint={() =>
-        !applied.hospitalId
-          ? Promise.resolve(toast.error("Select a hospital to print reports."))
-          : printAdminHospitalPatientReport(applied.hospitalId, {
-              patientId: applied.patientId || undefined,
-              startDate: applied.startDate,
-              endDate: applied.endDate,
-            }).catch((error) =>
-              toast.error(
-                error instanceof Error ? error.message : "Unable to print report.",
-              ),
-            )
+        {
+          const current = applied;
+
+          if (!current?.hospitalId) {
+            return Promise.resolve(
+              toast.error("Select a hospital to print reports."),
+            );
+          }
+
+          return printAdminHospitalPatientReport(current.hospitalId, {
+            patientId: current.patientId || undefined,
+            startDate: current.startDate,
+            endDate: current.endDate,
+          }).catch((error) =>
+            toast.error(
+              error instanceof Error ? error.message : "Unable to print report.",
+            ),
+          );
+        }
       }
       errorMessage={
         reportQuery.error instanceof Error

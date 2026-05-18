@@ -107,7 +107,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
           Sign in to continue
         </p>
         <h2 className="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">
-          Login to SwiftRev
+          Login
         </h2>
       </div>
 
