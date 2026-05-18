@@ -209,6 +209,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
           patientName: patient.patient_name,
           phoneNumber: patient.phone_number,
         }));
+        setShowPatientSuggestions(false);
         return;
       }
 
@@ -221,8 +222,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         patientName: current.patientName,
         phoneNumber: current.phoneNumber,
       }));
+      setShowPatientSuggestions(false);
     },
     onError: (error) => {
+      setShowPatientSuggestions(false);
       toast.error(
         error instanceof Error ? error.message : "Unable to verify patient ID.",
         {
@@ -712,7 +715,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 <div className="mt-4" ref={patientFieldRef}>
                   <label className="space-y-2">
                     <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                      Patient Search
+                      Patient ID
                     </span>
                     <div className="relative">
                       <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -735,7 +738,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                           }));
                         }}
                         className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                        placeholder="Search by patient ID or name"
+                        placeholder="Enter patient ID"
                       />
 
                       {patientSearchInput.trim() && showPatientSuggestions ? (
@@ -786,8 +789,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     </div>
                   </label>
                   <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                    You can search by patient ID or patient name. If no match
-                    appears, the details you entered will stay in place.
+                    If no match appears, the details you entered will stay in
+                    place.
                   </p>
                 </div>
 
@@ -1286,30 +1289,6 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   </div>
                 </dl>
               </section>
-
-              <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                  Quick Guide
-                </h3>
-                <ol className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <li>
-                    1. Search by patient ID or name and select a match when
-                    available.
-                  </li>
-                  <li>
-                    2. If no patient exists, enter name and phone manually.
-                  </li>
-                  <li>
-                    3. Choose department and payment type, then add one or more
-                    items.
-                  </li>
-                  <li>
-                    4. Review the total and print both customer and audit
-                    copies.
-                  </li>
-                </ol>
-              </section>
-
               <div className="flex flex-col gap-3">
                 <button
                   onClick={handleSubmit}

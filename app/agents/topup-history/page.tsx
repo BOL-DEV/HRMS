@@ -131,7 +131,7 @@ export default function AgentTopupHistoryPage() {
                 <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
                   <th className="p-3 font-semibold">Date</th>
                   <th className="p-3 font-semibold">Top-Up Amount</th>
-                  <th className="p-3 font-semibold">Before Top-Up</th>
+                  <th className="p-3 font-semibold">Initial Top-Up</th>
                   <th className="p-3 font-semibold">Balance After</th>
                   <th className="p-3 font-semibold">Topped Up By</th>
                   <th className="p-3 font-semibold">Role</th>

@@ -1,5 +1,6 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
 import { BRAND_CHART_PALETTE, BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatNaira } from "@/libs/helper";
 import {
@@ -52,7 +53,8 @@ function AdminDashboardCharts({
             </p>
           </div>
 
-          <div className="h-80 w-full p-6">
+          <div className="relative h-80 w-full p-6">
+            <ChartWatermark />
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={monthlyRevenue}
@@ -102,7 +104,8 @@ function AdminDashboardCharts({
             </p>
           </div>
 
-          <div className="h-80 w-full p-6">
+          <div className="relative h-80 w-full p-6">
+            <ChartWatermark />
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={paymentMethods}
@@ -152,7 +155,8 @@ function AdminDashboardCharts({
           </p>
         </div>
 
-        <div className="h-80 w-full p-6">
+        <div className="relative h-80 w-full p-6">
+          <ChartWatermark />
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={[...hospitalsByRevenue].reverse()}

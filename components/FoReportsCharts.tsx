@@ -1,5 +1,6 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
 import { BRAND_CHART_PALETTE, BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatNaira } from "@/libs/helper";
 import {
@@ -66,7 +67,8 @@ function FoReportsCharts({
     <>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartCard title="Revenue Trend">
-          <div className="h-64">
+          <div className="relative h-64">
+            <ChartWatermark />
             {revenueTrendData.length === 0 ? (
               <EmptyState message="No report trend data available for the current filters." />
             ) : (
@@ -107,7 +109,8 @@ function FoReportsCharts({
         </ChartCard>
 
         <ChartCard title="Payment Method Breakdown">
-          <div className="h-64">
+          <div className="relative h-64">
+            <ChartWatermark />
             {paymentMethodSummary.length === 0 ? (
               <EmptyState message="No payment method data available for the current filters." />
             ) : (
@@ -144,7 +147,8 @@ function FoReportsCharts({
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <ChartCard title="Department Revenue">
-          <div className="h-72">
+          <div className="relative h-72">
+            <ChartWatermark />
             {departmentRevenue.length === 0 ? (
               <EmptyState message="No department revenue data available for the current filters." />
             ) : (
@@ -174,7 +178,8 @@ function FoReportsCharts({
         </ChartCard>
 
         <ChartCard title="Top Agents by Revenue">
-          <div className="h-72">
+          <div className="relative h-72">
+            <ChartWatermark />
             {topAgents.length === 0 ? (
               <EmptyState message="No agent revenue data available for the current filters." />
             ) : (

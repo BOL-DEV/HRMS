@@ -1,5 +1,6 @@
 "use client";
 
+import ChartWatermark from "@/components/ChartWatermark";
 import AdminDashboardTopHospitalsTable from "@/components/AdminDashboardTopHospitalsTable";
 import DashboardKpiGrid from "@/components/dashboard/DashboardKpiGrid";
 import DashboardSection from "@/components/dashboard/DashboardSection";
@@ -18,7 +19,7 @@ import {
   FiActivity,
   FiAlertCircle,
   FiBriefcase,
-  FiDollarSign,
+  FiCreditCard,
   FiFileText,
   FiTrendingUp,
   FiUserCheck,
@@ -113,7 +114,7 @@ function Page() {
       title: "Monthly Revenue",
       value: formatNaira(overview?.total_revenue ?? 0),
       subtitle: "Current-month total revenue",
-      icon: <FiDollarSign className="text-xl" />,
+      icon: <FiCreditCard className="text-xl" />,
       accentClassName:
         "border-brand-200 bg-gradient-to-br from-brand-50 via-white to-white dark:border-brand-500/30 dark:from-slate-900 dark:via-slate-900 dark:to-brand-950/30",
       iconClassName: "text-brand-700 dark:text-brand-300",
@@ -261,47 +262,50 @@ function Page() {
                 Revenue trend data is not available.
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={monthlyRevenueTrend}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="currentColor"
-                    strokeOpacity={0.15}
-                  />
-                  <XAxis
-                    dataKey="month_label"
-                    tick={{ fill: "currentColor", fontSize: 12 }}
-                    axisLine={{ stroke: "currentColor" }}
-                    tickLine={{ stroke: "currentColor" }}
-                  />
-                  <YAxis
-                    tickFormatter={(value) => formatCompactNumber(Number(value))}
-                    tick={{ fill: "currentColor", fontSize: 12 }}
-                    axisLine={{ stroke: "currentColor" }}
-                    tickLine={{ stroke: "currentColor" }}
-                  />
-                  <Tooltip
-                    formatter={(value, name) => [
-                      name === "transaction_count"
-                        ? new Intl.NumberFormat("en-NG").format(Number(value))
-                        : formatNaira(Number(value)),
-                      name === "transaction_count" ? "Transactions" : "Revenue",
-                    ]}
-                    labelFormatter={(label) => `${label}`}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke={BRAND_PRIMARY_CHART_COLOR}
-                    strokeWidth={3}
-                    dot={{ r: 4, fill: BRAND_PRIMARY_CHART_COLOR }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="relative h-full">
+                <ChartWatermark />
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={monthlyRevenueTrend}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.15}
+                    />
+                    <XAxis
+                      dataKey="month_label"
+                      tick={{ fill: "currentColor", fontSize: 12 }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <YAxis
+                      tickFormatter={(value) => formatCompactNumber(Number(value))}
+                      tick={{ fill: "currentColor", fontSize: 12 }}
+                      axisLine={{ stroke: "currentColor" }}
+                      tickLine={{ stroke: "currentColor" }}
+                    />
+                    <Tooltip
+                      formatter={(value, name) => [
+                        name === "transaction_count"
+                          ? new Intl.NumberFormat("en-NG").format(Number(value))
+                          : formatNaira(Number(value)),
+                        name === "transaction_count" ? "Transactions" : "Revenue",
+                      ]}
+                      labelFormatter={(label) => `${label}`}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke={BRAND_PRIMARY_CHART_COLOR}
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: BRAND_PRIMARY_CHART_COLOR }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </DashboardSection>
 
