@@ -137,6 +137,8 @@ export interface NewTransactionForm {
   incomeHeadName: string;
   billItemId: string;
   billItemName: string;
+  billItemQuantity: string;
+  billItemUnitAmount: string;
   billName: string;
   amount: string;
   paymentType: AgentPaymentType;
@@ -379,6 +381,7 @@ export type ProcessPaymentPayload = {
   bill_item_ids?: string[];
   bill_items?: Array<{
     bill_item_id: string;
+    quantity?: number;
   }>;
   income_head_id?: string;
   bill_name?: string;

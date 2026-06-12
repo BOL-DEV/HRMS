@@ -41,11 +41,15 @@ interface Props {
   onSuccess?: () => unknown | Promise<unknown>;
 }
 
+type TransactionMode = "patient" | "express";
+
 type SelectedAutomaticItem = {
   billItemId: string;
   billItemName: string;
   incomeHeadId: string;
   incomeHeadName: string;
+  unitAmount: number;
+  quantity: number;
   amount: number;
 };
 
@@ -55,6 +59,14 @@ type SelectedManualItem = {
   incomeHeadName: string;
   billName: string;
   amount: number;
+};
+
+type ExpressPaymentForm = {
+  fullName: string;
+  phoneNumber: string;
+  service: string;
+  amount: string;
+  paymentType: NewTransactionForm["paymentType"];
 };
 
 function getInitialForm(): NewTransactionForm {
@@ -69,7 +81,19 @@ function getInitialForm(): NewTransactionForm {
     incomeHeadName: "",
     billItemId: "",
     billItemName: "",
+    billItemQuantity: "1",
+    billItemUnitAmount: "",
     billName: "",
+    amount: "",
+    paymentType: "cash",
+  };
+}
+
+function getInitialExpressForm(): ExpressPaymentForm {
+  return {
+    fullName: "",
+    phoneNumber: "",
+    service: "",
     amount: "",
     paymentType: "cash",
   };
@@ -106,9 +130,85 @@ function sanitizeAmountInput(value: string) {
   return `${whole}.${fractionParts.join("")}`;
 }
 
+function sanitizeQuantityInput(value: string) {
+  const normalized = value.replace(/[^\d]/g, "");
+
+  return normalized;
+}
+
+function buildExpressReceiptHtml({
+  hospitalName,
+  fullName,
+  phoneNumber,
+  service,
+  amount,
+  paymentType,
+}: {
+  hospitalName: string;
+  fullName: string;
+  phoneNumber: string;
+  service: string;
+  amount: number;
+  paymentType: NewTransactionForm["paymentType"];
+}) {
+  const issuedAt = new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date());
+
+  return `
+    <div style="max-width: 720px; margin: 0 auto; font-family: Arial, sans-serif; color: #0f172a;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: #64748b;">
+          Express Payment
+        </p>
+        <h1 style="margin: 10px 0 6px; font-size: 28px; color: #0f172a;">
+          ${hospitalName}
+        </h1>
+        <p style="margin: 0; font-size: 14px; color: #475569;">
+          Receipt generated for a walk-in payment
+        </p>
+      </div>
+
+      <div style="border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 18px; padding: 20px;">
+        <div style="display: grid; gap: 14px;">
+          <div style="display: flex; justify-content: space-between; gap: 16px;">
+            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Name</span>
+            <strong style="font-size: 14px;">${fullName}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 16px;">
+            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Phone</span>
+            <strong style="font-size: 14px;">${phoneNumber}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 16px;">
+            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Service</span>
+            <strong style="font-size: 14px; text-align: right;">${service}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 16px;">
+            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Payment Type</span>
+            <strong style="font-size: 14px;">${paymentType.toUpperCase()}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 16px;">
+            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Amount</span>
+            <strong style="font-size: 16px; color: #0f172a;">${formatCurrency(amount)}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 16px;">
+            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Issued At</span>
+            <strong style="font-size: 14px;">${issuedAt}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   const queryClient = useQueryClient();
+  const [transactionMode, setTransactionMode] =
+    useState<TransactionMode>("patient");
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
+  const [expressForm, setExpressForm] =
+    useState<ExpressPaymentForm>(getInitialExpressForm);
   const [selectedBillItems, setSelectedBillItems] = useState<
     SelectedAutomaticItem[]
   >([]);
@@ -133,6 +233,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
 
   const paymentMode = paymentConfigQuery.data?.data.revenue_type ?? "";
   const hospitalId = paymentConfigQuery.data?.data.hospital_id ?? "";
+  const hospitalName = paymentConfigQuery.data?.data.hospital_name ?? "SwiftRev Hospital";
+  const isExpressMode = transactionMode === "express";
 
   const departmentsQuery = useQuery({
     queryKey: ["agent-departments"],
@@ -273,6 +375,64 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     },
   });
 
+  const switchTransactionMode = (mode: TransactionMode) => {
+    if (mode === transactionMode) {
+      return;
+    }
+
+    setTransactionMode(mode);
+    setForm(getInitialForm());
+    setExpressForm(getInitialExpressForm());
+    setSelectedBillItems([]);
+    setSelectedManualItems([]);
+    setBillSearch("");
+    setPatientSearchInput("");
+    setShowPatientSuggestions(true);
+    setShowBillItemList(true);
+  };
+
+  const handleExpressSubmit = () => {
+    const fullName = expressForm.fullName.trim();
+    const phoneNumber = expressForm.phoneNumber.trim();
+    const service = expressForm.service.trim();
+    const amount = Number(expressForm.amount);
+
+    if (!fullName) {
+      toast.error("Customer name is required.");
+      return;
+    }
+
+    if (!isValidPhoneNumber(phoneNumber)) {
+      toast.error("Phone number must be 11 digits.");
+      return;
+    }
+
+    if (!service) {
+      toast.error("Service is required.");
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
+      return;
+    }
+
+    const receiptHtml = buildExpressReceiptHtml({
+      hospitalName,
+      fullName,
+      phoneNumber,
+      service,
+      amount,
+      paymentType: expressForm.paymentType,
+    });
+
+    toast.success("Express payment receipt is ready.");
+    printReceipt(receiptHtml);
+    setExpressForm(getInitialExpressForm());
+    setTransactionMode("patient");
+    onClose();
+  };
+
   const patientStepReady =
     Boolean(form.patientId) &&
     (form.patientExists ||
@@ -284,6 +444,13 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     (paymentMode === "automatic"
       ? selectedBillItems.length > 0
       : selectedManualItems.length > 0);
+
+  const expressStepReady =
+    Boolean(expressForm.fullName.trim()) &&
+    Boolean(expressForm.service.trim()) &&
+    isValidPhoneNumber(expressForm.phoneNumber) &&
+    Number.isFinite(Number(expressForm.amount)) &&
+    Number(expressForm.amount) > 0;
 
   const triggerPatientLookup = useEffectEvent(() => {
     const patientId = form.patientId.trim();
@@ -326,6 +493,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       incomeHeadName: "",
       billItemId: "",
       billItemName: "",
+      billItemQuantity: "1",
+      billItemUnitAmount: "",
       billName: "",
       amount: "",
     }));
@@ -357,6 +526,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       ...current,
       billItemId: billItem.bill_item_id,
       billItemName: billItem.name,
+      billItemQuantity: "1",
+      billItemUnitAmount: String(billItem.amount),
       billName: billItem.name,
       amount: String(billItem.amount),
       incomeHeadId: billItem.income_head_id,
@@ -374,9 +545,16 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       }
 
       const amount = Number(form.amount);
+      const unitAmount = Number(form.billItemUnitAmount || form.amount);
+      const quantity = Number(form.billItemQuantity || "1");
 
       if (!Number.isFinite(amount) || amount <= 0) {
         toast.error("Select a valid bill item amount.");
+        return;
+      }
+
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        toast.error("Enter a valid quantity.");
         return;
       }
 
@@ -394,13 +572,17 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
           billItemName: form.billItemName,
           incomeHeadId: form.incomeHeadId,
           incomeHeadName: form.incomeHeadName,
-          amount,
+          unitAmount,
+          quantity,
+          amount: unitAmount * quantity,
         },
       ]);
       setForm((current) => ({
         ...current,
         billItemId: "",
         billItemName: "",
+        billItemQuantity: "1",
+        billItemUnitAmount: "",
         billName: "",
         amount: "",
       }));
@@ -529,6 +711,11 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   }, [open, patientSearchInput, showBillItemList, showPatientSuggestions]);
 
   const handleSubmit = () => {
+    if (isExpressMode) {
+      handleExpressSubmit();
+      return;
+    }
+
     const patientId = form.patientId.trim();
     const patientName = form.patientName.trim();
     const phoneNumber = form.phoneNumber.trim();
@@ -561,21 +748,27 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     }
 
     if (paymentMode === "automatic") {
-      if (selectedBillItems.length === 0) {
-        toast.error("Add at least one bill item.");
-        return;
-      }
+    if (selectedBillItems.length === 0) {
+      toast.error("Add at least one bill item.");
+      return;
+    }
+
+    const billItemIds = selectedBillItems.flatMap((item) =>
+      Array.from({ length: item.quantity }, () => item.billItemId),
+    );
 
       paymentMutation.mutate({
         patient_id: patientId,
         department_id: form.departmentId,
         patient_name: form.patientExists ? undefined : patientName,
         phone_number: form.patientExists ? undefined : phoneNumber,
-        bill_items: selectedBillItems.map((item) => ({
-          bill_item_id: item.billItemId,
-        })),
-        payment_type: form.paymentType,
-      });
+      bill_item_ids: billItemIds,
+      bill_items: selectedBillItems.map((item) => ({
+        bill_item_id: item.billItemId,
+        quantity: item.quantity,
+      })),
+      payment_type: form.paymentType,
+    });
       return;
     }
 
@@ -603,7 +796,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       return;
     }
 
+    setTransactionMode("patient");
     setForm(getInitialForm());
+    setExpressForm(getInitialExpressForm());
     setSelectedBillItems([]);
     setSelectedManualItems([]);
     setBillSearch("");
@@ -673,6 +868,238 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             </button>
           </div>
 
+          <div className="px-6 pt-6">
+            <div className="inline-flex rounded-2xl border border-gray-200 bg-gray-50 p-1 dark:border-line-subtle dark:bg-panel-strong/60">
+              <button
+                type="button"
+                onClick={() => switchTransactionMode("patient")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  isExpressMode
+                    ? "text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-panel"
+                    : "bg-brand-700 text-white shadow-sm"
+                }`}
+              >
+                Patient Payment
+              </button>
+              <button
+                type="button"
+                onClick={() => switchTransactionMode("express")}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  isExpressMode
+                    ? "bg-brand-700 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-panel"
+                }`}
+              >
+                Express Payment
+              </button>
+            </div>
+          </div>
+
+          {isExpressMode ? (
+            <div className="grid gap-6 p-6 xl:grid-cols-[1.05fr_0.75fr]">
+              <div className="min-w-0 space-y-5">
+                {configError ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
+                    {configError}
+                  </div>
+                ) : null}
+
+                <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
+                        Express
+                      </p>
+                      <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                        Walk-in Payment
+                      </h3>
+                    </div>
+
+                    {expressStepReady ? (
+                      <span className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                        <FiCheckCircle />
+                        Ready
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
+                    No patient lookup needed. Add the customer details, service,
+                    amount, and payment type.
+                  </p>
+
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Customer Name
+                      </span>
+                      <input
+                        value={expressForm.fullName}
+                        onChange={(event) =>
+                          setExpressForm((current) => ({
+                            ...current,
+                            fullName: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                        placeholder="John Doe"
+                      />
+                    </label>
+
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Phone Number
+                      </span>
+                      <input
+                        value={expressForm.phoneNumber}
+                        onChange={(event) =>
+                          setExpressForm((current) => ({
+                            ...current,
+                            phoneNumber: sanitizePhoneNumber(event.target.value),
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                        placeholder="08012345678"
+                        inputMode="tel"
+                      />
+                    </label>
+
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Payment Type
+                      </span>
+                      <select
+                        value={expressForm.paymentType}
+                        onChange={(event) =>
+                          setExpressForm((current) => ({
+                            ...current,
+                            paymentType: event.target.value as NewTransactionForm["paymentType"],
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                      >
+                        <option value="cash">Cash</option>
+                        <option value="transfer">Transfer</option>
+                        <option value="pos">POS</option>
+                      </select>
+                    </label>
+
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Service
+                      </span>
+                      <input
+                        value={expressForm.service}
+                        onChange={(event) =>
+                          setExpressForm((current) => ({
+                            ...current,
+                            service: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                        placeholder="Consultation fee"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                        Amount
+                      </span>
+                      <input
+                        value={expressForm.amount}
+                        onChange={(event) =>
+                          setExpressForm((current) => ({
+                            ...current,
+                            amount: sanitizeAmountInput(event.target.value),
+                          }))
+                        }
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                        placeholder="5000"
+                        inputMode="decimal"
+                      />
+                    </label>
+                  </div>
+
+                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                    This frontend flow prints a receipt locally for now. Backend
+                    processing can be connected later without changing the form.
+                  </p>
+                </section>
+              </div>
+
+              <aside className="self-start space-y-5 xl:sticky xl:top-6">
+                <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Express Preview
+                  </h3>
+
+                  <dl className="mt-4 space-y-3 text-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <dt className="text-gray-600 dark:text-slate-300">
+                        Customer
+                      </dt>
+                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
+                        {expressForm.fullName || "Not set"}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-4">
+                      <dt className="text-gray-600 dark:text-slate-300">
+                        Phone
+                      </dt>
+                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
+                        {expressForm.phoneNumber || "Not set"}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-4">
+                      <dt className="text-gray-600 dark:text-slate-300">
+                        Service
+                      </dt>
+                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
+                        {expressForm.service || "Not set"}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-4">
+                      <dt className="text-gray-600 dark:text-slate-300">
+                        Payment Type
+                      </dt>
+                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
+                        {expressForm.paymentType.toUpperCase()}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-4">
+                      <dt className="text-gray-600 dark:text-slate-300">
+                        Total
+                      </dt>
+                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
+                        {formatCurrency(Number(expressForm.amount || 0))}
+                      </dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleSubmit}
+                    type="button"
+                    disabled={!expressStepReady}
+                    className="rounded-2xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Process Payment & Print
+                  </button>
+
+                  <button
+                    onClick={closeModal}
+                    type="button"
+                    className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-gray-50 dark:border-line-subtle dark:text-slate-100 dark:hover:bg-panel-strong"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </aside>
+            </div>
+          ) : (
           <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_0.9fr]">
             <div className="min-w-0 space-y-5">
               {configError ||
@@ -966,6 +1393,8 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                                 ...current,
                                 billItemId: "",
                                 billItemName: "",
+                                billItemQuantity: "1",
+                                billItemUnitAmount: "",
                                 billName: "",
                                 amount: "",
                               }));
@@ -1074,26 +1503,66 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 {paymentMode === "automatic" ? (
                   <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-line-subtle dark:bg-canvas/70">
                     <p className="text-sm text-slate-600 dark:text-slate-300">
-                      Search across the selected department before adding bill
-                      items.
+                      Search across the selected department, then choose the
+                      quantity before adding the bill item.
                     </p>
 
-                    <label className="mt-4 block space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Amount
-                      </span>
-                      <input
-                        value={form.amount}
-                        readOnly
-                        className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm dark:border-line-subtle dark:bg-panel-strong dark:text-slate-100"
-                        placeholder="Auto-filled from selected bill item"
-                      />
-                    </label>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <label className="block space-y-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                          Quantity
+                        </span>
+                        <input
+                          value={form.billItemQuantity}
+                          onChange={(event) => {
+                            const quantityValue = sanitizeQuantityInput(
+                              event.target.value,
+                            );
+
+                            setForm((current) => {
+                              const parsedQuantity = Number(
+                                quantityValue || "0",
+                              );
+                              const unitAmount = Number(
+                                current.billItemUnitAmount || current.amount,
+                              );
+
+                              return {
+                                ...current,
+                                billItemQuantity: quantityValue,
+                                amount:
+                                  Number.isFinite(unitAmount) &&
+                                  unitAmount > 0 &&
+                                  Number.isInteger(parsedQuantity) &&
+                                  parsedQuantity > 0
+                                    ? String(unitAmount * parsedQuantity)
+                                    : current.amount,
+                              };
+                            });
+                          }}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                          placeholder="1"
+                          inputMode="numeric"
+                        />
+                      </label>
+
+                      <label className="block space-y-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                          Amount
+                        </span>
+                        <input
+                          value={form.amount}
+                          readOnly
+                          className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm dark:border-line-subtle dark:bg-panel-strong dark:text-slate-100"
+                          placeholder="Auto-filled from selected bill item"
+                        />
+                      </label>
+                    </div>
 
                     <button
                       type="button"
                       onClick={handleAddItem}
-                      disabled={!form.billItemId}
+                      disabled={!form.billItemId || !form.billItemQuantity.trim()}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-brand-700/60 dark:bg-brand-950/20 dark:text-brand-300"
                     >
                       <FiPlus />
@@ -1167,10 +1636,13 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                               <p className="font-semibold text-slate-900 dark:text-slate-100">
                                 {item.billItemName}
                               </p>
-                              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                                {item.incomeHeadName}
-                              </p>
-                            </div>
+                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                              {item.incomeHeadName}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              Qty {item.quantity} x {formatCurrency(item.unitAmount)}
+                            </p>
+                          </div>
                             <div className="flex items-center gap-3">
                               <p className="font-semibold text-slate-900 dark:text-slate-100">
                                 {formatCurrency(item.amount)}
@@ -1315,6 +1787,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
               </div>
             </aside>
           </div>
+          )}
         </div>
       </div>
     </div>
