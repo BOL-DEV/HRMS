@@ -16,6 +16,7 @@ import type {
   AgentPatientLookupResponse,
   AgentPaymentConfigResponse,
   AgentProfileResponse,
+  AgentExpressPaymentPayload,
   AgentReceiptPrintPayload,
   AgentReceiptPrintResponse,
   AgentReceiptReprintRequestPayload,
@@ -273,6 +274,16 @@ export async function getAgentTransactions(params: {
 export async function processAgentPayment(payload: ProcessPaymentPayload) {
   return withAgentSessionRetry((accessToken) =>
     postJson<ProcessPaymentResponse>("/api/payments/process", payload, {
+      headers: getAgentAuthHeaders(accessToken),
+    }),
+  );
+}
+
+export async function processAgentExpressPayment(
+  payload: AgentExpressPaymentPayload,
+) {
+  return withAgentSessionRetry((accessToken) =>
+    postJson<ProcessPaymentResponse>("/api/payments/express/process", payload, {
       headers: getAgentAuthHeaders(accessToken),
     }),
   );
