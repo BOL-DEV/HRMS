@@ -393,6 +393,16 @@ export type ProcessPaymentPayload = {
   }>;
 };
 
+export type AgentExpressPaymentPayload = {
+  department_id: string;
+  patient_name: string;
+  phone_number: string;
+  service_name?: string;
+  bill_name?: string;
+  amount: number;
+  payment_type?: AgentPaymentType;
+};
+
 export type ProcessPaymentResponse = {
   status: number;
   message: string;

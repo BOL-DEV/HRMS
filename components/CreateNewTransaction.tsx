@@ -32,42 +32,28 @@ import {
   getAgentPaymentConfig,
   lookupAgentPatient,
   processAgentPayment,
+  processAgentExpressPayment,
   searchAgentHospitalPatients,
 } from "@/libs/agent-auth";
+import ExpressTransactionSection from "@/components/create-transaction/ExpressTransactionSection";
+import TransactionModeToggle from "@/components/create-transaction/TransactionModeToggle";
+import {
+  sanitizeAmountInput,
+  sanitizePhoneNumber,
+  sanitizeQuantityInput,
+} from "@/components/create-transaction/helpers";
+import type {
+  ExpressPaymentForm,
+  SelectedAutomaticItem,
+  SelectedManualItem,
+  TransactionMode,
+} from "@/components/create-transaction/types";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => unknown | Promise<unknown>;
 }
-
-type TransactionMode = "patient" | "express";
-
-type SelectedAutomaticItem = {
-  billItemId: string;
-  billItemName: string;
-  incomeHeadId: string;
-  incomeHeadName: string;
-  unitAmount: number;
-  quantity: number;
-  amount: number;
-};
-
-type SelectedManualItem = {
-  id: string;
-  incomeHeadId: string;
-  incomeHeadName: string;
-  billName: string;
-  amount: number;
-};
-
-type ExpressPaymentForm = {
-  fullName: string;
-  phoneNumber: string;
-  service: string;
-  amount: string;
-  paymentType: NewTransactionForm["paymentType"];
-};
 
 function getInitialForm(): NewTransactionForm {
   return {
@@ -91,6 +77,7 @@ function getInitialForm(): NewTransactionForm {
 
 function getInitialExpressForm(): ExpressPaymentForm {
   return {
+    departmentId: "",
     fullName: "",
     phoneNumber: "",
     service: "",
@@ -99,7 +86,7 @@ function getInitialExpressForm(): ExpressPaymentForm {
   };
 }
 
-function printReceipt(receiptHTML: string) {
+function printReceiptHtml(receiptHTML: string) {
   const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML);
 
   if (!didOpenWindow) {
@@ -113,93 +100,6 @@ function isDigitsOnly(value: string) {
 
 function isValidPhoneNumber(value: string) {
   return /^\d{11}$/.test(value);
-}
-
-function sanitizePhoneNumber(value: string) {
-  return value.replace(/\D/g, "").slice(0, 11);
-}
-
-function sanitizeAmountInput(value: string) {
-  const normalized = value.replace(/[^\d.]/g, "");
-  const [whole = "", ...fractionParts] = normalized.split(".");
-
-  if (fractionParts.length === 0) {
-    return normalized;
-  }
-
-  return `${whole}.${fractionParts.join("")}`;
-}
-
-function sanitizeQuantityInput(value: string) {
-  const normalized = value.replace(/[^\d]/g, "");
-
-  return normalized;
-}
-
-function buildExpressReceiptHtml({
-  hospitalName,
-  fullName,
-  phoneNumber,
-  service,
-  amount,
-  paymentType,
-}: {
-  hospitalName: string;
-  fullName: string;
-  phoneNumber: string;
-  service: string;
-  amount: number;
-  paymentType: NewTransactionForm["paymentType"];
-}) {
-  const issuedAt = new Intl.DateTimeFormat("en-NG", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date());
-
-  return `
-    <div style="max-width: 720px; margin: 0 auto; font-family: Arial, sans-serif; color: #0f172a;">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <p style="margin: 0; font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: #64748b;">
-          Express Payment
-        </p>
-        <h1 style="margin: 10px 0 6px; font-size: 28px; color: #0f172a;">
-          ${hospitalName}
-        </h1>
-        <p style="margin: 0; font-size: 14px; color: #475569;">
-          Receipt generated for a walk-in payment
-        </p>
-      </div>
-
-      <div style="border: 1px solid rgba(15, 23, 42, 0.12); border-radius: 18px; padding: 20px;">
-        <div style="display: grid; gap: 14px;">
-          <div style="display: flex; justify-content: space-between; gap: 16px;">
-            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Name</span>
-            <strong style="font-size: 14px;">${fullName}</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; gap: 16px;">
-            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Phone</span>
-            <strong style="font-size: 14px;">${phoneNumber}</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; gap: 16px;">
-            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Service</span>
-            <strong style="font-size: 14px; text-align: right;">${service}</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; gap: 16px;">
-            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Payment Type</span>
-            <strong style="font-size: 14px;">${paymentType.toUpperCase()}</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; gap: 16px;">
-            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Amount</span>
-            <strong style="font-size: 16px; color: #0f172a;">${formatCurrency(amount)}</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; gap: 16px;">
-            <span style="font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: #64748b;">Issued At</span>
-            <strong style="font-size: 14px;">${issuedAt}</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
 }
 
 function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
@@ -233,7 +133,6 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
 
   const paymentMode = paymentConfigQuery.data?.data.revenue_type ?? "";
   const hospitalId = paymentConfigQuery.data?.data.hospital_id ?? "";
-  const hospitalName = paymentConfigQuery.data?.data.hospital_name ?? "SwiftRev Hospital";
   const isExpressMode = transactionMode === "express";
 
   const departmentsQuery = useQuery({
@@ -337,28 +236,41 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     },
   });
 
+  const handlePaymentSuccess = async (response: {
+    message?: string;
+    data: {
+      receipt?: {
+        receiptHTML?: string;
+      };
+    };
+  }) => {
+    queryClient.invalidateQueries({
+      queryKey: ["agent-dashboard"],
+      refetchType: "inactive",
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["agent-transactions"],
+      refetchType: "inactive",
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["agent-receipts"],
+      refetchType: "inactive",
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["agent-profile"],
+      refetchType: "inactive",
+    });
+    await onSuccess?.();
+    if (response.data.receipt?.receiptHTML) {
+      printReceiptHtml(response.data.receipt.receiptHTML);
+    }
+  };
+
   const paymentMutation = useMutation({
     mutationFn: processAgentPayment,
     onSuccess: async (response) => {
       toast.success(response.message || "Payment processed successfully.");
-      queryClient.invalidateQueries({
-        queryKey: ["agent-dashboard"],
-        refetchType: "inactive",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["agent-transactions"],
-        refetchType: "inactive",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["agent-receipts"],
-        refetchType: "inactive",
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["agent-profile"],
-        refetchType: "inactive",
-      });
-      await onSuccess?.();
-      printReceipt(response.data.receipt.receiptHTML);
+      await handlePaymentSuccess(response);
       setForm(getInitialForm());
       setSelectedBillItems([]);
       setSelectedManualItems([]);
@@ -366,6 +278,22 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       setPatientSearchInput("");
       setShowPatientSuggestions(true);
       setShowBillItemList(true);
+      onClose();
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Unable to process payment.",
+      );
+    },
+  });
+
+  const expressPaymentMutation = useMutation({
+    mutationFn: processAgentExpressPayment,
+    onSuccess: async (response) => {
+      toast.success(response.message || "Express payment processed successfully.");
+      await handlePaymentSuccess(response);
+      setExpressForm(getInitialExpressForm());
+      setTransactionMode("patient");
       onClose();
     },
     onError: (error) => {
@@ -392,10 +320,16 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   };
 
   const handleExpressSubmit = () => {
+    const departmentId = expressForm.departmentId.trim();
     const fullName = expressForm.fullName.trim();
     const phoneNumber = expressForm.phoneNumber.trim();
     const service = expressForm.service.trim();
     const amount = Number(expressForm.amount);
+
+    if (!departmentId) {
+      toast.error("Select a department.");
+      return;
+    }
 
     if (!fullName) {
       toast.error("Customer name is required.");
@@ -417,20 +351,15 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       return;
     }
 
-    const receiptHtml = buildExpressReceiptHtml({
-      hospitalName,
-      fullName,
-      phoneNumber,
-      service,
+    expressPaymentMutation.mutate({
+      department_id: departmentId,
+      patient_name: fullName,
+      phone_number: phoneNumber,
+      service_name: service,
+      bill_name: service,
       amount,
-      paymentType: expressForm.paymentType,
+      payment_type: expressForm.paymentType,
     });
-
-    toast.success("Express payment receipt is ready.");
-    printReceipt(receiptHtml);
-    setExpressForm(getInitialExpressForm());
-    setTransactionMode("patient");
-    onClose();
   };
 
   const patientStepReady =
@@ -446,6 +375,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
       : selectedManualItems.length > 0);
 
   const expressStepReady =
+    Boolean(expressForm.departmentId) &&
     Boolean(expressForm.fullName.trim()) &&
     Boolean(expressForm.service.trim()) &&
     isValidPhoneNumber(expressForm.phoneNumber) &&
@@ -748,27 +678,27 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     }
 
     if (paymentMode === "automatic") {
-    if (selectedBillItems.length === 0) {
-      toast.error("Add at least one bill item.");
-      return;
-    }
+      if (selectedBillItems.length === 0) {
+        toast.error("Add at least one bill item.");
+        return;
+      }
 
-    const billItemIds = selectedBillItems.flatMap((item) =>
-      Array.from({ length: item.quantity }, () => item.billItemId),
-    );
+      const billItemIds = selectedBillItems.flatMap((item) =>
+        Array.from({ length: item.quantity }, () => item.billItemId),
+      );
 
       paymentMutation.mutate({
         patient_id: patientId,
         department_id: form.departmentId,
         patient_name: form.patientExists ? undefined : patientName,
         phone_number: form.patientExists ? undefined : phoneNumber,
-      bill_item_ids: billItemIds,
-      bill_items: selectedBillItems.map((item) => ({
-        bill_item_id: item.billItemId,
-        quantity: item.quantity,
-      })),
-      payment_type: form.paymentType,
-    });
+        bill_item_ids: billItemIds,
+        bill_items: selectedBillItems.map((item) => ({
+          bill_item_id: item.billItemId,
+          quantity: item.quantity,
+        })),
+        payment_type: form.paymentType,
+      });
       return;
     }
 
@@ -792,7 +722,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   };
 
   const closeModal = () => {
-    if (paymentMutation.isPending) {
+    if (paymentMutation.isPending || expressPaymentMutation.isPending) {
       return;
     }
 
@@ -869,236 +799,23 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
           </div>
 
           <div className="px-6 pt-6">
-            <div className="inline-flex rounded-2xl border border-gray-200 bg-gray-50 p-1 dark:border-line-subtle dark:bg-panel-strong/60">
-              <button
-                type="button"
-                onClick={() => switchTransactionMode("patient")}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                  isExpressMode
-                    ? "text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-panel"
-                    : "bg-brand-700 text-white shadow-sm"
-                }`}
-              >
-                Patient Payment
-              </button>
-              <button
-                type="button"
-                onClick={() => switchTransactionMode("express")}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                  isExpressMode
-                    ? "bg-brand-700 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-panel"
-                }`}
-              >
-                Express Payment
-              </button>
-            </div>
+            <TransactionModeToggle
+              value={transactionMode}
+              onChange={switchTransactionMode}
+            />
           </div>
 
           {isExpressMode ? (
-            <div className="grid gap-6 p-6 xl:grid-cols-[1.05fr_0.75fr]">
-              <div className="min-w-0 space-y-5">
-                {configError ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
-                    {configError}
-                  </div>
-                ) : null}
-
-                <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
-                        Express
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        Walk-in Payment
-                      </h3>
-                    </div>
-
-                    {expressStepReady ? (
-                      <span className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
-                        <FiCheckCircle />
-                        Ready
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
-                    No patient lookup needed. Add the customer details, service,
-                    amount, and payment type.
-                  </p>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Customer Name
-                      </span>
-                      <input
-                        value={expressForm.fullName}
-                        onChange={(event) =>
-                          setExpressForm((current) => ({
-                            ...current,
-                            fullName: event.target.value,
-                          }))
-                        }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                        placeholder="John Doe"
-                      />
-                    </label>
-
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Phone Number
-                      </span>
-                      <input
-                        value={expressForm.phoneNumber}
-                        onChange={(event) =>
-                          setExpressForm((current) => ({
-                            ...current,
-                            phoneNumber: sanitizePhoneNumber(event.target.value),
-                          }))
-                        }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                        placeholder="08012345678"
-                        inputMode="tel"
-                      />
-                    </label>
-
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Payment Type
-                      </span>
-                      <select
-                        value={expressForm.paymentType}
-                        onChange={(event) =>
-                          setExpressForm((current) => ({
-                            ...current,
-                            paymentType: event.target.value as NewTransactionForm["paymentType"],
-                          }))
-                        }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="transfer">Transfer</option>
-                        <option value="pos">POS</option>
-                      </select>
-                    </label>
-
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Service
-                      </span>
-                      <input
-                        value={expressForm.service}
-                        onChange={(event) =>
-                          setExpressForm((current) => ({
-                            ...current,
-                            service: event.target.value,
-                          }))
-                        }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                        placeholder="Consultation fee"
-                      />
-                    </label>
-                  </div>
-
-                  <div className="mt-4">
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                        Amount
-                      </span>
-                      <input
-                        value={expressForm.amount}
-                        onChange={(event) =>
-                          setExpressForm((current) => ({
-                            ...current,
-                            amount: sanitizeAmountInput(event.target.value),
-                          }))
-                        }
-                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                        placeholder="5000"
-                        inputMode="decimal"
-                      />
-                    </label>
-                  </div>
-
-                  <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                    This frontend flow prints a receipt locally for now. Backend
-                    processing can be connected later without changing the form.
-                  </p>
-                </section>
-              </div>
-
-              <aside className="self-start space-y-5 xl:sticky xl:top-6">
-                <section className="rounded-2xl border border-gray-200 p-5 dark:border-line-subtle dark:bg-panel-muted/35">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    Express Preview
-                  </h3>
-
-                  <dl className="mt-4 space-y-3 text-sm">
-                    <div className="flex items-start justify-between gap-4">
-                      <dt className="text-gray-600 dark:text-slate-300">
-                        Customer
-                      </dt>
-                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                        {expressForm.fullName || "Not set"}
-                      </dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <dt className="text-gray-600 dark:text-slate-300">
-                        Phone
-                      </dt>
-                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                        {expressForm.phoneNumber || "Not set"}
-                      </dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <dt className="text-gray-600 dark:text-slate-300">
-                        Service
-                      </dt>
-                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                        {expressForm.service || "Not set"}
-                      </dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <dt className="text-gray-600 dark:text-slate-300">
-                        Payment Type
-                      </dt>
-                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                        {expressForm.paymentType.toUpperCase()}
-                      </dd>
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <dt className="text-gray-600 dark:text-slate-300">
-                        Total
-                      </dt>
-                      <dd className="text-right font-medium text-slate-900 dark:text-slate-100">
-                        {formatCurrency(Number(expressForm.amount || 0))}
-                      </dd>
-                    </div>
-                  </dl>
-                </section>
-
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleSubmit}
-                    type="button"
-                    disabled={!expressStepReady}
-                    className="rounded-2xl bg-brand-700 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Process Payment & Print
-                  </button>
-
-                  <button
-                    onClick={closeModal}
-                    type="button"
-                    className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-gray-50 dark:border-line-subtle dark:text-slate-100 dark:hover:bg-panel-strong"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </aside>
-            </div>
+            <ExpressTransactionSection
+              departments={departments}
+              departmentsError={configError ?? departmentsError}
+              expressForm={expressForm}
+              setExpressForm={setExpressForm}
+              expressStepReady={expressStepReady}
+              isSubmitting={expressPaymentMutation.isPending}
+              onSubmit={handleSubmit}
+              onCancel={closeModal}
+            />
           ) : (
           <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_0.9fr]">
             <div className="min-w-0 space-y-5">
