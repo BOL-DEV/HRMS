@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import AdminCatalogWorkspace from "@/components/AdminCatalogWorkspace";
+import { redirect } from "next/navigation";
 
 export default function CatalogDashboardPage() {
-  return (
-    <Suspense fallback={null}>
-      <AdminCatalogWorkspace />
-    </Suspense>
-  );
+  redirect("/catalog/departments");
 }
