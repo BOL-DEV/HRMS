@@ -1,7 +1,7 @@
 "use client";
 
-import AdminPaginationFooter from "@/components/AdminPaginationFooter";
-import AdminScopedReportWorkspace from "@/components/AdminScopedReportWorkspace";
+import AdminPaginationFooter from "@/components/admin/AdminPaginationFooter";
+import AdminScopedReportWorkspace from "@/components/admin/AdminScopedReportWorkspace";
 import { ApiError } from "@/libs/api";
 import {
   exportAdminHospitalDepartmentReportCsv,

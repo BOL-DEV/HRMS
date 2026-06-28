@@ -1,7 +1,7 @@
 "use client";
 
-import AdminPasswordSettings from "@/components/AdminPasswordSettings";
-import Header from "@/components/Header";
+import AdminPasswordSettings from "@/components/admin/AdminPasswordSettings";
+import Header from "@/components/shared/Header";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

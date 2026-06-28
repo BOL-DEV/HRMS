@@ -1,8 +1,8 @@
 "use client";
 
-import Header from "@/components/Header";
-import ReceiptActionBar from "@/components/ReceiptActionBar";
-import ReceiptLists from "@/components/ReceiptLists";
+import Header from "@/components/shared/Header";
+import ReceiptActionBar from "@/components/agent/ReceiptActionBar";
+import ReceiptLists from "@/components/agent/ReceiptLists";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

@@ -1,6 +1,6 @@
 "use client";
 
-import AdminPageError from "@/components/AdminPageError";
+import AdminPageError from "@/components/admin/AdminPageError";
 import { ApiError } from "@/libs/api";
 import { getAdminHospitalPatientSearch } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

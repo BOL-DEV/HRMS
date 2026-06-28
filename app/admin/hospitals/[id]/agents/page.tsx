@@ -1,10 +1,10 @@
 "use client";
 
-import AdminAgentTopupModal from "@/components/AdminAgentTopupModal";
-import AdminHospitalAgentFormModal from "@/components/AdminHospitalAgentFormModal";
-import AdminHospitalAgentsListSection from "@/components/AdminHospitalAgentsListSection";
-import AdminHospitalAgentsSummaryCards from "@/components/AdminHospitalAgentsSummaryCards";
-import AdminPageError from "@/components/AdminPageError";
+import AdminAgentTopupModal from "@/components/admin/AdminAgentTopupModal";
+import AdminHospitalAgentFormModal from "@/components/admin/AdminHospitalAgentFormModal";
+import AdminHospitalAgentsListSection from "@/components/admin/AdminHospitalAgentsListSection";
+import AdminHospitalAgentsSummaryCards from "@/components/admin/AdminHospitalAgentsSummaryCards";
+import AdminPageError from "@/components/admin/AdminPageError";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalAgent,

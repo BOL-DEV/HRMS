@@ -1,9 +1,9 @@
 "use client";
 
-import AdminSearchField from "@/components/AdminSearchField";
-import FoBillItemFormModal from "@/components/FoBillItemFormModal";
-import FoBillItemsTable from "@/components/FoBillItemsTable";
-import Header from "@/components/Header";
+import AdminSearchField from "@/components/admin/AdminSearchField";
+import FoBillItemFormModal from "@/components/fo/FoBillItemFormModal";
+import FoBillItemsTable from "@/components/fo/FoBillItemsTable";
+import Header from "@/components/shared/Header";
 import { useCatalogWorkspace } from "@/components/catalog/CatalogWorkspaceProvider";
 import { formatNaira } from "@/libs/helper";
 import { useMemo, useState } from "react";

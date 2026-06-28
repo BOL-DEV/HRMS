@@ -1,9 +1,9 @@
 "use client";
 
-import AdminHospitalDepartmentFormModal from "@/components/AdminHospitalDepartmentFormModal";
-import AdminHospitalDepartmentsSection from "@/components/AdminHospitalDepartmentsSection";
-import AdminHospitalDepartmentsSummaryCard from "@/components/AdminHospitalDepartmentsSummaryCard";
-import AdminPageError from "@/components/AdminPageError";
+import AdminHospitalDepartmentFormModal from "@/components/admin/AdminHospitalDepartmentFormModal";
+import AdminHospitalDepartmentsSection from "@/components/admin/AdminHospitalDepartmentsSection";
+import AdminHospitalDepartmentsSummaryCard from "@/components/admin/AdminHospitalDepartmentsSummaryCard";
+import AdminPageError from "@/components/admin/AdminPageError";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalDepartment,

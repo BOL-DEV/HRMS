@@ -1,9 +1,9 @@
 "use client";
 
-import AdminHospitalBillItemFormModal from "@/components/AdminHospitalBillItemFormModal";
-import AdminHospitalBillItemsSection from "@/components/AdminHospitalBillItemsSection";
-import AdminPageError from "@/components/AdminPageError";
-import StatCard from "@/components/StatCard";
+import AdminHospitalBillItemFormModal from "@/components/admin/AdminHospitalBillItemFormModal";
+import AdminHospitalBillItemsSection from "@/components/admin/AdminHospitalBillItemsSection";
+import AdminPageError from "@/components/admin/AdminPageError";
+import StatCard from "@/components/shared/StatCard";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalBillItem,

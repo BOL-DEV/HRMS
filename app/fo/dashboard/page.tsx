@@ -3,11 +3,11 @@
 import DashboardFilterBar from "@/components/dashboard/DashboardFilterBar";
 import DashboardSection from "@/components/dashboard/DashboardSection";
 import DashboardSegmentedControl from "@/components/dashboard/DashboardSegmentedControl";
-import Header from "@/components/Header";
-import PaymentMethodBreakdown from "@/components/PaymentMethodBreakdown";
-import RecentTransactions from "@/components/RecentTransactions";
-import RevenueByDepartment from "@/components/RevenueByDepartment";
-import RevenueTrend from "@/components/RevenueTrend";
+import Header from "@/components/shared/Header";
+import PaymentMethodBreakdown from "@/components/shared/PaymentMethodBreakdown";
+import RecentTransactions from "@/components/shared/RecentTransactions";
+import RevenueByDepartment from "@/components/shared/RevenueByDepartment";
+import RevenueTrend from "@/components/shared/RevenueTrend";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { BRAND_CHART_PALETTE, BRAND_PERIOD_COLORS } from "@/libs/brand";
