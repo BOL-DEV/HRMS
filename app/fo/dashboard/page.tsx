@@ -235,7 +235,7 @@ function Page() {
 
       <div className="space-y-6 p-6">
         <DashboardFilterBar
-          eyebrow="Financial Office"
+          eyebrow="MDA"
           title="Performance first, detail second"
           description="Track period revenue, department output, and agent contribution without opening a full report."
           accent="fo"
@@ -416,7 +416,7 @@ function Page() {
         <RecentTransactions
           rows={recentTransactions}
           isLoading={recentTransactionsQuery.isLoading}
-          subtitle="Latest 5 FO transactions from the current dashboard feed"
+          subtitle="Latest 5 MDA transactions from the current dashboard feed"
           emptyMessage="No recent transactions are available right now."
         />
       </div>
