@@ -15,7 +15,7 @@ type Props = {
   onSearchChange: (value: string) => void;
   onOpenCreateModal: () => void;
   onRename: (department: DepartmentRow) => void;
-  onDelete: (departmentId: string) => void;
+  onDelete: (department: DepartmentRow) => void;
   footer?: ReactNode;
 };
 
@@ -92,7 +92,7 @@ function AdminHospitalDepartmentsSection({
                         </button>
                         <button
                           type="button"
-                          onClick={() => onDelete(department.id!)}
+                          onClick={() => onDelete(department)}
                           disabled={isDeleting}
                           className="rounded-lg border border-red-200 px-2.5 py-1.5 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"
                           aria-label={`Delete ${department.name}`}

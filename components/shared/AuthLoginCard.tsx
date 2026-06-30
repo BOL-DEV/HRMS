@@ -7,17 +7,9 @@ import toast from "react-hot-toast";
 import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { ApiError } from "@/libs/api";
-import {
-  clearAuthTokens,
-  clearCatalogDemoSession,
-  storeAgentTokens,
-  storeCatalogDemoSession,
-} from "@/libs/auth";
+import { clearAuthTokens, storeAgentTokens } from "@/libs/auth";
 import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
-
-const CATALOG_DEMO_EMAIL = "catalog@demo.local";
-const CATALOG_DEMO_PASSWORD = "catalog123";
 
 type Props = {
   mode?: "embedded" | "page";
@@ -101,18 +93,6 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (
-      email.trim().toLowerCase() === CATALOG_DEMO_EMAIL &&
-      password === CATALOG_DEMO_PASSWORD
-    ) {
-      clearAuthTokens();
-      clearCatalogDemoSession();
-      storeCatalogDemoSession();
-      toast.success("Demo login successful.");
-      router.push("/catalog/dashboard");
-      return;
-    }
-
     loginMutation.mutate({
       email: email.trim(),
       password,
@@ -186,16 +166,6 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
           <FiArrowRight />
         </button>
 
-        <p className="text-center text-xs text-slate-500 dark:text-slate-400">
-          Demo catalog access:{" "}
-          <span className="font-semibold text-slate-700 dark:text-slate-200">
-            {CATALOG_DEMO_EMAIL}
-          </span>{" "}
-          /{" "}
-          <span className="font-semibold text-slate-700 dark:text-slate-200">
-            {CATALOG_DEMO_PASSWORD}
-          </span>
-        </p>
       </form>
     </div>
   );
