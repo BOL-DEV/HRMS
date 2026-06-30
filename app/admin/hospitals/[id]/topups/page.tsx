@@ -1,7 +1,7 @@
 "use client";
 
-import AgentTopupHistoryWorkspace from "@/components/AgentTopupHistoryWorkspace";
-import AdminPageError from "@/components/AdminPageError";
+import AgentTopupHistoryWorkspace from "@/components/agent/AgentTopupHistoryWorkspace";
+import AdminPageError from "@/components/admin/AdminPageError";
 import { ApiError } from "@/libs/api";
 import { getAdminHospitalAgentTopupHistory } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

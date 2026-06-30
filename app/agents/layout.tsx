@@ -1,5 +1,5 @@
 import React from 'react';
-import AgentSidebar from '../../components/AgentSidebar';
+import AgentSidebar from '../../components/agent/AgentSidebar';
 
 
 interface Props {

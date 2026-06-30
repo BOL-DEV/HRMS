@@ -1,15 +1,15 @@
 "use client";
 
-import Header from "@/components/Header";
+import Header from "@/components/shared/Header";
 import AgentProfileModal, {
   AgentProfile,
-} from "@/components/AgentProfileModal";
-import CreateAgentModal from "@/components/CreateAgentModal";
-import FoAgentsListSection from "@/components/FoAgentsListSection";
+} from "@/components/agent/AgentProfileModal";
+import CreateAgentModal from "@/components/fo/CreateAgentModal";
+import FoAgentsListSection from "@/components/fo/FoAgentsListSection";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import AgentStatsCards from "@/components/AgentStatsCards";
-import FoAgentAct from "@/components/FoAgentAct";
+import AgentStatsCards from "@/components/agent/AgentStatsCards";
+import FoAgentAct from "@/components/fo/FoAgentAct";
 import { toast } from "react-hot-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/libs/api";

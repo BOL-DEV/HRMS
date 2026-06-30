@@ -1,6 +1,6 @@
 "use client";
 
-import FoScopedReportWorkspace from "@/components/FoScopedReportWorkspace";
+import FoScopedReportWorkspace from "@/components/fo/FoScopedReportWorkspace";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import {

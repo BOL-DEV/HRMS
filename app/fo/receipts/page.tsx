@@ -1,10 +1,10 @@
 "use client";
 
-import FoReceiptRequestModal from "@/components/FoReceiptRequestModal";
-import FoReceiptsFilterBar from "@/components/FoReceiptsFilterBar";
-import FoReceiptsSummaryCards from "@/components/FoReceiptsSummaryCards";
-import FoReceiptsTable from "@/components/FoReceiptsTable";
-import Header from "@/components/Header";
+import FoReceiptRequestModal from "@/components/fo/FoReceiptRequestModal";
+import FoReceiptsFilterBar from "@/components/fo/FoReceiptsFilterBar";
+import FoReceiptsSummaryCards from "@/components/fo/FoReceiptsSummaryCards";
+import FoReceiptsTable from "@/components/fo/FoReceiptsTable";
+import Header from "@/components/shared/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import {

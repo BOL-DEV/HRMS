@@ -1,5 +1,5 @@
 import Image from "next/image";
-import AuthLoginCard from "@/components/AuthLoginCard";
+import AuthLoginCard from "@/components/shared/AuthLoginCard";
 import { PLATFORM_LOGO_SRC } from "@/libs/brand";
 
 export default function Page() {

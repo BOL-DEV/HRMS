@@ -1,8 +1,8 @@
 "use client";
 
-import AdminHospitalIncomeHeadFormModal from "@/components/AdminHospitalIncomeHeadFormModal";
-import AdminSearchField from "@/components/AdminSearchField";
-import Header from "@/components/Header";
+import AdminHospitalIncomeHeadFormModal from "@/components/admin/AdminHospitalIncomeHeadFormModal";
+import AdminSearchField from "@/components/admin/AdminSearchField";
+import Header from "@/components/shared/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import {

@@ -1,9 +1,9 @@
 "use client";
 
-import AdminPageError from "@/components/AdminPageError";
-import AdminPaginationFooter from "@/components/AdminPaginationFooter";
-import AdminHospitalTransactionsSection from "@/components/AdminHospitalTransactionsSection";
-import AdminHospitalTransactionsSummaryCards from "@/components/AdminHospitalTransactionsSummaryCards";
+import AdminPageError from "@/components/admin/AdminPageError";
+import AdminPaginationFooter from "@/components/admin/AdminPaginationFooter";
+import AdminHospitalTransactionsSection from "@/components/admin/AdminHospitalTransactionsSection";
+import AdminHospitalTransactionsSummaryCards from "@/components/admin/AdminHospitalTransactionsSummaryCards";
 import { ApiError } from "@/libs/api";
 import {
   exportAdminHospitalTransactionsCsv,

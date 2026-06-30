@@ -5,9 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { FiCircle, FiCreditCard, FiHash } from "react-icons/fi";
 
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
-import AdminPaginationFooter from "@/components/AdminPaginationFooter";
+import Header from "@/components/shared/Header";
+import StatCard from "@/components/shared/StatCard";
+import AdminPaginationFooter from "@/components/admin/AdminPaginationFooter";
 
 import { ApiError } from "@/libs/api";
 import { clearAgentTokens, getAgentAccessToken } from "@/libs/auth";

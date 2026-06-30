@@ -1,11 +1,11 @@
 "use client";
 
-import AdminPaginationFooter from "@/components/AdminPaginationFooter";
-import FoReportsFilterPanel from "@/components/FoReportsFilterPanel";
-import FoReportsRevenueBreakdownTable from "@/components/FoReportsRevenueBreakdownTable";
-import FoReportsSummaryCards from "@/components/FoReportsSummaryCards";
-import FoReportsTransactionsTable from "@/components/FoReportsTransactionsTable";
-import Header from "@/components/Header";
+import AdminPaginationFooter from "@/components/admin/AdminPaginationFooter";
+import FoReportsFilterPanel from "@/components/fo/FoReportsFilterPanel";
+import FoReportsRevenueBreakdownTable from "@/components/fo/FoReportsRevenueBreakdownTable";
+import FoReportsSummaryCards from "@/components/fo/FoReportsSummaryCards";
+import FoReportsTransactionsTable from "@/components/fo/FoReportsTransactionsTable";
+import Header from "@/components/shared/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import {

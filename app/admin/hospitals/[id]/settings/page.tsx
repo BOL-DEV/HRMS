@@ -1,8 +1,8 @@
 "use client";
 
-import AdminPageError from "@/components/AdminPageError";
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
+import AdminPageError from "@/components/admin/AdminPageError";
+import Header from "@/components/shared/Header";
+import StatCard from "@/components/shared/StatCard";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalBillItem,

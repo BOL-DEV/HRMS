@@ -1,4 +1,4 @@
-import FoSidebar from '@/components/FoSidebar';
+import FoSidebar from '@/components/fo/FoSidebar';
 import React from 'react';
 
 

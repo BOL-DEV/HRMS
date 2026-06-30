@@ -1,10 +1,10 @@
 "use client";
 
-import AdminHospitalModal from "@/components/AdminHospitalModal";
-import AdminHospitalsFilters from "@/components/AdminHospitalsFilters";
-import AdminHospitalsSummaryCards from "@/components/AdminHospitalsSummaryCards";
-import AdminHospitalsTable from "@/components/AdminHospitalsTable";
-import Header from "@/components/Header";
+import AdminHospitalModal from "@/components/admin/AdminHospitalModal";
+import AdminHospitalsFilters from "@/components/admin/AdminHospitalsFilters";
+import AdminHospitalsSummaryCards from "@/components/admin/AdminHospitalsSummaryCards";
+import AdminHospitalsTable from "@/components/admin/AdminHospitalsTable";
+import Header from "@/components/shared/Header";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospital,
