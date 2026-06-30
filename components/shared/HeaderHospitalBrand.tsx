@@ -86,7 +86,7 @@ export default function HeaderHospitalBrand() {
 
     return {
       isPlatformLogo: false,
-      label: section === "fo" ? "FO Workspace" : "Agent Workspace",
+      label: section === "fo" ? "MDA Workspace" : "Agent Workspace",
       title: imageData?.hospital_name || profile.hospital_name || "Hospital",
       subtitle: profile.hospital_code || "Connected workspace",
       imageUrl: imageData?.image_url ?? "",

@@ -229,7 +229,7 @@ function Page() {
   return (
     <div className="min-h-screen w-full bg-canvas">
       <Header
-        title="Financial Office Dashboard"
+        title="MDA Dashboard"
         Subtitle="Monitor hospital revenue, people, and transactions"
       />
 
