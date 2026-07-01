@@ -1,5 +1,5 @@
-import CatalogAccessGate from "@/components/CatalogAccessGate";
-import CatalogSidebar from "@/components/CatalogSidebar";
+import CatalogAccessGate from "@/components/catalog/CatalogAccessGate";
+import CatalogSidebar from "@/components/catalog/CatalogSidebar";
 import { CatalogWorkspaceProvider } from "@/components/catalog/CatalogWorkspaceProvider";
 import type { ReactNode } from "react";
 

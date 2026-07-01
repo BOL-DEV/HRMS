@@ -1,9 +1,10 @@
 "use client";
 
-import AdminHospitalDepartmentFormModal from "@/components/AdminHospitalDepartmentFormModal";
-import AdminHospitalDepartmentsSection from "@/components/AdminHospitalDepartmentsSection";
-import AdminHospitalDepartmentsSummaryCard from "@/components/AdminHospitalDepartmentsSummaryCard";
-import AdminPageError from "@/components/AdminPageError";
+import AdminHospitalDepartmentFormModal from "@/components/admin/AdminHospitalDepartmentFormModal";
+import AdminConfirmDeleteModal from "@/components/admin/AdminConfirmDeleteModal";
+import AdminHospitalDepartmentsSection from "@/components/admin/AdminHospitalDepartmentsSection";
+import AdminHospitalDepartmentsSummaryCard from "@/components/admin/AdminHospitalDepartmentsSummaryCard";
+import AdminPageError from "@/components/admin/AdminPageError";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalDepartment,
@@ -46,6 +47,8 @@ export default function HospitalDepartmentsPage() {
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] =
+    useState<DepartmentRow | null>(null);
+  const [deletingDepartment, setDeletingDepartment] =
     useState<DepartmentRow | null>(null);
 
   const departmentsQuery = useQuery({
@@ -164,7 +167,7 @@ export default function HospitalDepartmentsPage() {
         onSearchChange={setSearch}
         onOpenCreateModal={() => setIsCreateOpen(true)}
         onRename={setEditingDepartment}
-        onDelete={(departmentId) => deleteMutation.mutate(departmentId)}
+        onDelete={(department) => setDeletingDepartment(department)}
         footer={
           !hasDepartmentIds && departments.length ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
@@ -188,6 +191,26 @@ export default function HospitalDepartmentsPage() {
             }
 
             createMutation.mutate(name);
+          }}
+        />
+      ) : null}
+
+      {deletingDepartment ? (
+        <AdminConfirmDeleteModal
+          title="Delete department"
+          message={`Delete department "${deletingDepartment.name}"? This action cannot be undone.`}
+          confirmLabel="Delete department"
+          isConfirming={deleteMutation.isPending}
+          onClose={() => setDeletingDepartment(null)}
+          onConfirm={() => {
+            if (!deletingDepartment.id) {
+              toast.error("Department ID is missing.");
+              return;
+            }
+
+            deleteMutation.mutate(deletingDepartment.id, {
+              onSuccess: () => setDeletingDepartment(null),
+            });
           }}
         />
       ) : null}

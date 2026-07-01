@@ -1,8 +1,8 @@
 "use client";
 
-import AdminHospitalDepartmentFormModal from "@/components/AdminHospitalDepartmentFormModal";
-import AdminSearchField from "@/components/AdminSearchField";
-import Header from "@/components/Header";
+import AdminHospitalDepartmentFormModal from "@/components/admin/AdminHospitalDepartmentFormModal";
+import AdminSearchField from "@/components/admin/AdminSearchField";
+import Header from "@/components/shared/Header";
 import { formatDateTime } from "@/libs/helper";
 import { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";

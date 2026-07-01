@@ -1,9 +1,9 @@
 "use client";
 
-import FoTransactionsFilterBar from "@/components/FoTransactionsFilterBar";
-import FoTransactionsSummaryCards from "@/components/FoTransactionsSummaryCards";
-import FoTransactionsTable from "@/components/FoTransactionsTable";
-import Header from "@/components/Header";
+import FoTransactionsFilterBar from "@/components/fo/FoTransactionsFilterBar";
+import FoTransactionsSummaryCards from "@/components/fo/FoTransactionsSummaryCards";
+import FoTransactionsTable from "@/components/fo/FoTransactionsTable";
+import Header from "@/components/shared/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { exportFoTransactionsCsv, getFoTransactions } from "@/libs/fo-auth";

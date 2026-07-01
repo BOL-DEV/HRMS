@@ -1,10 +1,10 @@
 "use client";
 
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
-import TransactionActionBar from "@/components/TransactionActionBar";
-import TransactionList from "@/components/TransactionList";
-import CreateNewTransaction from "@/components/CreateNewTransaction";
+import Header from "@/components/shared/Header";
+import StatCard from "@/components/shared/StatCard";
+import TransactionActionBar from "@/components/agent/TransactionActionBar";
+import TransactionList from "@/components/agent/TransactionList";
+import CreateNewTransaction from "@/components/agent/CreateNewTransaction";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

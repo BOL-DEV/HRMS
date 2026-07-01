@@ -1,9 +1,9 @@
 "use client";
 
-import AppPre from "@/components/AppPre";
-import ChangePassword from "@/components/ChangePassword";
-import Header from "@/components/Header";
-import ProfileInfo from "@/components/ProfileInfo";
+import AppPre from "@/components/shared/AppPre";
+import ChangePassword from "@/components/shared/ChangePassword";
+import Header from "@/components/shared/Header";
+import ProfileInfo from "@/components/shared/ProfileInfo";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { getFoProfile } from "@/libs/fo-auth";

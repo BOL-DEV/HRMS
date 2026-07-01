@@ -1,9 +1,9 @@
 "use client";
 
-import AdminDateRangeFilterBar from "@/components/AdminDateRangeFilterBar";
-import AdminHospitalActivityTimeline from "@/components/AdminHospitalActivityTimeline";
-import AdminPageError from "@/components/AdminPageError";
-import AdminPaginationFooter from "@/components/AdminPaginationFooter";
+import AdminDateRangeFilterBar from "@/components/admin/AdminDateRangeFilterBar";
+import AdminHospitalActivityTimeline from "@/components/admin/AdminHospitalActivityTimeline";
+import AdminPageError from "@/components/admin/AdminPageError";
+import AdminPaginationFooter from "@/components/admin/AdminPaginationFooter";
 import { ApiError } from "@/libs/api";
 import { getAdminHospitalActivityLogs } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

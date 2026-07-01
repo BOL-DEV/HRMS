@@ -1,0 +1,171 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { FaRegChartBar } from "react-icons/fa";
+import { MdOutlinePeopleAlt } from "react-icons/md";
+import { GrDocumentCloud } from "react-icons/gr";
+import { BsReceipt } from "react-icons/bs";
+import { IoSettingsOutline } from "react-icons/io5";
+import Sidebar from "@/components/shared/Sidebar";
+import { RxHamburgerMenu } from "react-icons/rx";
+import { useMemo, useState } from "react";
+import { IoMdClose } from "react-icons/io";
+import { TbReportMedical } from "react-icons/tb";
+import { PiFilesLight } from "react-icons/pi";
+import { FiCreditCard } from "react-icons/fi";
+import { useQuery } from "@tanstack/react-query";
+import { getAccessToken } from "@/libs/auth";
+import { getFoProfile } from "@/libs/fo-auth";
+
+const sidebarData = {
+  title: "FO",
+  links: [
+    {
+      name: "Dashboard",
+      link: "/fo/dashboard",
+      label: <FaRegChartBar className="inline" />,
+      active: true,
+    },
+    {
+      name: "Agents",
+      link: "/fo/agents",
+      label: <MdOutlinePeopleAlt className="inline" />,
+      active: false,
+    },
+    {
+      name: "Top-Up History",
+      link: "/fo/agent-topups",
+      label: <FiCreditCard className="inline" />,
+      active: false,
+    },
+    {
+      name: "Transactions",
+      link: "/fo/transactions",
+      label: <GrDocumentCloud className="inline" />,
+      active: false,
+    },
+    {
+      name: "Departments",
+      link: "/fo/departments",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
+      name: "Income Heads",
+      link: "/fo/income-heads",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
+      name: "Bill Items",
+      link: "/fo/bill-items",
+      label: <PiFilesLight className="inline" />,
+      active: false,
+    },
+    {
+      name: "Receipts",
+      link: "/fo/receipts",
+      label: <BsReceipt className="inline" />,
+      active: false,
+    },
+    {
+      name: "Reports",
+      link: "/fo/reports",
+      label: <TbReportMedical className="inline" />,
+      active: false,
+      children: [
+        {
+          name: "Revenue Report",
+          link: "/fo/reports",
+          active: false,
+        },
+        {
+          name: "Department Report",
+          link: "/fo/reports/department",
+          active: false,
+        },
+        {
+          name: "Agent Report",
+          link: "/fo/reports/agent",
+          active: false,
+        },
+        {
+          name: "Patient Report",
+          link: "/fo/reports/patient",
+          active: false,
+        },
+      ],
+    },
+    {
+      name: "Settings",
+      link: "/fo/settings",
+      label: <IoSettingsOutline className="inline" />,
+      active: false,
+    },
+  ],
+};
+
+const FoSidebar = () => {
+  const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+  const accessToken = getAccessToken();
+
+  const profileQuery = useQuery({
+    queryKey: ["fo-profile"],
+    queryFn: getFoProfile,
+    enabled: Boolean(accessToken),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const revenueType = profileQuery.data?.data.revenue_type;
+  const showBillItems = revenueType !== "manual";
+
+  const links = useMemo(() => {
+    const sourceLinks = showBillItems
+      ? sidebarData.links
+      : sidebarData.links.filter((link) => link.link !== "/fo/bill-items");
+
+    return sourceLinks.map((link) => ({
+      ...link,
+      active:
+        link.link === "/fo/reports"
+          ? pathname === "/fo/reports" || pathname.startsWith("/fo/reports/")
+          : pathname === link.link,
+      children: link.children?.map((child) => ({
+        ...child,
+        active: pathname === child.link,
+      })),
+    }));
+  }, [pathname, showBillItems]);
+
+  const toggleSidebar = () => setIsOpen((prev) => !prev);
+  const closeSidebar = () => setIsOpen(false);
+
+  return (
+    <div className="relative">
+      {isOpen ? (
+        <IoMdClose
+          onClick={toggleSidebar}
+          className="fixed left-45 top-7 z-50 inline-flex items-center justify-center rounded-xl bg-white p-2 text-4xl text-gray-700 shadow md:hidden dark:bg-panel-strong dark:text-slate-100"
+        />
+      ) : (
+        <RxHamburgerMenu
+          onClick={toggleSidebar}
+          className="fixed left-4 top-5 z-50 inline-flex items-center justify-center rounded-xl bg-white p-2 text-4xl text-gray-700 shadow md:hidden dark:bg-panel-strong dark:text-slate-100"
+        />
+      )}
+
+      <Sidebar title={sidebarData.title} links={links} isOpen={isOpen} />
+
+      {isOpen ? (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      ) : null}
+    </div>
+  );
+};
+
+export default FoSidebar

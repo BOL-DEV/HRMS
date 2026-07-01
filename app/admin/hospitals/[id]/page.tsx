@@ -1,6 +1,6 @@
 "use client";
 
-import ChartWatermark from "@/components/ChartWatermark";
+import ChartWatermark from "@/components/shared/ChartWatermark";
 import { ApiError } from "@/libs/api";
 import { getAdminHospitalOverview } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

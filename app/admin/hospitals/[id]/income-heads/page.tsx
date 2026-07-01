@@ -1,9 +1,9 @@
 "use client";
 
-import AdminHospitalIncomeHeadFormModal from "@/components/AdminHospitalIncomeHeadFormModal";
-import AdminHospitalIncomeHeadsSection from "@/components/AdminHospitalIncomeHeadsSection";
-import AdminPageError from "@/components/AdminPageError";
-import StatCard from "@/components/StatCard";
+import AdminHospitalIncomeHeadFormModal from "@/components/admin/AdminHospitalIncomeHeadFormModal";
+import AdminHospitalIncomeHeadsSection from "@/components/admin/AdminHospitalIncomeHeadsSection";
+import AdminPageError from "@/components/admin/AdminPageError";
+import StatCard from "@/components/shared/StatCard";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalIncomeHead,

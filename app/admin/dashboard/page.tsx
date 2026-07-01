@@ -1,11 +1,11 @@
 "use client";
 
-import ChartWatermark from "@/components/ChartWatermark";
-import AdminDashboardTopHospitalsTable from "@/components/AdminDashboardTopHospitalsTable";
+import ChartWatermark from "@/components/shared/ChartWatermark";
+import AdminDashboardTopHospitalsTable from "@/components/admin/AdminDashboardTopHospitalsTable";
 import DashboardKpiGrid from "@/components/dashboard/DashboardKpiGrid";
 import DashboardSection from "@/components/dashboard/DashboardSection";
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
+import Header from "@/components/shared/Header";
+import StatCard from "@/components/shared/StatCard";
 import { ApiError } from "@/libs/api";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

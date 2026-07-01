@@ -1,6 +1,6 @@
-import Header from "@/components/Header";
-import PatientActionBar from "@/components/PatientActionBar";
-import PatientLists from "@/components/PatientLists";
+import Header from "@/components/shared/Header";
+import PatientActionBar from "@/components/agent/PatientActionBar";
+import PatientLists from "@/components/agent/PatientLists";
 
 function Page() {
   return (

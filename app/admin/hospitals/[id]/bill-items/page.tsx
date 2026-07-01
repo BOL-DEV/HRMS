@@ -1,9 +1,9 @@
 "use client";
 
-import AdminHospitalBillItemFormModal from "@/components/AdminHospitalBillItemFormModal";
-import AdminHospitalBillItemsSection from "@/components/AdminHospitalBillItemsSection";
-import AdminPageError from "@/components/AdminPageError";
-import StatCard from "@/components/StatCard";
+import AdminHospitalBillItemFormModal from "@/components/admin/AdminHospitalBillItemFormModal";
+import AdminHospitalBillItemsSection from "@/components/admin/AdminHospitalBillItemsSection";
+import AdminPageError from "@/components/admin/AdminPageError";
+import StatCard from "@/components/shared/StatCard";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalBillItem,
@@ -36,6 +36,7 @@ export default function HospitalBillItemsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AdminHospitalBillItem | null>(null);
   const [modalDepartmentId, setModalDepartmentId] = useState("");
+  const [modalIncomeHeadId, setModalIncomeHeadId] = useState("");
 
   const departmentsQuery = useQuery({
     queryKey: ["admin-hospital-bill-items-departments", hospitalId],
@@ -140,6 +141,7 @@ export default function HospitalBillItemsPage() {
       });
       setIsCreateOpen(false);
       setModalDepartmentId("");
+      setModalIncomeHeadId("");
     },
     onError: (error) => {
       toast.error(
@@ -171,6 +173,7 @@ export default function HospitalBillItemsPage() {
       });
       setEditingItem(null);
       setModalDepartmentId("");
+      setModalIncomeHeadId("");
     },
     onError: (error) => {
       toast.error(
@@ -268,12 +271,14 @@ export default function HospitalBillItemsPage() {
           setPage(1);
         }}
         onOpenCreateModal={() => {
-          setModalDepartmentId("");
+          setModalDepartmentId(departmentId === "All" ? "" : departmentId);
+          setModalIncomeHeadId(incomeHeadId === "All" ? "" : incomeHeadId);
           setIsCreateOpen(true);
         }}
         onEdit={(item) => {
           setEditingItem(item);
           setModalDepartmentId(item.department_id);
+          setModalIncomeHeadId(item.income_head_id);
         }}
       />
 
@@ -306,16 +311,27 @@ export default function HospitalBillItemsPage() {
 
       {isCreateOpen ? (
         <AdminHospitalBillItemFormModal
-          key="create-bill-item"
+          key={`create-bill-item-${modalDepartmentId}-${modalIncomeHeadId}`}
           mode="create"
           departmentOptions={departmentOptions}
           incomeHeadOptions={modalIncomeHeadOptions}
+          initialValues={{
+            departmentId: modalDepartmentId,
+            incomeHeadId: modalIncomeHeadId,
+            name: "",
+            amount: "",
+            status: "active",
+          }}
           isSubmitting={createMutation.isPending}
           onClose={() => {
             setIsCreateOpen(false);
             setModalDepartmentId("");
+            setModalIncomeHeadId("");
           }}
-          onDepartmentChange={setModalDepartmentId}
+          onDepartmentChange={(departmentId) => {
+            setModalDepartmentId(departmentId);
+            setModalIncomeHeadId("");
+          }}
           onSubmit={(values) => {
             if (
               !values.departmentId ||
@@ -349,8 +365,12 @@ export default function HospitalBillItemsPage() {
           onClose={() => {
             setEditingItem(null);
             setModalDepartmentId("");
+            setModalIncomeHeadId("");
           }}
-          onDepartmentChange={setModalDepartmentId}
+          onDepartmentChange={(departmentId) => {
+            setModalDepartmentId(departmentId);
+            setModalIncomeHeadId("");
+          }}
           onSubmit={(values) => {
             if (
               !values.departmentId ||

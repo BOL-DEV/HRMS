@@ -1,4 +1,4 @@
-import AdminSidebar from '@/components/AdminSidebar';
+import AdminSidebar from '@/components/admin/AdminSidebar';
 import React from 'react';
 
 

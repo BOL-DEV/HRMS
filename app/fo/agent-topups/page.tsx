@@ -1,7 +1,7 @@
 "use client";
 
-import AgentTopupHistoryWorkspace from "@/components/AgentTopupHistoryWorkspace";
-import Header from "@/components/Header";
+import AgentTopupHistoryWorkspace from "@/components/agent/AgentTopupHistoryWorkspace";
+import Header from "@/components/shared/Header";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { getFoAgentTopupHistory } from "@/libs/fo-auth";

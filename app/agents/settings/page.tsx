@@ -1,9 +1,9 @@
 "use client";
 
-import AppPre from "@/components/AppPre";
-import ChangePassword from "@/components/ChangePassword";
-import Header from "@/components/Header";
-import ProfileInfo from "@/components/ProfileInfo";
+import AppPre from "@/components/shared/AppPre";
+import ChangePassword from "@/components/shared/ChangePassword";
+import Header from "@/components/shared/Header";
+import ProfileInfo from "@/components/shared/ProfileInfo";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

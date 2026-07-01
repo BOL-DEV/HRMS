@@ -1,9 +1,9 @@
 "use client";
 
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
-import StatusPill from "@/components/StatusPill";
-import ChartWatermark from "@/components/ChartWatermark";
+import Header from "@/components/shared/Header";
+import StatCard from "@/components/shared/StatCard";
+import StatusPill from "@/components/shared/StatusPill";
+import ChartWatermark from "@/components/shared/ChartWatermark";
 import React from "react";
 import {
   CartesianGrid,

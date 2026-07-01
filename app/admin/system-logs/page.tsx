@@ -1,9 +1,9 @@
 "use client";
 
-import Header from "@/components/Header";
-import AdminDateRangeFilterBar from "@/components/AdminDateRangeFilterBar";
-import AdminPageError from "@/components/AdminPageError";
-import AdminPaginationFooter from "@/components/AdminPaginationFooter";
+import Header from "@/components/shared/Header";
+import AdminDateRangeFilterBar from "@/components/admin/AdminDateRangeFilterBar";
+import AdminPageError from "@/components/admin/AdminPageError";
+import AdminPaginationFooter from "@/components/admin/AdminPaginationFooter";
 import { ApiError } from "@/libs/api";
 import { getAdminReportsOptions, getAdminSystemLogs } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";

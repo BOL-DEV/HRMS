@@ -1,6 +1,6 @@
 "use client";
 
-import AdminScopedReportWorkspace from "@/components/AdminScopedReportWorkspace";
+import AdminScopedReportWorkspace from "@/components/admin/AdminScopedReportWorkspace";
 import { ApiError } from "@/libs/api";
 import {
   exportAdminHospitalPatientReportCsv,

@@ -1,9 +1,9 @@
 "use client";
 
-import AdminHospitalReceiptRequestModal from "@/components/AdminHospitalReceiptRequestModal";
-import AdminHospitalReceiptsSection from "@/components/AdminHospitalReceiptsSection";
-import AdminHospitalReceiptsSummaryCards from "@/components/AdminHospitalReceiptsSummaryCards";
-import AdminPageError from "@/components/AdminPageError";
+import AdminHospitalReceiptRequestModal from "@/components/admin/AdminHospitalReceiptRequestModal";
+import AdminHospitalReceiptsSection from "@/components/admin/AdminHospitalReceiptsSection";
+import AdminHospitalReceiptsSummaryCards from "@/components/admin/AdminHospitalReceiptsSummaryCards";
+import AdminPageError from "@/components/admin/AdminPageError";
 import { ApiError } from "@/libs/api";
 import {
   approveAdminHospitalReceipt,

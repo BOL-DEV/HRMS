@@ -1,9 +1,9 @@
 "use client";
 
-import AdminHospitalFoListSection from "@/components/AdminHospitalFoListSection";
-import AdminHospitalFoFormModal from "@/components/AdminHospitalFoFormModal";
-import AdminPageError from "@/components/AdminPageError";
-import StatCard from "@/components/StatCard";
+import AdminHospitalFoListSection from "@/components/admin/AdminHospitalFoListSection";
+import AdminHospitalFoFormModal from "@/components/admin/AdminHospitalFoFormModal";
+import AdminPageError from "@/components/admin/AdminPageError";
+import StatCard from "@/components/shared/StatCard";
 import { ApiError } from "@/libs/api";
 import {
   createAdminHospitalFo,

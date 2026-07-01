@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { FiArrowLeft } from "react-icons/fi";
-import StatusPill from "@/components/StatusPill";
+import StatusPill from "@/components/shared/StatusPill";
 
 const tabs = [
   { label: "Overview", href: (id: string) => `/admin/hospitals/${id}` },
