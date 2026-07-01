@@ -1,10 +1,10 @@
 import type { ApiErrorPayload, ApiRequestOptions } from "@/libs/type";
 
-const DEFAULT_API_BASE_URL = "https://swiftrev-api-44km.onrender.com";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  DEFAULT_API_BASE_URL;
+if (!API_BASE_URL) {
+  throw new Error("NEXT_PUBLIC_API_BASE_URL is not set.");
+}
 
 export class ApiError extends Error {
   status: number;
