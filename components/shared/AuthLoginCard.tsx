@@ -25,7 +25,6 @@ function getErrorMessage(error: unknown) {
 
 export default function AuthLoginCard({ mode = "page" }: Props) {
   const router = useRouter();
-  const isDevelopmentEnvironment = process.env.NODE_ENV !== "production";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -111,11 +110,9 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
     >
       <div className="text-center">
-        {isDevelopmentEnvironment ? (
-          <p className="mb-3 inline-flex items-center rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-            Welcome to the development environment
-          </p>
-        ) : null}
+        <p className="mb-3 inline-flex items-center rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Welcome to the development environment
+        </p>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
           Sign in to continue
         </p>
