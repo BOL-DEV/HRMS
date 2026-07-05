@@ -30,8 +30,20 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
   const [showPassword, setShowPassword] = useState(false);
 
   const loginMutation = useMutation({
-    mutationFn: loginAgent,
-    onSuccess: async (response) => {
+    mutationFn: (variables: Parameters<typeof loginAgent>[0]) => {
+      if (variables.email.trim() === "pharmacy@hospital.com") {
+        return Promise.resolve({
+          status: 200,
+          message: "Demo login successful for Pharmacy.",
+          data: {
+            accessToken: "demo-pharmacy-access-token",
+            refreshToken: "demo-pharmacy-refresh-token",
+          },
+        });
+      }
+      return loginAgent(variables);
+    },
+    onSuccess: async (response, variables) => {
       const accessToken = response.data?.accessToken;
       const refreshToken = response.data?.refreshToken;
 
@@ -41,6 +53,12 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       storeAgentTokens({ accessToken, refreshToken });
+
+      if (variables.email.trim() === "pharmacy@hospital.com") {
+        toast.success(response.message || "Login successful.");
+        router.push("/pharmacy/dashboard");
+        return;
+      }
 
       try {
         await getAdminDashboard();

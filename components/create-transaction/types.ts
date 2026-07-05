@@ -7,7 +7,7 @@ import type {
   NewTransactionForm,
 } from "@/libs/type";
 
-export type TransactionMode = "patient" | "express";
+export type TransactionMode = "patient" | "express" | "pharmacy";
 
 export type SelectedAutomaticItem = {
   billItemId: string;

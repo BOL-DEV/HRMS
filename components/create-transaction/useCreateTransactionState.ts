@@ -26,6 +26,7 @@ import {
   searchAgentHospitalPatients,
 } from "@/libs/agent-auth";
 import { openReceiptPrintWindowFromHtml } from "@/libs/helper";
+import { lookupPharmacyBill, markPharmacyBillAsPaid, type PharmacyBill } from "@/libs/pharmacy-mock";
 import type {
   ExpressPaymentForm,
   SelectedAutomaticItem,
@@ -94,6 +95,10 @@ export function useCreateTransactionState({
   const queryClient = useQueryClient();
   const [transactionMode, setTransactionMode] =
     useState<TransactionMode>("patient");
+  const [pharmacyCode, setPharmacyCode] = useState("");
+  const [pharmacyBill, setPharmacyBill] = useState<PharmacyBill | null>(null);
+  const [isSearchingPharmacyCode, setIsSearchingPharmacyCode] = useState(false);
+  const isPharmacyMode = transactionMode === "pharmacy";
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
   const [expressForm, setExpressForm] =
     useState<ExpressPaymentForm>(getInitialExpressForm);
@@ -255,9 +260,62 @@ export function useCreateTransactionState({
   };
 
   const paymentMutation = useMutation({
-    mutationFn: processAgentPayment,
+    mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
+      if (isPharmacyMode && pharmacyBill) {
+        return Promise.resolve({
+          message: `Pharmacy bill ${pharmacyBill.code} cleared successfully.`,
+          data: {
+            receipt: {
+              receiptHTML: `
+                <div style="font-family: monospace; padding: 20px; font-size: 13px; line-height: 1.5; color: #000;">
+                  <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px;">
+                    <h3>SWIFTREV HOSPITAL RECEIPT</h3>
+                    <p>PHARMACY BILLING DIVISION</p>
+                  </div>
+                  <div style="margin: 15px 0;">
+                    <p><strong>Receipt Code:</strong> RC-${Math.floor(100000 + Math.random() * 900000)}</p>
+                    <p><strong>Pharmacy Code:</strong> ${pharmacyBill.code}</p>
+                    <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                    <p><strong>Patient Name:</strong> ${pharmacyBill.patientName}</p>
+                    <p><strong>Patient ID:</strong> ${pharmacyBill.patientId}</p>
+                  </div>
+                  <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                      <tr style="border-bottom: 1px dashed #000; text-align: left;">
+                        <th>Description</th>
+                        <th style="text-align: right;">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${pharmacyBill.items.map(item => `
+                        <tr>
+                          <td>${item.name} (x${item.quantity})</td>
+                          <td style="text-align: right;">₦${item.amount.toLocaleString()}</td>
+                        </tr>
+                      `).join("")}
+                    </tbody>
+                  </table>
+                  <div style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 15px; display: flex; justify-content: space-between;">
+                    <span>Total Paid:</span>
+                    <span>₦${pharmacyBill.totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div style="margin-top: 20px; text-align: center; font-size: 11px;">
+                    <p>Payment Mode: ${form.paymentType.toUpperCase()}</p>
+                    <p>Thank you for your payment!</p>
+                  </div>
+                </div>
+              `
+            }
+          }
+        });
+      }
+      return processAgentPayment(variables);
+    },
     onSuccess: async (response) => {
       toast.success(response.message || "Payment processed successfully.");
+      if (isPharmacyMode && pharmacyBill) {
+        markPharmacyBillAsPaid(pharmacyBill.code);
+      }
       await handlePaymentSuccess(response);
       setForm(getInitialForm());
       setSelectedBillItems([]);
@@ -266,6 +324,9 @@ export function useCreateTransactionState({
       setPatientSearchInput("");
       setShowPatientSuggestions(true);
       setShowBillItemList(true);
+      setPharmacyCode("");
+      setPharmacyBill(null);
+      setIsSearchingPharmacyCode(false);
       onClose();
     },
     onError: (error) => {
@@ -305,6 +366,37 @@ export function useCreateTransactionState({
     setPatientSearchInput("");
     setShowPatientSuggestions(true);
     setShowBillItemList(true);
+    setPharmacyCode("");
+    setPharmacyBill(null);
+    setIsSearchingPharmacyCode(false);
+  };
+
+  const handlePharmacyCodeLookup = (code: string) => {
+    if (!code.trim()) {
+      toast.error("Enter a pharmacy code.");
+      return;
+    }
+
+    setIsSearchingPharmacyCode(true);
+    const bill = lookupPharmacyBill(code);
+
+    if (bill) {
+      if (bill.status === "paid") {
+        toast.error(`Prescription ${code} has already been paid.`);
+        setPharmacyBill(null);
+      } else {
+        toast.success(`Prescription bill loaded for ${bill.patientName}.`);
+        setPharmacyBill(bill);
+        setForm((current) => ({
+          ...current,
+          paymentType: "cash",
+        }));
+      }
+    } else {
+      toast.error(`Pharmacy bill code "${code}" not found.`);
+      setPharmacyBill(null);
+    }
+    setIsSearchingPharmacyCode(false);
   };
 
   const handleExpressSubmit = () => {
@@ -629,6 +721,22 @@ export function useCreateTransactionState({
   }, [open, patientSearchInput, showBillItemList, showPatientSuggestions]);
 
   const handleSubmit = () => {
+    if (isPharmacyMode) {
+      if (!pharmacyBill) {
+        toast.error("Please load a pharmacy bill first.");
+        return;
+      }
+      paymentMutation.mutate({
+        patient_id: pharmacyBill.patientId,
+        department_id: pharmacyBill.departmentId,
+        patient_name: pharmacyBill.patientName,
+        phone_number: pharmacyBill.phoneNumber,
+        payment_type: form.paymentType,
+        pharmacy_code: pharmacyBill.code,
+      });
+      return;
+    }
+
     if (isExpressMode) {
       handleExpressSubmit();
       return;
@@ -723,6 +831,9 @@ export function useCreateTransactionState({
     setPatientSearchInput("");
     setShowPatientSuggestions(true);
     setShowBillItemList(true);
+    setPharmacyCode("");
+    setPharmacyBill(null);
+    setIsSearchingPharmacyCode(false);
     onClose();
   };
 
@@ -801,5 +912,12 @@ export function useCreateTransactionState({
     incomeHeadsQuery,
     billItemsQuery,
     patientSearchQuery,
+    pharmacyCode,
+    setPharmacyCode,
+    pharmacyBill,
+    setPharmacyBill,
+    isSearchingPharmacyCode,
+    handlePharmacyCodeLookup,
+    isPharmacyMode,
   };
 }

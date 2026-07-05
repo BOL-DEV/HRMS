@@ -81,6 +81,12 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     incomeHeadsQuery,
     billItemsQuery,
     patientSearchQuery,
+    pharmacyCode,
+    setPharmacyCode,
+    pharmacyBill,
+    isSearchingPharmacyCode,
+    handlePharmacyCodeLookup,
+    isPharmacyMode,
   } = useCreateTransactionState({ open, onClose, onSuccess });
 
   if (!open) {
@@ -131,7 +137,136 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             />
           </div>
 
-          {isExpressMode ? (
+          {isPharmacyMode ? (
+            <div className="p-6 space-y-6">
+              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
+                  Pharmacy Clearing
+                </h3>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                  <label className="flex-1 block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Prescription / Bill Code
+                    </span>
+                    <input
+                      type="text"
+                      value={pharmacyCode}
+                      onChange={(e) => setPharmacyCode(e.target.value)}
+                      placeholder="e.g. PH-123456"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={isSearchingPharmacyCode}
+                    onClick={() => handlePharmacyCodeLookup(pharmacyCode)}
+                    className="rounded-xl bg-slate-900 dark:bg-slate-800 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    {isSearchingPharmacyCode ? "Searching..." : "Lookup Bill"}
+                  </button>
+                </div>
+              </div>
+
+              {pharmacyBill ? (
+                <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr] animate-fade-in-slide">
+                  {/* Bill Details */}
+                  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 space-y-4">
+                    <h4 className="text-base font-bold text-slate-950 dark:text-white">
+                      Prescription Details
+                    </h4>
+                    <div className="grid gap-4 sm:grid-cols-2 text-sm text-slate-600 dark:text-slate-300">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Patient Name</p>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{pharmacyBill.patientName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Patient ID</p>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{pharmacyBill.patientId}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Phone Number</p>
+                        <p className="font-semibold text-slate-950 dark:text-white mt-0.5">{pharmacyBill.phoneNumber}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Department</p>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{pharmacyBill.departmentName}</p>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-4 dark:border-slate-800">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Dispensed Items</p>
+                      <div className="space-y-2">
+                        {pharmacyBill.items.map((it) => (
+                          <div key={it.drugId} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 dark:border-slate-800">
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-white">{it.name}</p>
+                              <p className="text-xs text-gray-500">{it.quantity} x {formatCurrency(it.unitPrice)}</p>
+                            </div>
+                            <span className="font-bold text-slate-950 dark:text-white">{formatCurrency(it.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Clearing Selection */}
+                  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <h4 className="text-base font-bold text-slate-950 dark:text-white">
+                        Collect Payment
+                      </h4>
+                      <label className="space-y-2 block">
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                          Payment Type
+                        </span>
+                        <select
+                          value={form.paymentType}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              paymentType: event.target.value as NewTransactionForm["paymentType"],
+                            }))
+                          }
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                        >
+                          <option value="cash">Cash</option>
+                          <option value="transfer">Transfer</option>
+                          <option value="pos">POS</option>
+                        </select>
+                      </label>
+
+                      <div className="border-t border-gray-100 pt-4 dark:border-slate-800">
+                        <div className="flex justify-between items-center text-lg font-bold text-slate-950 dark:text-white">
+                          <span>Total Amount</span>
+                          <span className="text-brand-700 dark:text-brand-400">
+                            {formatCurrency(pharmacyBill.totalAmount)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-6">
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={paymentMutation.isPending}
+                        className="w-full rounded-xl bg-brand-700 py-3.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+                      >
+                        {paymentMutation.isPending ? "Clearing..." : "Clear Bill & Print Receipt"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="w-full rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : isExpressMode ? (
             <ExpressTransactionSection
               departments={departments}
               departmentsError={configError ?? departmentsError}

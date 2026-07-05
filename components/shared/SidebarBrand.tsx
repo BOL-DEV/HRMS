@@ -39,13 +39,24 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
       ? "admin"
     : pathname.startsWith("/agents")
       ? "agent"
+    : pathname.startsWith("/pharmacy")
+      ? "pharmacy"
       : "default";
 
   const profileQuery = useQuery({
     queryKey: [section, "sidebar-profile"],
-    queryFn: async () =>
-      section === "fo" ? getFoProfile() : getAgentProfile(),
-    enabled: Boolean(accessToken && (section === "fo" || section === "agent")),
+    queryFn: async () => {
+      if (section === "pharmacy") {
+        return {
+          data: {
+            hospital_name: "SwiftRev Hospital",
+            hospital_id: "hosp-demo",
+          },
+        };
+      }
+      return section === "fo" ? getFoProfile() : getAgentProfile();
+    },
+    enabled: Boolean(accessToken && (section === "fo" || section === "agent" || section === "pharmacy")),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -66,7 +77,7 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
   });
 
   const imageUrl =
-    section === "admin" || section === "fo" || section === "agent"
+    section === "admin" || section === "fo" || section === "agent" || section === "pharmacy"
       ? PLATFORM_LOGO_SRC
       : hospitalImageQuery.data?.data.image_url ?? "";
 
@@ -75,7 +86,9 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
       ? "Platform"
       : section === "fo"
         ? "FO"
-        : title;
+        : section === "pharmacy"
+          ? "Pharmacy"
+          : title;
 
   return (
     <div className="flex min-w-0 items-center">

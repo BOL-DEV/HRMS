@@ -42,13 +42,29 @@ export default function HeaderAgentProfile() {
       ? "admin"
     : pathname.startsWith("/agents")
       ? "agent"
+    : pathname.startsWith("/pharmacy")
+      ? "pharmacy"
       : "default";
 
   const profileQuery = useQuery({
     queryKey: [section, "header-profile"],
-    queryFn: async (): Promise<HeaderProfileResponse> =>
-      section === "fo" ? getFoProfile() : getAgentProfile(),
-    enabled: Boolean(accessToken && (section === "fo" || section === "agent")),
+    queryFn: async (): Promise<HeaderProfileResponse> => {
+      if (section === "pharmacy") {
+        return {
+          data: {
+            first_name: "Demo",
+            last_name: "Pharmacist",
+            email: "pharmacy@hospital.com",
+            role: "pharmacy",
+            id: "ph-demo",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        } as unknown as HeaderProfileResponse;
+      }
+      return section === "fo" ? getFoProfile() : getAgentProfile();
+    },
+    enabled: Boolean(accessToken && (section === "fo" || section === "agent" || section === "pharmacy")),
     staleTime: 1000 * 60 * 5,
   });
 
