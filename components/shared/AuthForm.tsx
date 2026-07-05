@@ -10,7 +10,7 @@ export default function AuthForm() {
     () => [
       "React Query handles the login mutation state",
       "JWT tokens are stored after successful login",
-      "Admins, finance officers, agents, and catalog users are routed after login",
+      "Admins, finance officers, and agents are routed after login",
     ],
     [],
   );

@@ -37,8 +37,6 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
     ? "fo"
     : pathname.startsWith("/admin")
       ? "admin"
-    : pathname.startsWith("/catalog")
-      ? "catalog"
     : pathname.startsWith("/agents")
       ? "agent"
       : "default";
@@ -68,7 +66,7 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
   });
 
   const imageUrl =
-    section === "admin" || section === "fo" || section === "agent" || section === "catalog"
+    section === "admin" || section === "fo" || section === "agent"
       ? PLATFORM_LOGO_SRC
       : hospitalImageQuery.data?.data.image_url ?? "";
 
@@ -77,9 +75,7 @@ export default function SidebarBrand({ title, isExpanded }: Props) {
       ? "Platform"
       : section === "fo"
         ? "FO"
-        : section === "catalog"
-          ? "Hospital"
-          : title;
+        : title;
 
   return (
     <div className="flex min-w-0 items-center">

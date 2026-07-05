@@ -22,12 +22,6 @@ export function formatCompactNumber(value: number) {
   }).format(value);
 }
 
-export function formatUsd(amount: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-  }).format(amount);
-}
 
 export function formatDateTime(value: string) {
   const date = new Date(value);

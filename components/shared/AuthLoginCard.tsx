@@ -74,15 +74,13 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
         router.push("/agents/dashboard");
         return;
       } catch (error) {
-        if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
-          clearAuthTokens();
+        clearAuthTokens();
+        if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
+          toast.error("Your account does not have a valid role assigned.");
+        } else {
           toast.error(getErrorMessage(error));
-          return;
         }
       }
-
-      toast.success(response.message || "Login successful.");
-      router.push("/catalog/dashboard");
     },
     onError: (error) => {
       clearAuthTokens();

@@ -1,5 +1,5 @@
 import { ReceiptRow } from "@/libs/type";
-import { formatUsd } from "@/libs/helper";
+import { formatNaira } from "@/libs/helper";
 
 type Props = {
   receipt: ReceiptRow;
@@ -33,7 +33,7 @@ export default function PrintReceipt({ receipt }: Props) {
 
         <div className="flex justify-between my-2">
           <span>Amount</span>
-          <strong>{formatUsd(receipt.amount)}</strong>
+          <strong>{formatNaira(receipt.amount)}</strong>
         </div>
       </div>
     </div>

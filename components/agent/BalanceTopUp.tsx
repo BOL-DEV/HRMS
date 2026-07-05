@@ -58,7 +58,7 @@ function BalanceTopUp() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">{item.label}</p>
-                <p className="text-2xl font-bold">{formatCurrency(balances[item.key])}</p>
+                <p key={balances[item.key]} className="text-2xl font-bold animate-pulse-subtle">{formatCurrency(balances[item.key])}</p>
               </div>
               <span className={`${item.bg} ${item.tone} px-3 py-1 rounded-full text-xs font-semibold`}>
                 Live

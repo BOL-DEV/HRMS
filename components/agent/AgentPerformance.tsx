@@ -1,6 +1,6 @@
 import StatusPill from "@/components/shared/StatusPill";
 import { FiMoreVertical } from "react-icons/fi";
-import { formatUsd as usd } from "@/libs/helper";
+import { formatNaira as usd } from "@/libs/helper";
 import { AgentPerformanceRow } from "@/libs/type";
 
 type Props = {
