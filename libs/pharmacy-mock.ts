@@ -283,3 +283,110 @@ export function markPharmacyBillAsPaid(code: string): boolean {
   savePharmacyBills(bills);
   return true;
 }
+
+export function updatePharmacyBill(
+  code: string,
+  updatedFields: {
+    patientId?: string;
+    patientName?: string;
+    phoneNumber?: string;
+    departmentId?: string;
+    departmentName?: string;
+    items?: PharmacyBillItem[];
+  }
+): { success: boolean; error?: string; bill?: PharmacyBill } {
+  const bills = getPharmacyBills();
+  const idx = bills.findIndex((b) => b.code.toUpperCase() === code.toUpperCase());
+  if (idx === -1) {
+    return { success: false, error: "Prescription bill not found." };
+  }
+
+  const bill = bills[idx];
+  if (bill.status !== "pending") {
+    return { success: false, error: "Only pending prescriptions can be edited." };
+  }
+
+  const inventory = getPharmacyInventory();
+
+  // 1. Temporary refund of the original quantities of this bill
+  const originalItems = bill.items;
+  originalItems.forEach((oldItem) => {
+    const drug = inventory.find((d) => d.id === oldItem.drugId);
+    if (drug) {
+      drug.stock += oldItem.quantity;
+      drug.status = determineStatus(drug.stock, drug.expiryDate);
+    }
+  });
+
+  // 2. Validate if we have enough stock for the new/updated items
+  if (updatedFields.items) {
+    for (const newItem of updatedFields.items) {
+      const drug = inventory.find((d) => d.id === newItem.drugId);
+      if (!drug) {
+        // Roll back the stock refund before returning error
+        originalItems.forEach((oldItem) => {
+          const d = inventory.find((x) => x.id === oldItem.drugId);
+          if (d) {
+            d.stock = Math.max(0, d.stock - oldItem.quantity);
+            d.status = determineStatus(d.stock, d.expiryDate);
+          }
+        });
+        return { success: false, error: `Drug formulation not found: ${newItem.name}` };
+      }
+      if (drug.stock < newItem.quantity) {
+        // Roll back the stock refund before returning error
+        originalItems.forEach((oldItem) => {
+          const d = inventory.find((x) => x.id === oldItem.drugId);
+          if (d) {
+            d.stock = Math.max(0, d.stock - oldItem.quantity);
+            d.status = determineStatus(d.stock, d.expiryDate);
+          }
+        });
+        return {
+          success: false,
+          error: `Insufficient stock for ${newItem.name}. Only ${drug.stock} units available.`,
+        };
+      }
+    }
+
+    // 3. Deduct stock for new/updated items
+    updatedFields.items.forEach((newItem) => {
+      const drug = inventory.find((d) => d.id === newItem.drugId);
+      if (drug) {
+        drug.stock = Math.max(0, drug.stock - newItem.quantity);
+        drug.status = determineStatus(drug.stock, drug.expiryDate);
+      }
+    });
+  } else {
+    // If items aren't updated, we still need to deduct the original items because we refunded them above.
+    originalItems.forEach((oldItem) => {
+      const drug = inventory.find((d) => d.id === oldItem.drugId);
+      if (drug) {
+        drug.stock = Math.max(0, drug.stock - oldItem.quantity);
+        drug.status = determineStatus(drug.stock, drug.expiryDate);
+      }
+    });
+  }
+
+  // 4. Save the adjusted inventory
+  savePharmacyInventory(inventory);
+
+  // 5. Update the bill fields
+  if (updatedFields.patientId !== undefined) bill.patientId = updatedFields.patientId;
+  if (updatedFields.patientName !== undefined) bill.patientName = updatedFields.patientName;
+  if (updatedFields.phoneNumber !== undefined) bill.phoneNumber = updatedFields.phoneNumber;
+  if (updatedFields.departmentId !== undefined) {
+    bill.departmentId = updatedFields.departmentId;
+    bill.departmentName = updatedFields.departmentName || "";
+  }
+  if (updatedFields.items !== undefined) {
+    bill.items = updatedFields.items;
+    bill.totalAmount = updatedFields.items.reduce((sum, item) => sum + item.amount, 0);
+  }
+
+  bills[idx] = bill;
+  savePharmacyBills(bills);
+
+  return { success: true, bill };
+}
+
