@@ -4,6 +4,7 @@ import {
   getAgentAccessToken,
   getAgentRefreshToken,
   storeAgentTokens,
+  decodeJwt,
 } from "@/libs/auth";
 import type {
   AgentBillItemsResponse,
@@ -361,3 +362,30 @@ export async function printApprovedAgentReceipt(
     ),
   );
 }
+
+export async function getAgentPendingPharmacyRequests(patientId: string) {
+  return withAgentSessionRetry((accessToken) =>
+    getJson<any>(
+      `/api/payments/pharmacy-requests?patient_id=${encodeURIComponent(patientId)}`,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+export async function processAgentPharmacyPayment(payload: {
+  request_id: string;
+  payment_type: "cash" | "transfer" | "pos" | string;
+}) {
+  return withAgentSessionRetry((accessToken) =>
+    postJson<ProcessPaymentResponse>(
+      "/api/payments/pharmacy/process",
+      payload,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+

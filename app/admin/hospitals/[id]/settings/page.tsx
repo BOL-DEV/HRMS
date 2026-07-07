@@ -28,6 +28,9 @@ type FormState = {
   address: string;
   revenueType: "manual" | "automatic";
   status: AdminHospitalStatus;
+  hasPharmacyModule: boolean;
+  allowPharmacySelfPay: boolean;
+  allowAgentPharmacyPay: boolean;
 };
 
 function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): FormState {
@@ -38,6 +41,9 @@ function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): F
     address: data?.address ?? "",
     revenueType: data?.revenueType ?? "automatic",
     status: data?.status ?? "active",
+    hasPharmacyModule: data?.hasPharmacyModule ?? false,
+    allowPharmacySelfPay: data?.allowPharmacySelfPay ?? false,
+    allowAgentPharmacyPay: data?.allowAgentPharmacyPay ?? true,
   };
 }
 
@@ -49,6 +55,9 @@ function getHospitalFormDefaults(
     address: string;
     revenue_type: "manual" | "automatic";
     status: AdminHospitalStatus;
+    has_pharmacy_module?: boolean;
+    allow_pharmacy_self_pay?: boolean;
+    allow_agent_pharmacy_pay?: boolean;
   },
 ) {
   if (!hospital) {
@@ -62,6 +71,9 @@ function getHospitalFormDefaults(
     address: hospital.address,
     revenueType: hospital.revenue_type,
     status: hospital.status,
+    hasPharmacyModule: hospital.has_pharmacy_module ?? false,
+    allowPharmacySelfPay: hospital.allow_pharmacy_self_pay ?? false,
+    allowAgentPharmacyPay: hospital.allow_agent_pharmacy_pay ?? true,
   };
 }
 
@@ -111,6 +123,18 @@ function HospitalSettingsForm({
 
     if (form.status !== defaults.status) {
       payload.status = form.status;
+    }
+
+    if (form.hasPharmacyModule !== defaults.hasPharmacyModule) {
+      payload.has_pharmacy_module = form.hasPharmacyModule;
+    }
+
+    if (form.allowPharmacySelfPay !== defaults.allowPharmacySelfPay) {
+      payload.allow_pharmacy_self_pay = form.allowPharmacySelfPay;
+    }
+
+    if (form.allowAgentPharmacyPay !== defaults.allowAgentPharmacyPay) {
+      payload.allow_agent_pharmacy_pay = form.allowAgentPharmacyPay;
     }
 
     if (!Object.keys(payload).length) {
@@ -227,6 +251,69 @@ function HospitalSettingsForm({
             required
           />
         </label>
+
+        {/* Pharmacy Module Configuration */}
+        <div className="md:col-span-2 border border-line-subtle rounded-xl p-5 space-y-4 bg-canvas-alt/25">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Pharmacy Configurations</h4>
+          
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.hasPharmacyModule}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  hasPharmacyModule: event.target.checked,
+                }))
+              }
+              className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Enable Pharmacy Module</span>
+              <span className="text-xs text-gray-500 font-normal">Enable stock management, prescriptions, and cashier dispensing.</span>
+            </div>
+          </label>
+
+          {form.hasPharmacyModule && (
+            <div className="pl-7 space-y-4 pt-3 border-t border-line-subtle/50 animate-fade-in-slide">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPharmacySelfPay}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPharmacySelfPay: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Self-Pay</span>
+                  <span className="text-xs text-gray-500 font-normal">Allow pharmacists to directly collect cash/pos payments and clear bills.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowAgentPharmacyPay}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowAgentPharmacyPay: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Agent Pharmacy Pay</span>
+                  <span className="text-xs text-gray-500 font-normal">Allows agents and cashiers at terminal to clear pharmacy bills.</span>
+                </div>
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex justify-end border-t border-line-subtle pt-5">

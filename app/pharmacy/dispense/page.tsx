@@ -1,31 +1,53 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
-import {
-  getPharmacyInventory,
-  createPharmacyBill,
-  DrugItem,
-  PharmacyBillItem,
-  PharmacyBill,
-} from "@/libs/pharmacy-mock";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getPharmacyInventory,
+  createPharmacyRequest,
+  searchPatientsForPharmacy,
+  BackendDrugItem,
+  PatientMatchItem,
+} from "@/libs/pharmacy-api";
+
+interface PharmacyBillItem {
+  drugId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+interface PharmacyBill {
+  id: string;
+  billing_code: string;
+  patient_id: string;
+  patient_name: string;
+  phone_number: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+  departmentName?: string;
+  items: {
+    id: string;
+    pharmacy_item_id: string;
+    name: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+  }[];
+}
 
 export default function PharmacyDispensePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
-
-  // Inventory Stock
-  const [inventory, setInventory] = useState<DrugItem[]>(() => {
-    if (typeof window !== "undefined") {
-      return getPharmacyInventory().filter((d) => d.stock > 0 && d.status !== "Expired");
-    }
-    return [];
-  });
 
   // Form patient state
   const [patientId, setPatientId] = useState("");
@@ -33,6 +55,11 @@ export default function PharmacyDispensePage() {
   const [patientPhone, setPatientPhone] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [departmentName, setDepartmentName] = useState("");
+
+  // Patient Autocomplete State
+  const [patientSearch, setPatientSearch] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Drug Select State
   const [selectedDrugId, setSelectedDrugId] = useState("");
@@ -50,6 +77,83 @@ export default function PharmacyDispensePage() {
     }
   }, [accessToken, router]);
 
+  // Click away listener for autocomplete
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  // Fetch Inventory for selection (active, in stock, unexpired)
+  const { data: inventoryData } = useQuery({
+    queryKey: ["pharmacy-inventory-all"],
+    queryFn: () => getPharmacyInventory({ limit: 100 }),
+    enabled: Boolean(accessToken),
+  });
+
+  const inventory = useMemo<BackendDrugItem[]>(() => {
+    const rawItems = inventoryData?.items || (inventoryData as any)?.data?.items || [];
+    return (rawItems as BackendDrugItem[]).filter(
+      (d: BackendDrugItem) => d.stock > 0 && d.status.toLowerCase() !== "expired"
+    );
+  }, [inventoryData]);
+
+  // Patient Match autocomplete search query
+  const patientQuery = useQuery({
+    queryKey: ["pharmacy-patient-match", patientSearch],
+    queryFn: () => searchPatientsForPharmacy(patientSearch),
+    enabled: Boolean(accessToken && patientSearch.trim().length > 1),
+  });
+
+  const patientSuggestions = useMemo<PatientMatchItem[]>(() => {
+    const rawData = patientQuery.data;
+    if (!rawData) return [];
+    if (Array.isArray(rawData)) return rawData as PatientMatchItem[];
+    if (rawData && "data" in rawData && Array.isArray((rawData as any).data)) {
+      return (rawData as any).data as PatientMatchItem[];
+    }
+    return [];
+  }, [patientQuery.data]);
+
+  // Create Request Mutation
+  const createRequestMutation = useMutation({
+    mutationFn: createPharmacyRequest,
+    onSuccess: (response) => {
+      const newRequest = (response as any).data || response;
+      // Map to local PharmacyBill preview format
+      const previewBill: PharmacyBill = {
+        id: newRequest.id,
+        billing_code: newRequest.billing_code,
+        patient_id: newRequest.patient_id,
+        patient_name: newRequest.patient_name,
+        phone_number: newRequest.phone_number,
+        total_amount: newRequest.total_amount,
+        status: newRequest.status,
+        created_at: newRequest.created_at,
+        items: billItems.map((item) => ({
+          id: item.drugId,
+          pharmacy_item_id: item.drugId,
+          name: item.name,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          amount: item.amount,
+        })),
+      };
+
+      setGeneratedBill(previewBill);
+      toast.success(`Bill generated successfully: ${newRequest.billing_code}`);
+      handleResetForm();
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory-all"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to generate pharmacy request.");
+    },
+  });
+
   const departments = [
     { id: "dep-1", name: "General Medicine" },
     { id: "dep-2", name: "Pediatrics" },
@@ -66,7 +170,7 @@ export default function PharmacyDispensePage() {
   };
 
   const selectedDrug = useMemo(() => {
-    return inventory.find((d) => d.id === selectedDrugId) ?? null;
+    return inventory.find((d: BackendDrugItem) => d.id === selectedDrugId) ?? null;
   }, [selectedDrugId, inventory]);
 
   // Add Item to Bill
@@ -97,8 +201,8 @@ export default function PharmacyDispensePage() {
       drugId: selectedDrug.id,
       name: selectedDrug.name,
       quantity: qty,
-      unitPrice: selectedDrug.price,
-      amount: selectedDrug.price * qty,
+      unitPrice: selectedDrug.unit_price,
+      amount: selectedDrug.unit_price * qty,
     };
 
     setBillItems((current) => [...current, newItem]);
@@ -123,17 +227,18 @@ export default function PharmacyDispensePage() {
     setPatientPhone("");
     setDepartmentId("");
     setDepartmentName("");
+    setPatientSearch("");
     setBillItems([]);
     setSelectedDrugId("");
     setDispenseQty("1");
   };
 
   // Submit Prescription / Generate Code
-  const handleGenerateBill = (e: React.FormEvent) => {
+  const handleGenerateBillSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!patientId.trim() || !patientName.trim() || !patientPhone.trim() || !departmentId) {
-      toast.error("Please fill in all patient and department details.");
+    if (!patientId.trim() || !patientName.trim() || !patientPhone.trim()) {
+      toast.error("Please fill in all patient details.");
       return;
     }
 
@@ -142,21 +247,15 @@ export default function PharmacyDispensePage() {
       return;
     }
 
-    const bill = createPharmacyBill({
-      patientId: patientId.trim(),
-      patientName: patientName.trim(),
-      phoneNumber: patientPhone.trim(),
-      departmentId,
-      departmentName,
-      items: billItems,
-      totalAmount,
+    createRequestMutation.mutate({
+      patient_id: patientId.trim(),
+      patient_name: patientName.trim(),
+      phone_number: patientPhone.trim(),
+      items: billItems.map((item) => ({
+        pharmacy_item_id: item.drugId,
+        quantity: item.quantity,
+      })),
     });
-
-    setGeneratedBill(bill);
-    toast.success(`Bill generated successfully: ${bill.code}`);
-    handleResetForm();
-    // Refresh inventory in case stock values changed
-    setInventory(getPharmacyInventory().filter((d) => d.stock > 0 && d.status !== "Expired"));
   };
 
   if (!accessToken) {
@@ -171,26 +270,52 @@ export default function PharmacyDispensePage() {
       />
 
       <div className="p-6">
-        <form onSubmit={handleGenerateBill} className="grid gap-6 lg:grid-cols-3">
+        <form onSubmit={handleGenerateBillSubmit} className="grid gap-6 lg:grid-cols-3">
           {/* Patient Form & Drug Selection */}
           <div className="lg:col-span-2 space-y-6">
             {/* Patient Card */}
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Patient Information</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
+              <div className="grid gap-4 sm:grid-cols-2" ref={containerRef}>
+                <div className="relative block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Patient ID
+                    Patient ID / Card Number
                   </span>
                   <input
                     type="text"
                     value={patientId}
-                    onChange={(e) => setPatientId(e.target.value)}
-                    placeholder="e.g. 100432"
+                    onChange={(e) => {
+                      setPatientId(e.target.value);
+                      setPatientSearch(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    placeholder="Search by ID or card number..."
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                     required
                   />
-                </label>
+
+                  {showSuggestions && patientSuggestions.length > 0 ? (
+                    <div className="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                      {patientSuggestions.map((pat: PatientMatchItem) => (
+                        <button
+                          key={pat.patient_id}
+                          type="button"
+                          onClick={() => {
+                            setPatientId(pat.patient_id);
+                            setPatientName(pat.patient_name);
+                            setPatientPhone(pat.phone_number);
+                            setShowSuggestions(false);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-150 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-gray-50 dark:border-slate-800 last:border-b-0 transition"
+                        >
+                          <p className="font-semibold">{pat.patient_name}</p>
+                          <p className="text-xs text-gray-500">ID: {pat.patient_id} | Phone: {pat.phone_number}</p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -228,7 +353,6 @@ export default function PharmacyDispensePage() {
                     value={departmentId}
                     onChange={(e) => handleDepartmentChange(e.target.value)}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
                   >
                     <option value="">Select Department</option>
                     {departments.map((d) => (
@@ -255,9 +379,9 @@ export default function PharmacyDispensePage() {
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                   >
                     <option value="">Select Drug (Stock count shown)</option>
-                    {inventory.map((d) => (
+                    {inventory.map((d: BackendDrugItem) => (
                       <option key={d.id} value={d.id}>
-                        {d.name} (Qty: {d.stock}) - {formatCurrency(d.price)}
+                        {d.name} (Qty: {d.stock}) - {formatCurrency(d.unit_price)}
                       </option>
                     ))}
                   </select>
@@ -288,7 +412,7 @@ export default function PharmacyDispensePage() {
 
               {selectedDrug ? (
                 <p className="mt-3 text-xs text-brand-700 dark:text-brand-400 font-semibold">
-                  Unit Price: {formatCurrency(selectedDrug.price)} | Stock available: {selectedDrug.stock} {selectedDrug.genericName ? `(${selectedDrug.genericName})` : ""}
+                  Unit Price: {formatCurrency(selectedDrug.unit_price)} | Stock available: {selectedDrug.stock} {selectedDrug.generic_name ? `(${selectedDrug.generic_name})` : ""}
                 </p>
               ) : null}
             </div>
@@ -343,11 +467,15 @@ export default function PharmacyDispensePage() {
 
                 <button
                   type="submit"
-                  disabled={billItems.length === 0}
+                  disabled={billItems.length === 0 || createRequestMutation.isPending}
                   className="w-full rounded-xl bg-brand-700 py-3.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
                 >
-                  <FiCheck />
-                  Generate Code & Dispense
+                  {createRequestMutation.isPending ? "Generating..." : (
+                    <>
+                      <FiCheck />
+                      Generate Code & Dispense
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -382,7 +510,7 @@ export default function PharmacyDispensePage() {
                   Cashier Clearing Code
                 </p>
                 <p className="text-3xl font-mono font-black text-brand-900 dark:text-brand-200 mt-1 tracking-wider">
-                  {generatedBill.code}
+                  {generatedBill.billing_code}
                 </p>
               </div>
 
@@ -401,14 +529,14 @@ export default function PharmacyDispensePage() {
                     />
                   ))}
                 </div>
-                <p className="text-[10px] font-mono text-gray-400 mt-1">{generatedBill.code}</p>
+                <p className="text-[10px] font-mono text-gray-400 mt-1">{generatedBill.billing_code}</p>
               </div>
 
               {/* Bill Overview */}
               <div className="text-left space-y-2 text-xs border-t border-gray-100 pt-4 dark:border-slate-800">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Patient:</span>
-                  <span className="font-semibold text-slate-950 dark:text-white">{generatedBill.patientName} (ID: {generatedBill.patientId})</span>
+                  <span className="font-semibold text-slate-950 dark:text-white">{generatedBill.patient_name} (ID: {generatedBill.patient_id})</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Department:</span>
@@ -416,14 +544,14 @@ export default function PharmacyDispensePage() {
                 </div>
                 <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-slate-800">
                   <span className="text-gray-500">Date Generated:</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{formatDateTime(generatedBill.createdAt)}</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{formatDateTime(generatedBill.created_at)}</span>
                 </div>
 
                 <div className="pt-2">
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">Formulations list</p>
                   <div className="max-h-[120px] overflow-y-auto space-y-1">
-                    {generatedBill.items.map((it) => (
-                      <div key={it.drugId} className="flex justify-between text-slate-700 dark:text-slate-300">
+                    {generatedBill.items?.map((it) => (
+                      <div key={it.id} className="flex justify-between text-slate-700 dark:text-slate-300">
                         <span>{it.name} (x{it.quantity})</span>
                         <span className="font-medium">{formatCurrency(it.amount)}</span>
                       </div>
@@ -433,7 +561,7 @@ export default function PharmacyDispensePage() {
 
                 <div className="flex justify-between border-t border-gray-100 pt-3 font-bold text-sm text-slate-950 dark:text-white dark:border-slate-800">
                   <span>Grand Total</span>
-                  <span className="text-brand-700 dark:text-brand-400">{formatCurrency(generatedBill.totalAmount)}</span>
+                  <span className="text-brand-700 dark:text-brand-400">{formatCurrency(generatedBill.total_amount)}</span>
                 </div>
               </div>
 

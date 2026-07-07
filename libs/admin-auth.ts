@@ -70,6 +70,11 @@ import type {
   UpdateAdminHospitalPayload,
   UpdateAdminHospitalResponse,
   DeleteAdminHospitalDepartmentResponse,
+  CreateAdminHospitalPharmacistPayload,
+  CreateAdminHospitalPharmacistResponse,
+  UpdateAdminHospitalPharmacistPayload,
+  UpdateAdminHospitalPharmacistResponse,
+  AdminHospitalPharmacistsResponse,
 } from "@/libs/type";
 
 function getAdminAuthHeaders(accessToken?: string) {
@@ -481,6 +486,46 @@ export async function updateAdminHospitalFo(
 ) {
   return adminPatch<UpdateAdminHospitalFoResponse>(
     `/api/admin/hospitals/${hospitalId}/fos/${foId}`,
+    payload,
+  );
+}
+
+export async function getAdminHospitalPharmacists(
+  hospitalId: string,
+  params?: {
+    search?: string;
+  },
+) {
+  const query = new URLSearchParams();
+
+  if (params?.search?.trim()) {
+    query.set("search", params.search.trim());
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return adminGet<AdminHospitalPharmacistsResponse>(
+    `/api/admin/hospitals/${hospitalId}/pharmacists${suffix}`,
+  );
+}
+
+export async function createAdminHospitalPharmacist(
+  hospitalId: string,
+  payload: CreateAdminHospitalPharmacistPayload,
+) {
+  return adminPost<CreateAdminHospitalPharmacistResponse>(
+    `/api/admin/hospitals/${hospitalId}/pharmacists`,
+    payload,
+  );
+}
+
+export async function updateAdminHospitalPharmacist(
+  hospitalId: string,
+  pharmacistId: string,
+  payload: UpdateAdminHospitalPharmacistPayload,
+) {
+  return adminPatch<UpdateAdminHospitalPharmacistResponse>(
+    `/api/admin/hospitals/${hospitalId}/pharmacists/${pharmacistId}`,
     payload,
   );
 }

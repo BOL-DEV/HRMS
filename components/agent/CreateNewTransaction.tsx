@@ -146,13 +146,13 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                   <label className="flex-1 block">
                     <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Prescription / Bill Code
+                      Patient Card Number / Patient ID
                     </span>
                     <input
                       type="text"
                       value={pharmacyCode}
                       onChange={(e) => setPharmacyCode(e.target.value)}
-                      placeholder="e.g. PH-123456"
+                      placeholder="Enter patient's card number (e.g. 100234 or P-12345)"
                       className="w-full rounded-xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                     />
                   </label>

@@ -1,43 +1,52 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "@/components/shared/Header";
-import {
-  getPharmacyInventory,
-  addDrug,
-  updateDrug,
-  deleteDrug,
-  DrugItem,
-} from "@/libs/pharmacy-mock";
 import { formatCurrency } from "@/libs/helper";
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX } from "react-icons/fi";
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getPharmacyCategories,
+  createPharmacyCategory,
+  getPharmacyInventory,
+  addPharmacyDrug,
+  updatePharmacyDrug,
+  deletePharmacyDrug,
+  BackendDrugItem,
+  PharmacyCategory,
+} from "@/libs/pharmacy-api";
 
 export default function PharmacyInventoryPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
 
-  // React State
-  const [inventory, setInventory] = useState<DrugItem[]>(() => {
-    if (typeof window !== "undefined") {
-      return getPharmacyInventory();
-    }
-    return [];
-  });
+  // Filters State
   const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDrug, setEditingDrug] = useState<DrugItem | null>(null);
+  const [editingDrug, setEditingDrug] = useState<BackendDrugItem | null>(null);
 
   // Form Fields State
   const [formName, setFormName] = useState("");
   const [formGeneric, setFormGeneric] = useState("");
-  const [formCategory, setFormCategory] = useState("Tablet");
+  const [formCategory, setFormCategory] = useState("");
   const [formBatch, setFormBatch] = useState("");
   const [formExpiry, setFormExpiry] = useState("");
   const [formStock, setFormStock] = useState("");
+  const [formReorderLevel, setFormReorderLevel] = useState("50");
   const [formPrice, setFormPrice] = useState("");
+
+  // Category Creation Inline State
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   useEffect(() => {
     if (!accessToken) {
@@ -45,127 +54,189 @@ export default function PharmacyInventoryPage() {
     }
   }, [accessToken, router]);
 
-  const categories = ["Tablet", "Liquid", "Capsule", "Injection", "Supply", "Inhaler"];
+  // Queries
+  const categoriesQuery = useQuery({
+    queryKey: ["pharmacy-categories"],
+    queryFn: getPharmacyCategories,
+    enabled: Boolean(accessToken),
+  });
 
-  // Open modal for adding
+  const categories = React.useMemo<PharmacyCategory[]>(() => {
+    const rawData = categoriesQuery.data;
+    if (!rawData) return [];
+    if (Array.isArray(rawData)) return rawData as PharmacyCategory[];
+    if (rawData && "data" in rawData && Array.isArray((rawData as any).data)) {
+      return (rawData as any).data as PharmacyCategory[];
+    }
+    return [];
+  }, [categoriesQuery.data]);
+
+  const { data: inventoryData, isLoading, error } = useQuery({
+    queryKey: ["pharmacy-inventory", search, filterCategory, filterStatus, currentPage],
+    queryFn: () =>
+      getPharmacyInventory({
+        search: search || undefined,
+        category_id: filterCategory || undefined,
+        status: filterStatus || undefined,
+        page: currentPage,
+        limit: 15,
+      }),
+    enabled: Boolean(accessToken),
+  });
+
+  // Mutations
+  const createCategoryMutation = useMutation({
+    mutationFn: createPharmacyCategory,
+    onSuccess: (response) => {
+      const newCat = (response as any).data || response;
+      toast.success(`Category "${newCat.name}" created successfully.`);
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-categories"] });
+      setFormCategory(newCat.id);
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to create category.");
+    },
+  });
+
+  const addDrugMutation = useMutation({
+    mutationFn: addPharmacyDrug,
+    onSuccess: () => {
+      toast.success("New formulation added to catalog.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+      setIsModalOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to add drug.");
+    },
+  });
+
+  const updateDrugMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => updatePharmacyDrug(id, payload),
+    onSuccess: () => {
+      toast.success("Formulation updated successfully.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+      setIsModalOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to update drug.");
+    },
+  });
+
+  const deleteDrugMutation = useMutation({
+    mutationFn: deletePharmacyDrug,
+    onSuccess: () => {
+      toast.success("Drug removed from catalog.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to delete drug.");
+    },
+  });
+
+  // Actions
   const handleOpenAddModal = () => {
     setEditingDrug(null);
     setFormName("");
     setFormGeneric("");
-    setFormCategory("Tablet");
+    setFormCategory(categories[0]?.id || "");
     setFormBatch("");
     setFormExpiry("");
     setFormStock("");
+    setFormReorderLevel("50");
     setFormPrice("");
+    setIsAddingCategory(false);
     setIsModalOpen(true);
   };
 
-  // Open modal for editing
-  const handleOpenEditModal = (drug: DrugItem) => {
+  const handleOpenEditModal = (drug: BackendDrugItem) => {
     setEditingDrug(drug);
     setFormName(drug.name);
-    setFormGeneric(drug.genericName);
-    setFormCategory(drug.category);
-    setFormBatch(drug.batchNumber);
-    setFormExpiry(drug.expiryDate);
+    setFormGeneric(drug.generic_name || "");
+    setFormCategory(drug.category_id);
+    setFormBatch(drug.batch_number || "");
+    // YYYY-MM-DD -> YYYY-MM
+    setFormExpiry(drug.expiry_date ? drug.expiry_date.substring(0, 7) : "");
     setFormStock(String(drug.stock));
-    setFormPrice(String(drug.price));
+    setFormReorderLevel(String(drug.reorder_level || 50));
+    setFormPrice(String(drug.unit_price));
+    setIsAddingCategory(false);
     setIsModalOpen(true);
   };
 
-  // Form Submit (Save / Add)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const name = formName.trim();
-    const genericName = formGeneric.trim();
-    const batchNumber = formBatch.trim();
-    const expiryDate = formExpiry.trim();
+    const generic_name = formGeneric.trim();
+    const batch_number = formBatch.trim();
+    const expiryRaw = formExpiry.trim();
     const stock = Number(formStock);
-    const price = Number(formPrice);
+    const reorder_level = Number(formReorderLevel);
+    const unit_price = Number(formPrice);
 
-    if (!name || !genericName || !batchNumber || !expiryDate || isNaN(stock) || isNaN(price)) {
+    if (!name || !formCategory || !expiryRaw || isNaN(stock) || isNaN(reorder_level) || isNaN(unit_price)) {
       toast.error("Please fill out all fields with valid data.");
       return;
     }
 
-    if (editingDrug) {
-      const updated = updateDrug(editingDrug.id, {
-        name,
-        genericName,
-        category: formCategory,
-        batchNumber,
-        expiryDate,
-        stock,
-        price,
-      });
-      if (updated) {
-        toast.success("Drug details updated successfully.");
-      } else {
-        toast.error("Unable to update drug.");
-      }
-    } else {
-      addDrug({
-        name,
-        genericName,
-        category: formCategory,
-        batchNumber,
-        expiryDate,
-        stock,
-        price,
-      });
-      toast.success("New drug added to inventory.");
-    }
+    // backend expects YYYY-MM-DD
+    const expiry_date = expiryRaw.length === 7 ? `${expiryRaw}-01` : expiryRaw;
 
-    // Refresh stock list & close
-    setInventory(getPharmacyInventory());
-    setIsModalOpen(false);
+    const payload = {
+      name,
+      generic_name: generic_name || undefined,
+      category_id: formCategory,
+      batch_number: batch_number || undefined,
+      expiry_date,
+      stock,
+      reorder_level,
+      unit_price,
+    };
+
+    if (editingDrug) {
+      updateDrugMutation.mutate({ id: editingDrug.id, payload });
+    } else {
+      addDrugMutation.mutate(payload);
+    }
   };
 
-  // Delete Drug
   const handleDelete = (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete ${name} from inventory?`)) {
-      const ok = deleteDrug(id);
-      if (ok) {
-        toast.success("Drug removed from catalog.");
-        setInventory(getPharmacyInventory());
-      } else {
-        toast.error("Error removing drug.");
-      }
+      deleteDrugMutation.mutate(id);
     }
   };
 
-  // Filter List
-  const filteredInventory = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return inventory;
-    return inventory.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.genericName.toLowerCase().includes(q) ||
-        item.batchNumber.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q)
-    );
-  }, [inventory, search]);
+  const handleCreateCategory = () => {
+    const catName = newCategoryName.trim();
+    if (!catName) {
+      toast.error("Enter a valid category name.");
+      return;
+    }
+    createCategoryMutation.mutate(catName);
+  };
 
-  const getStatusStyle = (status: DrugItem["status"]) => {
-    switch (status) {
-      case "In Stock":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20";
-      case "Low Stock":
-        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20";
-      case "Expired":
-        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20";
-      case "Out of Stock":
-        return "bg-red-100 text-red-800 border-red-200 dark:bg-red-500/20 dark:text-red-200 dark:border-red-500/30";
-      default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
+  const getStatusStyle = (status: BackendDrugItem["status"] | string) => {
+    const cleanStatus = String(status).toLowerCase();
+    if (cleanStatus === "in stock") {
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20";
+    } else if (cleanStatus === "low stock") {
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20";
+    } else if (cleanStatus === "expired") {
+      return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20";
+    } else {
+      return "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400";
     }
   };
 
   if (!accessToken) {
     return null;
   }
+
+  const items = inventoryData?.items || (inventoryData as any)?.data?.items || [];
+  const totalPages = inventoryData?.total_pages || (inventoryData as any)?.data?.total_pages || 1;
+  const totalItems = inventoryData?.total_items || (inventoryData as any)?.data?.total_items || 0;
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
@@ -179,7 +250,7 @@ export default function PharmacyInventoryPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Inventory</h1>
-            <p className="text-sm text-gray-500">{inventory.length} items in catalog</p>
+            <p className="text-sm text-gray-500">{totalItems} items in catalog</p>
           </div>
           <button
             onClick={handleOpenAddModal}
@@ -190,93 +261,167 @@ export default function PharmacyInventoryPage() {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, generic name, batch number, or barcode..."
-            className="w-full rounded-2xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:border-brand-400"
-          />
+        {/* Search & Filters */}
+        <div className="grid gap-4 sm:grid-cols-4 bg-white p-4 rounded-2xl border border-gray-200 dark:bg-slate-900 dark:border-slate-800">
+          <div className="relative sm:col-span-2">
+            <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search by name, generic name, batch number..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </div>
+          <div>
+            <select
+              value={filterCategory}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            >
+              <option value="">All Categories</option>
+              {categories.map((c: PharmacyCategory) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <select
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            >
+              <option value="">All Statuses</option>
+              <option value="In stock">In stock</option>
+              <option value="Low stock">Low stock</option>
+              <option value="Expired">Expired</option>
+            </select>
+          </div>
         </div>
 
         {/* Inventory List */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-                  <th className="p-4 font-semibold">Name</th>
-                  <th className="p-4 font-semibold">Category</th>
-                  <th className="p-4 font-semibold">Batch</th>
-                  <th className="p-4 font-semibold">Expiry</th>
-                  <th className="p-4 font-semibold text-center">Stock</th>
-                  <th className="p-4 font-semibold text-right">Price</th>
-                  <th className="p-4 font-semibold text-center">Status</th>
-                  <th className="p-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {filteredInventory.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-gray-500">
-                      No drug items match your search.
-                    </td>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-700 border-t-transparent"></div>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400">
+            Error loading inventory: {error instanceof Error ? error.message : "Server error"}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                    <th className="p-4 font-semibold">Name</th>
+                    <th className="p-4 font-semibold">Category</th>
+                    <th className="p-4 font-semibold">Batch</th>
+                    <th className="p-4 font-semibold">Expiry</th>
+                    <th className="p-4 font-semibold text-center">Stock</th>
+                    <th className="p-4 font-semibold text-center">Reorder Limit</th>
+                    <th className="p-4 font-semibold text-right">Price</th>
+                    <th className="p-4 font-semibold text-center">Status</th>
+                    <th className="p-4 font-semibold text-right">Actions</th>
                   </tr>
-                ) : (
-                  filteredInventory.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
-                      <td className="p-4">
-                        <div>
-                          <p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>
-                          <p className="text-xs text-gray-500">{item.genericName}</p>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-600 dark:text-slate-300">{item.category}</td>
-                      <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{item.batchNumber}</td>
-                      <td className="p-4 text-slate-600 dark:text-slate-300">{item.expiryDate}</td>
-                      <td className="p-4 text-center font-semibold text-slate-900 dark:text-slate-100">{item.stock}</td>
-                      <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
-                        {formatCurrency(item.price)}
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusStyle(item.status)}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenEditModal(item)}
-                            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
-                            title="Edit Drug"
-                          >
-                            <FiEdit2 className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id, item.name)}
-                            className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
-                            title="Delete Drug"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="p-8 text-center text-gray-500">
+                        No drug items match your search.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    items.map((item: BackendDrugItem) => (
+                      <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                        <td className="p-4">
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>
+                            <p className="text-xs text-gray-500">{item.generic_name}</p>
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-600 dark:text-slate-300">{item.category_name}</td>
+                        <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{item.batch_number || "--"}</td>
+                        <td className="p-4 text-slate-600 dark:text-slate-300">{item.expiry_date}</td>
+                        <td className="p-4 text-center font-semibold text-slate-900 dark:text-slate-100">{item.stock}</td>
+                        <td className="p-4 text-center text-gray-500 dark:text-slate-400">{item.reorder_level}</td>
+                        <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
+                          {formatCurrency(item.unit_price)}
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusStyle(item.status)}`}>
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                              title="Edit Drug"
+                            >
+                              <FiEdit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(item.id, item.name)}
+                              className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                              title="Delete Drug"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 ? (
+              <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-slate-800">
+                <span className="text-xs text-gray-500">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-lg border border-gray-200 p-2 text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <FiChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-lg border border-gray-200 p-2 text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <FiChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Add / Edit Modal */}
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs overflow-y-auto">
+          <div className="my-8 w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-950 dark:text-white">
                 {editingDrug ? "Edit Formulation Details" : "Add New Formulation"}
@@ -315,26 +460,64 @@ export default function PharmacyInventoryPage() {
                     onChange={(e) => setFormGeneric(e.target.value)}
                     placeholder="e.g. Acetaminophen"
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
                   />
                 </label>
 
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                <div className="block space-y-2">
+                  <span className="block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                     Category
                   </span>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                  >
-                    {categories.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  {!isAddingCategory ? (
+                    <div className="flex gap-2">
+                      <select
+                        value={formCategory}
+                        onChange={(e) => setFormCategory(e.target.value)}
+                        className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        required
+                      >
+                        <option value="">Select Category</option>
+                        {categories.map((c: PharmacyCategory) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingCategory(true)}
+                        className="p-3 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl dark:bg-slate-800 dark:text-slate-200 transition"
+                        title="Add New Category"
+                      >
+                        <FiFolderPlus className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 animate-fade-in-slide">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        placeholder="New category..."
+                        className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={createCategoryMutation.isPending}
+                        className="bg-brand-700 hover:bg-brand-600 text-white rounded-xl px-3 py-2 text-xs font-semibold transition"
+                      >
+                        Create
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingCategory(false)}
+                        className="bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl p-3 dark:bg-slate-800 dark:text-slate-200 transition"
+                      >
+                        <FiX />
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -346,7 +529,6 @@ export default function PharmacyInventoryPage() {
                     onChange={(e) => setFormBatch(e.target.value)}
                     placeholder="e.g. PCM2025-001"
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
                   />
                 </label>
 
@@ -380,6 +562,21 @@ export default function PharmacyInventoryPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                    Reorder Stock Threshold
+                  </span>
+                  <input
+                    type="number"
+                    value={formReorderLevel}
+                    onChange={(e) => setFormReorderLevel(e.target.value)}
+                    placeholder="e.g. 50"
+                    min="1"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                    required
+                  />
+                </label>
+
+                <label className="block sm:col-span-2">
+                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                     Unit Price (₦)
                   </span>
                   <input
@@ -405,9 +602,10 @@ export default function PharmacyInventoryPage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+                  disabled={addDrugMutation.isPending || updateDrugMutation.isPending}
+                  className="rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm disabled:opacity-60"
                 >
-                  Save Formulation
+                  {editingDrug ? "Save Formulation" : "Add Formulation"}
                 </button>
               </div>
             </form>

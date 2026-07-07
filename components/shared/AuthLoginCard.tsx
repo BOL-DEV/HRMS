@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { ApiError } from "@/libs/api";
-import { clearAuthTokens, storeAgentTokens } from "@/libs/auth";
+import { clearAuthTokens, storeAgentTokens, decodeJwt } from "@/libs/auth";
 import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
 
@@ -30,19 +30,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
   const [showPassword, setShowPassword] = useState(false);
 
   const loginMutation = useMutation({
-    mutationFn: (variables: Parameters<typeof loginAgent>[0]) => {
-      if (variables.email.trim() === "pharmacy@hospital.com") {
-        return Promise.resolve({
-          status: 200,
-          message: "Demo login successful for Pharmacy.",
-          data: {
-            accessToken: "demo-pharmacy-access-token",
-            refreshToken: "demo-pharmacy-refresh-token",
-          },
-        });
-      }
-      return loginAgent(variables);
-    },
+    mutationFn: loginAgent,
     onSuccess: async (response, variables) => {
       const accessToken = response.data?.accessToken;
       const refreshToken = response.data?.refreshToken;
@@ -54,9 +42,30 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
 
       storeAgentTokens({ accessToken, refreshToken });
 
-      if (variables.email.trim() === "pharmacy@hospital.com") {
+      const decoded = decodeJwt(accessToken);
+      const decodedRole = String(decoded?.role || decoded?.user?.role || decoded?.identity?.role || decoded?.data?.role || "").toUpperCase();
+
+      if (decodedRole === "PLATFORM_ADMIN") {
+        toast.success(response.message || "Login successful.");
+        router.push("/admin/dashboard");
+        return;
+      }
+
+      if (decodedRole === "FO") {
+        toast.success(response.message || "Login successful.");
+        router.push("/fo/dashboard");
+        return;
+      }
+
+      if (decodedRole === "PHARMACY") {
         toast.success(response.message || "Login successful.");
         router.push("/pharmacy/dashboard");
+        return;
+      }
+
+      if (decodedRole === "AGENT") {
+        toast.success(response.message || "Login successful.");
+        router.push("/agents/dashboard");
         return;
       }
 
@@ -87,7 +96,13 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       try {
-        await getAgentProfile();
+        const profile = await getAgentProfile();
+        const role = String(profile.data.role).toUpperCase();
+        if (role === "PHARMACY") {
+          toast.success(response.message || "Login successful.");
+          router.push("/pharmacy/dashboard");
+          return;
+        }
         toast.success(response.message || "Login successful.");
         router.push("/agents/dashboard");
         return;
@@ -99,6 +114,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
           toast.error(getErrorMessage(error));
         }
       }
+
     },
     onError: (error) => {
       clearAuthTokens();

@@ -3,143 +3,149 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Header from "@/components/shared/Header";
 import StatusPill from "@/components/shared/StatusPill";
-import {
-  getPharmacyInventory,
-  getPharmacyBills,
-  updatePharmacyBill,
-  DrugItem,
-  PharmacyBillItem,
-  PharmacyBill,
-} from "@/libs/pharmacy-mock";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import {
   FiSearch,
   FiEdit2,
   FiEye,
-  FiTrash2,
   FiX,
   FiCheck,
   FiPrinter,
   FiPlus,
-  FiFileText,
+  FiTrash2,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getPharmacyRequests,
+  updatePharmacyRequest,
+  payPharmacyRequestSelf,
+  getPharmacyInventory,
+  BackendDrugItem,
+  PharmacyBillingRequest,
+} from "@/libs/pharmacy-api";
+
+interface LocalPharmacyBillItem {
+  drugId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
 
 export default function PharmacyPrescriptionsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
 
   // Active view states
-  const [activeTab, setActiveTab] = useState<"pending" | "paid">("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "dispensed">("pending");
   const [searchQuery, setSearchQuery] = useState("");
-  const [deptFilter, setDeptFilter] = useState("");
-
-  // Live data states
-  const [bills, setBills] = useState<PharmacyBill[]>([]);
-  const [inventory, setInventory] = useState<DrugItem[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Modals state
-  const [viewingBill, setViewingBill] = useState<PharmacyBill | null>(null);
-  const [editingBill, setEditingBill] = useState<PharmacyBill | null>(null);
+  const [viewingBill, setViewingBill] = useState<PharmacyBillingRequest | null>(null);
+  const [editingBill, setEditingBill] = useState<PharmacyBillingRequest | null>(null);
 
   // Edit form states
   const [editPatientId, setEditPatientId] = useState("");
   const [editPatientName, setEditPatientName] = useState("");
   const [editPatientPhone, setEditPatientPhone] = useState("");
-  const [editDeptId, setEditDeptId] = useState("");
-  const [editDeptName, setEditDeptName] = useState("");
-  const [editItems, setEditItems] = useState<PharmacyBillItem[]>([]);
+  const [editItems, setEditItems] = useState<LocalPharmacyBillItem[]>([]);
 
   // Add Item inside Edit Modal state
   const [selectedDrugId, setSelectedDrugId] = useState("");
   const [dispenseQty, setDispenseQty] = useState("1");
 
-  const departments = [
-    { id: "dep-1", name: "General Medicine" },
-    { id: "dep-2", name: "Pediatrics" },
-    { id: "dep-3", name: "Cardiology" },
-    { id: "dep-4", name: "Surgery" },
-    { id: "dep-5", name: "Obstetrics & Gynecology" },
-    { id: "dep-6", name: "Pharmacy Department" },
-  ];
-
-  const loadData = () => {
-    if (typeof window !== "undefined") {
-      setBills(getPharmacyBills());
-      setInventory(getPharmacyInventory());
-    }
-  };
-
   useEffect(() => {
     if (!accessToken) {
       router.replace("/login");
-    } else {
-      loadData();
     }
   }, [accessToken, router]);
 
-  // Compute available stock for a drug when editing a specific bill
+  // Fetch Prescriptions List
+  const { data: prescriptionsData, isLoading, error } = useQuery({
+    queryKey: ["pharmacy-prescriptions", activeTab],
+    queryFn: () =>
+      getPharmacyRequests({
+        status: activeTab,
+        limit: 100, // Fetch up to 100 recent ones for high-fidelity local filtering
+      }),
+    enabled: Boolean(accessToken),
+  });
+
+  // Fetch Inventory for formulation additions
+  const { data: inventoryData } = useQuery({
+    queryKey: ["pharmacy-inventory-edit-lookup"],
+    queryFn: () => getPharmacyInventory({ limit: 100 }),
+    enabled: Boolean(accessToken),
+  });
+
+  const inventory = useMemo(() => {
+    return inventoryData?.items || [];
+  }, [inventoryData]);
+
+  // Mutations
+  const updateRequestMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      updatePharmacyRequest(id, payload),
+    onSuccess: () => {
+      toast.success("Prescription updated successfully.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-prescriptions"] });
+      setEditingBill(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to update prescription.");
+    },
+  });
+
+  const selfPayMutation = useMutation({
+    mutationFn: (id: string) => payPharmacyRequestSelf(id, "cash"),
+    onSuccess: () => {
+      toast.success("Prescription cleared and dispensed successfully (Self Pay).");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-prescriptions"] });
+      setViewingBill(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to clear request.");
+    },
+  });
+
+  // Helper stock limit lookup
   const getAvailableStockForEdit = (drugId: string) => {
     const drug = inventory.find((d) => d.id === drugId);
     if (!drug) return 0;
 
-    // Add back the quantity that is currently in the bill we are editing
-    const originalItem = editingBill?.items.find((it) => it.drugId === drugId);
+    const originalItem = editingBill?.items?.find(
+      (it) => it.pharmacy_item_id === drugId || it.id === drugId
+    );
     const originalQty = originalItem ? originalItem.quantity : 0;
 
     return drug.stock + originalQty;
   };
 
-  // Filter bills
-  const filteredBills = useMemo(() => {
-    let list = bills.filter((b) => b.status === activeTab);
-
-    // Apply search query
-    const q = searchQuery.toLowerCase().trim();
-    if (q) {
-      list = list.filter(
-        (b) =>
-          b.code.toLowerCase().includes(q) ||
-          b.patientName.toLowerCase().includes(q) ||
-          b.patientId.toLowerCase().includes(q) ||
-          b.phoneNumber.toLowerCase().includes(q)
-      );
-    }
-
-    // Apply department filter
-    if (deptFilter) {
-      list = list.filter((b) => b.departmentId === deptFilter);
-    }
-
-    // Sort by creation date descending
-    return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [bills, activeTab, searchQuery, deptFilter]);
-
-  // Handle department change in Edit Modal
-  const handleEditDeptChange = (deptId: string) => {
-    setEditDeptId(deptId);
-    const match = departments.find((d) => d.id === deptId);
-    setEditDeptName(match ? match.name : "");
-  };
-
-  // Open Edit Modal
-  const handleOpenEditModal = (bill: PharmacyBill) => {
+  const handleOpenEditModal = (bill: PharmacyBillingRequest) => {
     setEditingBill(bill);
-    setEditPatientId(bill.patientId);
-    setEditPatientName(bill.patientName);
-    setEditPatientPhone(bill.phoneNumber);
-    setEditDeptId(bill.departmentId);
-    setEditDeptName(bill.departmentName);
-    setEditItems([...bill.items]);
+    setEditPatientId(bill.patient_id);
+    setEditPatientName(bill.patient_name);
+    setEditPatientPhone(bill.phone_number);
+    setEditItems(
+      (bill.items || []).map((it) => ({
+        drugId: it.pharmacy_item_id || it.id || "",
+        name: it.name || "Medication",
+        quantity: it.quantity,
+        unitPrice: it.unit_price,
+        amount: it.amount || it.unit_price * it.quantity,
+      }))
+    );
     setSelectedDrugId("");
     setDispenseQty("1");
   };
 
-  // Update item quantity in Edit Modal
   const handleUpdateItemQty = (drugId: string, qtyStr: string) => {
     const qty = Number(qtyStr);
     if (isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) {
@@ -148,7 +154,7 @@ export default function PharmacyPrescriptionsPage() {
 
     const maxStock = getAvailableStockForEdit(drugId);
     if (qty > maxStock) {
-      toast.error(`Only ${maxStock} units of this formulation are available in total.`);
+      toast.error(`Only ${maxStock} units of this formulation are available in stock.`);
       return;
     }
 
@@ -161,12 +167,10 @@ export default function PharmacyPrescriptionsPage() {
     );
   };
 
-  // Remove item from list in Edit Modal
   const handleRemoveEditItem = (drugId: string) => {
     setEditItems((prev) => prev.filter((item) => item.drugId !== drugId));
   };
 
-  // Add formulation to Edit Modal items list
   const handleAddEditItem = () => {
     if (!selectedDrugId) {
       toast.error("Select a formulation first.");
@@ -188,18 +192,17 @@ export default function PharmacyPrescriptionsPage() {
       return;
     }
 
-    // Check duplicate
     if (editItems.some((item) => item.drugId === selectedDrugId)) {
-      toast.error("This formulation has already been added to the prescription.");
+      toast.error("This formulation is already added.");
       return;
     }
 
-    const newItem: PharmacyBillItem = {
+    const newItem: LocalPharmacyBillItem = {
       drugId: drug.id,
       name: drug.name,
       quantity: qty,
-      unitPrice: drug.price,
-      amount: drug.price * qty,
+      unitPrice: drug.unit_price,
+      amount: drug.unit_price * qty,
     };
 
     setEditItems((prev) => [...prev, newItem]);
@@ -207,48 +210,78 @@ export default function PharmacyPrescriptionsPage() {
     setDispenseQty("1");
   };
 
-  // Submit edits
   const handleSaveEdits = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBill) return;
 
-    if (!editPatientId.trim() || !editPatientName.trim() || !editPatientPhone.trim() || !editDeptId) {
-      toast.error("Please fill in all patient and department details.");
+    if (!editPatientId.trim() || !editPatientName.trim() || !editPatientPhone.trim()) {
+      toast.error("Please fill in all patient details.");
       return;
     }
 
     if (editItems.length === 0) {
-      toast.error("The prescription list cannot be empty. Add at least one drug formulation.");
+      toast.error("The prescription list cannot be empty.");
       return;
     }
 
-    const result = updatePharmacyBill(editingBill.code, {
-      patientId: editPatientId.trim(),
-      patientName: editPatientName.trim(),
-      phoneNumber: editPatientPhone.trim(),
-      departmentId: editDeptId,
-      departmentName: editDeptName,
-      items: editItems,
+    updateRequestMutation.mutate({
+      id: editingBill.id,
+      payload: {
+        patient_id: editPatientId.trim(),
+        patient_name: editPatientName.trim(),
+        phone_number: editPatientPhone.trim(),
+        items: editItems.map((it) => ({
+          pharmacy_item_id: it.drugId,
+          quantity: it.quantity,
+        })),
+      },
     });
-
-    if (result.success) {
-      toast.success(`Prescription bill ${editingBill.code} updated successfully.`);
-      setEditingBill(null);
-      loadData();
-    } else {
-      toast.error(result.error || "Failed to save updates.");
-    }
   };
 
-  // Calculated grand total of edited items
   const editGrandTotal = useMemo(() => {
     return editItems.reduce((sum, item) => sum + item.amount, 0);
   }, [editItems]);
 
-  // Selected drug for display in Edit Modal dropdown preview
   const activeSelectedDrug = useMemo(() => {
     return inventory.find((d) => d.id === selectedDrugId) ?? null;
   }, [selectedDrugId, inventory]);
+
+  // Safe mapping of the raw response
+  const rawList = useMemo<PharmacyBillingRequest[]>(() => {
+    if (!prescriptionsData) return [];
+    if (Array.isArray(prescriptionsData)) return prescriptionsData as PharmacyBillingRequest[];
+    const dataObj = (prescriptionsData as any).data || prescriptionsData;
+    if (Array.isArray(dataObj)) return dataObj as PharmacyBillingRequest[];
+    if (dataObj) {
+      if (Array.isArray(dataObj.requests)) return dataObj.requests as PharmacyBillingRequest[];
+      if (Array.isArray(dataObj.items)) return dataObj.items as PharmacyBillingRequest[];
+    }
+    return [];
+  }, [prescriptionsData]);
+
+  // Local Search & Filtering
+  const filteredList = useMemo(() => {
+    let result = rawList;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter(
+        (b: PharmacyBillingRequest) =>
+          b.billing_code.toLowerCase().includes(q) ||
+          b.patient_name.toLowerCase().includes(q) ||
+          b.patient_id.toLowerCase().includes(q) ||
+          b.phone_number.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [rawList, searchQuery]);
+
+  // Local Pagination
+  const itemsPerPage = 15;
+  const totalPages = Math.ceil(filteredList.length / itemsPerPage) || 1;
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredList.slice(start, start + itemsPerPage);
+  }, [filteredList, currentPage]);
 
   if (!accessToken) {
     return null;
@@ -271,7 +304,10 @@ export default function PharmacyPrescriptionsPage() {
 
           <div className="inline-flex rounded-xl bg-gray-200/80 p-1 dark:bg-slate-800">
             <button
-              onClick={() => setActiveTab("pending")}
+              onClick={() => {
+                setActiveTab("pending");
+                setCurrentPage(1);
+              }}
               className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
                 activeTab === "pending"
                   ? "bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white"
@@ -281,9 +317,12 @@ export default function PharmacyPrescriptionsPage() {
               To Dispense (Pending Pay)
             </button>
             <button
-              onClick={() => setActiveTab("paid")}
+              onClick={() => {
+                setActiveTab("dispensed");
+                setCurrentPage(1);
+              }}
               className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
-                activeTab === "paid"
+                activeTab === "dispensed"
                   ? "bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white"
                   : "text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
@@ -294,115 +333,131 @@ export default function PharmacyPrescriptionsPage() {
         </div>
 
         {/* Filter Toolbar */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="relative sm:col-span-2">
-            <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Patient Name, ID, Phone, or Bill Code..."
-              className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <select
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            >
-              <option value="">All Departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="relative">
+          <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search by Patient Name, ID, Phone, or Bill Code..."
+            className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+          />
         </div>
 
         {/* Orders Table */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-                  <th className="p-4 font-semibold">Bill Code</th>
-                  <th className="p-4 font-semibold">Patient Information</th>
-                  <th className="p-4 font-semibold">Department</th>
-                  <th className="p-4 font-semibold">Items Count</th>
-                  <th className="p-4 font-semibold text-right">Total Amount</th>
-                  <th className="p-4 font-semibold">Status</th>
-                  <th className="p-4 font-semibold">Date Created</th>
-                  <th className="p-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                {filteredBills.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-gray-500">
-                      No prescriptions found matching details.
-                    </td>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-700 border-t-transparent"></div>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400">
+            Error loading prescriptions: {error instanceof Error ? error.message : "Server error"}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                    <th className="p-4 font-semibold">Bill Code</th>
+                    <th className="p-4 font-semibold">Patient Information</th>
+                    <th className="p-4 font-semibold">Items Count</th>
+                    <th className="p-4 font-semibold text-right">Total Amount</th>
+                    <th className="p-4 font-semibold">Status</th>
+                    <th className="p-4 font-semibold">Date Created</th>
+                    <th className="p-4 font-semibold text-right">Actions</th>
                   </tr>
-                ) : (
-                  filteredBills.map((bill) => (
-                    <tr key={bill.code} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
-                      <td className="p-4 font-mono font-bold text-brand-700 dark:text-brand-400">
-                        {bill.code}
-                      </td>
-                      <td className="p-4">
-                        <div>
-                          <p className="font-semibold text-slate-900 dark:text-slate-100">
-                            {bill.patientName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            ID: {bill.patientId} | {bill.phoneNumber}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-600 dark:text-slate-300">
-                        {bill.departmentName}
-                      </td>
-                      <td className="p-4 text-slate-600 dark:text-slate-300">
-                        {bill.items.length} formulation(s)
-                      </td>
-                      <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
-                        {formatCurrency(bill.totalAmount)}
-                      </td>
-                      <td className="p-4">
-                        <StatusPill status={bill.status === "paid" ? "Paid" : "Pending"} />
-                      </td>
-                      <td className="p-4 text-xs text-gray-400">
-                        {formatDateTime(bill.createdAt)}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => setViewingBill(bill)}
-                            className="rounded-lg p-2 text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800"
-                            title="View Receipt / Clearance Code"
-                          >
-                            <FiEye className="h-4 w-4" />
-                          </button>
-                          {bill.status === "pending" ? (
-                            <button
-                              onClick={() => handleOpenEditModal(bill)}
-                              className="rounded-lg p-2 text-brand-700 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10"
-                              title="Edit Drugs List"
-                            >
-                              <FiEdit2 className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {paginatedList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-gray-500">
+                        No prescriptions found.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    paginatedList.map((bill: PharmacyBillingRequest) => (
+                      <tr key={bill.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                        <td className="p-4 font-mono font-bold text-brand-700 dark:text-brand-400">
+                          {bill.billing_code}
+                        </td>
+                        <td className="p-4">
+                          <div>
+                            <p className="font-semibold text-slate-900 dark:text-slate-100">
+                              {bill.patient_name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ID: {bill.patient_id} | {bill.phone_number}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-600 dark:text-slate-300">
+                          {bill.items?.length || 0} formulation(s)
+                        </td>
+                        <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
+                          {formatCurrency(bill.total_amount)}
+                        </td>
+                        <td className="p-4">
+                          <StatusPill status={bill.status === "dispensed" ? "Paid" : "Pending"} />
+                        </td>
+                        <td className="p-4 text-xs text-gray-400">
+                          {formatDateTime(bill.created_at)}
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => setViewingBill(bill)}
+                              className="rounded-lg p-2 text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                              title="View Receipt / Clearance Code"
+                            >
+                              <FiEye className="h-4 w-4" />
+                            </button>
+                            {bill.status === "pending" ? (
+                              <button
+                                onClick={() => handleOpenEditModal(bill)}
+                                className="rounded-lg p-2 text-brand-700 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10"
+                                title="Edit Drugs List"
+                              >
+                                <FiEdit2 className="h-4 w-4" />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 ? (
+              <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-slate-800">
+                <span className="text-xs text-gray-500">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-lg border border-gray-200 p-2 text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300"
+                  >
+                    <FiChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-lg border border-gray-200 p-2 text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300"
+                  >
+                    <FiChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
-        </div>
+        )}
       </div>
 
       {/* View Receipt Modal */}
@@ -418,20 +473,19 @@ export default function PharmacyPrescriptionsPage() {
               </button>
             </div>
 
-            {/* Receipt Content */}
             <div className="text-center px-4">
               <span
                 className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold mb-4 ${
-                  viewingBill.status === "paid"
+                  viewingBill.status === "dispensed"
                     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
                     : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
                 }`}
               >
-                {viewingBill.status === "paid" ? "Medication Dispensed (Paid)" : "Awaiting Checkout Payment"}
+                {viewingBill.status === "dispensed" ? "Medication Dispensed (Paid)" : "Awaiting Checkout Payment"}
               </span>
               <h3 className="text-xl font-bold text-slate-950 dark:text-white">Prescription Receipt</h3>
               <p className="text-xs text-gray-500 mt-1">
-                {viewingBill.status === "paid"
+                {viewingBill.status === "dispensed"
                   ? "Receipt verification code for clearing and dispensing"
                   : "Please scan or present this clearing code to cashier for checkout"}
               </p>
@@ -442,7 +496,7 @@ export default function PharmacyPrescriptionsPage() {
                   Clearing Payment Code
                 </p>
                 <p className="text-3xl font-mono font-black text-brand-900 dark:text-brand-200 mt-1 tracking-wider">
-                  {viewingBill.code}
+                  {viewingBill.billing_code}
                 </p>
               </div>
 
@@ -460,7 +514,7 @@ export default function PharmacyPrescriptionsPage() {
                     />
                   ))}
                 </div>
-                <p className="text-[10px] font-mono text-gray-400 mt-1">{viewingBill.code}</p>
+                <p className="text-[10px] font-mono text-gray-400 mt-1">{viewingBill.billing_code}</p>
               </div>
 
               {/* Bill Details */}
@@ -468,25 +522,19 @@ export default function PharmacyPrescriptionsPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-500">Patient:</span>
                   <span className="font-semibold text-slate-950 dark:text-white">
-                    {viewingBill.patientName} (ID: {viewingBill.patientId})
+                    {viewingBill.patient_name} (ID: {viewingBill.patient_id})
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Phone Number:</span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {viewingBill.phoneNumber}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Department:</span>
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {viewingBill.departmentName}
+                    {viewingBill.phone_number}
                   </span>
                 </div>
                 <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-slate-800">
                   <span className="text-gray-500">Date Generated:</span>
                   <span className="font-semibold text-slate-900 dark:text-slate-100">
-                    {formatDateTime(viewingBill.createdAt)}
+                    {formatDateTime(viewingBill.created_at)}
                   </span>
                 </div>
 
@@ -495,12 +543,12 @@ export default function PharmacyPrescriptionsPage() {
                     Formulations list
                   </p>
                   <div className="max-h-[120px] overflow-y-auto space-y-1 pr-1">
-                    {viewingBill.items.map((it) => (
-                      <div key={it.drugId} className="flex justify-between text-slate-700 dark:text-slate-300">
+                    {viewingBill.items?.map((it) => (
+                      <div key={it.id} className="flex justify-between text-slate-700 dark:text-slate-300">
                         <span>
-                          {it.name} (x{it.quantity})
+                          {it.name || "Medication"} (x{it.quantity})
                         </span>
-                        <span className="font-medium">{formatCurrency(it.amount)}</span>
+                        <span className="font-medium">{formatCurrency(it.amount || it.unit_price * it.quantity)}</span>
                       </div>
                     ))}
                   </div>
@@ -509,28 +557,40 @@ export default function PharmacyPrescriptionsPage() {
                 <div className="flex justify-between border-t border-gray-100 pt-3 font-bold text-sm text-slate-950 dark:text-white dark:border-slate-800">
                   <span>Grand Total</span>
                   <span className="text-brand-700 dark:text-brand-400">
-                    {formatCurrency(viewingBill.totalAmount)}
+                    {formatCurrency(viewingBill.total_amount)}
                   </span>
                 </div>
               </div>
 
-              {/* Printing */}
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => {
-                    window.print();
-                  }}
-                  className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 flex items-center justify-center gap-2"
-                >
-                  <FiPrinter />
-                  Print Receipt
-                </button>
-                <button
-                  onClick={() => setViewingBill(null)}
-                  className="flex-1 rounded-xl bg-brand-700 py-3 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
-                >
-                  Close Receipt
-                </button>
+              {/* Printing / Dispense */}
+              <div className="mt-6 flex flex-col gap-2">
+                {viewingBill.status === "pending" && (
+                  <button
+                    onClick={() => selfPayMutation.mutate(viewingBill.id)}
+                    disabled={selfPayMutation.isPending}
+                    className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <FiCheck />
+                    {selfPayMutation.isPending ? "Clearing..." : "Dispense & Clear Bill (Self Pay)"}
+                  </button>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      window.print();
+                    }}
+                    className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 flex items-center justify-center gap-2"
+                  >
+                    <FiPrinter />
+                    Print Receipt
+                  </button>
+                  <button
+                    onClick={() => setViewingBill(null)}
+                    className="flex-1 rounded-xl bg-brand-700 py-3 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -544,7 +604,7 @@ export default function PharmacyPrescriptionsPage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl font-bold text-slate-950 dark:text-white">
-                  Edit Prescription: {editingBill.code}
+                  Edit Prescription: {editingBill.billing_code}
                 </h3>
                 <p className="text-xs text-gray-500">
                   Modify patient details or change drug list quantities before checkout
@@ -560,7 +620,7 @@ export default function PharmacyPrescriptionsPage() {
 
             <form onSubmit={handleSaveEdits} className="space-y-6">
               {/* Patient details section */}
-              <div className="grid gap-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-2xl border border-gray-100 dark:bg-slate-800/40 dark:border-slate-800">
+              <div className="grid gap-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-2xl border border-gray-150 dark:bg-slate-800/40 dark:border-slate-800">
                 <div>
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
@@ -591,7 +651,7 @@ export default function PharmacyPrescriptionsPage() {
                   </label>
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                       Phone Number
@@ -603,27 +663,6 @@ export default function PharmacyPrescriptionsPage() {
                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                       required
                     />
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
-                      Department
-                    </span>
-                    <select
-                      value={editDeptId}
-                      onChange={(e) => handleEditDeptChange(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                      required
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
                   </label>
                 </div>
               </div>
@@ -645,13 +684,13 @@ export default function PharmacyPrescriptionsPage() {
                         .filter(
                           (d) =>
                             d.stock > 0 &&
-                            d.status !== "Expired" &&
+                            d.status.toLowerCase() !== "expired" &&
                             !editItems.some((it) => it.drugId === d.id)
                         )
                         .map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.name} (Stock: {getAvailableStockForEdit(d.id)}) -{" "}
-                            {formatCurrency(d.price)}
+                            {formatCurrency(d.unit_price)}
                           </option>
                         ))}
                     </select>
@@ -680,7 +719,7 @@ export default function PharmacyPrescriptionsPage() {
                 {activeSelectedDrug ? (
                   <p className="text-[11px] text-brand-600 font-medium">
                     Available stock: {getAvailableStockForEdit(activeSelectedDrug.id)} | price:{" "}
-                    {formatCurrency(activeSelectedDrug.price)}
+                    {formatCurrency(activeSelectedDrug.unit_price)}
                   </p>
                 ) : null}
               </div>
@@ -770,10 +809,11 @@ export default function PharmacyPrescriptionsPage() {
                   </button>
                   <button
                     type="submit"
-                    className="rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm flex items-center gap-1.5"
+                    disabled={updateRequestMutation.isPending}
+                    className="rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm flex items-center gap-1.5 disabled:opacity-65"
                   >
                     <FiCheck />
-                    Save Updates
+                    {updateRequestMutation.isPending ? "Saving..." : "Save Updates"}
                   </button>
                 </div>
               </div>

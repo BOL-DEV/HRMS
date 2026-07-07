@@ -8,6 +8,7 @@ import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { getAgentProfile, logoutAgent } from "@/libs/agent-auth";
 import { logoutAdmin } from "@/libs/admin-auth";
 import { getFoProfile, logoutFo } from "@/libs/fo-auth";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
 
@@ -50,17 +51,7 @@ export default function HeaderAgentProfile() {
     queryKey: [section, "header-profile"],
     queryFn: async (): Promise<HeaderProfileResponse> => {
       if (section === "pharmacy") {
-        return {
-          data: {
-            first_name: "Demo",
-            last_name: "Pharmacist",
-            email: "pharmacy@hospital.com",
-            role: "pharmacy",
-            id: "ph-demo",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        } as unknown as HeaderProfileResponse;
+        return await getPharmacyProfile() as unknown as HeaderProfileResponse;
       }
       return section === "fo" ? getFoProfile() : getAgentProfile();
     },

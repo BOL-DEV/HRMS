@@ -742,6 +742,9 @@ export type AdminHospitalListItem = {
   transaction_count: number;
   total_revenue: number;
   status: AdminHospitalStatus;
+  has_pharmacy_module?: boolean;
+  allow_pharmacy_self_pay?: boolean;
+  allow_agent_pharmacy_pay?: boolean;
 };
 
 export type AdminHospitalsResponse = {
@@ -767,6 +770,9 @@ export type AdminHospitalOverviewResponse = {
       hospital_phone: string;
       address: string;
       status: AdminHospitalStatus;
+      has_pharmacy_module?: boolean;
+      allow_pharmacy_self_pay?: boolean;
+      allow_agent_pharmacy_pay?: boolean;
     };
     overview: {
       total_revenue: number;
@@ -799,6 +805,7 @@ export type AdminHospitalAgentListItem = {
   total_topup: number;
   last_wallet_topup: number;
   status: AdminHospitalAgentStatus;
+  role?: string;
 };
 
 export type AdminHospitalAgentsResponse = {
@@ -892,6 +899,7 @@ export type CreateAdminHospitalAgentPayload = {
   email: string;
   phone: string;
   password: string;
+  role?: string;
 };
 
 export type CreateAdminHospitalAgentResponse = {
@@ -1000,6 +1008,77 @@ export type UpdateAdminHospitalFoResponse = {
     hospital_id: string;
     status: AdminHospitalFoStatus;
     updated_at: string;
+  };
+};
+
+export type AdminHospitalPharmacistStatus = "active" | "suspended";
+
+export type AdminHospitalPharmacistListItem = {
+  pharmacist_id: string;
+  pharmacist_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  hospital_id: string;
+  status: AdminHospitalPharmacistStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateAdminHospitalPharmacistPayload = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  password?: string;
+};
+
+export type CreateAdminHospitalPharmacistResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: "PHARMACY";
+    hospital_id: string;
+    is_active: boolean;
+  };
+};
+
+export type UpdateAdminHospitalPharmacistPayload = Partial<
+  CreateAdminHospitalPharmacistPayload & {
+    status: AdminHospitalPharmacistStatus;
+  }
+>;
+
+export type UpdateAdminHospitalPharmacistResponse = {
+  status: number;
+  message: string;
+  data: {
+    pharmacist_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    hospital_id: string;
+    status: AdminHospitalPharmacistStatus;
+    updated_at: string;
+  };
+};
+
+export type AdminHospitalPharmacistsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      search: string | null;
+    };
+    total_pharmacists: number;
+    pharmacists: AdminHospitalPharmacistListItem[];
   };
 };
 
@@ -1558,6 +1637,9 @@ export type CreateAdminHospitalPayload = {
   contact_email: string;
   contact_phone: string;
   revenue_type: "manual" | "automatic";
+  has_pharmacy_module?: boolean;
+  allow_pharmacy_self_pay?: boolean;
+  allow_agent_pharmacy_pay?: boolean;
 };
 
 export type CreateAdminHospitalResponse = {

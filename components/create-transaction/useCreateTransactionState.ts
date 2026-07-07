@@ -24,6 +24,8 @@ import {
   processAgentPayment,
   processAgentExpressPayment,
   searchAgentHospitalPatients,
+  getAgentPendingPharmacyRequests,
+  processAgentPharmacyPayment,
 } from "@/libs/agent-auth";
 import { openReceiptPrintWindowFromHtml } from "@/libs/helper";
 import { lookupPharmacyBill, markPharmacyBillAsPaid, type PharmacyBill } from "@/libs/pharmacy-mock";
@@ -262,51 +264,9 @@ export function useCreateTransactionState({
   const paymentMutation = useMutation({
     mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
       if (isPharmacyMode && pharmacyBill) {
-        return Promise.resolve({
-          message: `Pharmacy bill ${pharmacyBill.code} cleared successfully.`,
-          data: {
-            receipt: {
-              receiptHTML: `
-                <div style="font-family: monospace; padding: 20px; font-size: 13px; line-height: 1.5; color: #000;">
-                  <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px;">
-                    <h3>SWIFTREV HOSPITAL RECEIPT</h3>
-                    <p>PHARMACY BILLING DIVISION</p>
-                  </div>
-                  <div style="margin: 15px 0;">
-                    <p><strong>Receipt Code:</strong> RC-${Math.floor(100000 + Math.random() * 900000)}</p>
-                    <p><strong>Pharmacy Code:</strong> ${pharmacyBill.code}</p>
-                    <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-                    <p><strong>Patient Name:</strong> ${pharmacyBill.patientName}</p>
-                    <p><strong>Patient ID:</strong> ${pharmacyBill.patientId}</p>
-                  </div>
-                  <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                    <thead>
-                      <tr style="border-bottom: 1px dashed #000; text-align: left;">
-                        <th>Description</th>
-                        <th style="text-align: right;">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${pharmacyBill.items.map(item => `
-                        <tr>
-                          <td>${item.name} (x${item.quantity})</td>
-                          <td style="text-align: right;">₦${item.amount.toLocaleString()}</td>
-                        </tr>
-                      `).join("")}
-                    </tbody>
-                  </table>
-                  <div style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 15px; display: flex; justify-content: space-between;">
-                    <span>Total Paid:</span>
-                    <span>₦${pharmacyBill.totalAmount.toLocaleString()}</span>
-                  </div>
-                  <div style="margin-top: 20px; text-align: center; font-size: 11px;">
-                    <p>Payment Mode: ${form.paymentType.toUpperCase()}</p>
-                    <p>Thank you for your payment!</p>
-                  </div>
-                </div>
-              `
-            }
-          }
+        return processAgentPharmacyPayment({
+          request_id: (pharmacyBill as any).id,
+          payment_type: form.paymentType,
         });
       }
       return processAgentPayment(variables);
@@ -315,8 +275,52 @@ export function useCreateTransactionState({
       toast.success(response.message || "Payment processed successfully.");
       if (isPharmacyMode && pharmacyBill) {
         markPharmacyBillAsPaid(pharmacyBill.code);
+        // Inject receiptHTML fallback if missing
+        if (!response.data.receipt?.receiptHTML) {
+          response.data.receipt = response.data.receipt || {};
+          response.data.receipt.receiptHTML = `
+            <div style="font-family: monospace; padding: 20px; font-size: 13px; line-height: 1.5; color: #000;">
+              <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px;">
+                <h3>SWIFTREV HOSPITAL RECEIPT</h3>
+                <p>PHARMACY BILLING DIVISION</p>
+              </div>
+              <div style="margin: 15px 0;">
+                <p><strong>Receipt Code:</strong> ${response.data.transaction?.receipt_no || `RC-${Math.floor(100000 + Math.random() * 900000)}`}</p>
+                <p><strong>Pharmacy Code:</strong> ${pharmacyBill.code}</p>
+                <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+                <p><strong>Patient Name:</strong> ${pharmacyBill.patientName}</p>
+                <p><strong>Patient ID:</strong> ${pharmacyBill.patientId}</p>
+              </div>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                  <tr style="border-bottom: 1px dashed #000; text-align: left;">
+                    <th>Description</th>
+                    <th style="text-align: right;">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${pharmacyBill.items.map(item => `
+                    <tr>
+                      <td>${item.name} (x${item.quantity})</td>
+                      <td style="text-align: right;">₦${item.amount.toLocaleString()}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+              <div style="border-top: 1px dashed #000; margin-top: 15px; padding-top: 10px; font-weight: bold; font-size: 15px; display: flex; justify-content: space-between;">
+                <span>Total Paid:</span>
+                <span>₦${pharmacyBill.totalAmount.toLocaleString()}</span>
+              </div>
+              <div style="margin-top: 20px; text-align: center; font-size: 11px;">
+                <p>Payment Mode: ${form.paymentType.toUpperCase()}</p>
+                <p>Thank you for your payment!</p>
+              </div>
+            </div>
+          `;
+        }
       }
       await handlePaymentSuccess(response);
+
       setForm(getInitialForm());
       setSelectedBillItems([]);
       setSelectedManualItems([]);
@@ -371,32 +375,68 @@ export function useCreateTransactionState({
     setIsSearchingPharmacyCode(false);
   };
 
-  const handlePharmacyCodeLookup = (code: string) => {
+  const handlePharmacyCodeLookup = async (code: string) => {
     if (!code.trim()) {
-      toast.error("Enter a pharmacy code.");
+      toast.error("Enter a pharmacy code or patient ID.");
       return;
     }
 
     setIsSearchingPharmacyCode(true);
-    const bill = lookupPharmacyBill(code);
-
-    if (bill) {
-      if (bill.status === "paid") {
-        toast.error(`Prescription ${code} has already been paid.`);
-        setPharmacyBill(null);
+    try {
+      const res = await getAgentPendingPharmacyRequests(code);
+      const list = Array.isArray(res)
+        ? res
+        : (res as any)?.data?.requests || (res as any)?.data || [];
+      
+      let matchedRequest = null;
+      const cleanCode = code.trim().toUpperCase();
+      if (cleanCode.startsWith("PR-") || cleanCode.startsWith("PH-")) {
+        matchedRequest = list.find((req: any) => req.billing_code?.toUpperCase() === cleanCode);
       } else {
-        toast.success(`Prescription bill loaded for ${bill.patientName}.`);
-        setPharmacyBill(bill);
+        matchedRequest = list[0];
+      }
+
+      if (matchedRequest) {
+        const mappedBill: PharmacyBill = {
+          code: matchedRequest.billing_code,
+          patientId: matchedRequest.patient_id,
+          patientName: matchedRequest.patient_name,
+          phoneNumber: matchedRequest.phone_number,
+          departmentId: matchedRequest.department_id || "",
+          departmentName: matchedRequest.department_name || "Pharmacy",
+          items: (matchedRequest.items || []).map((it: any) => ({
+            drugId: it.pharmacy_item_id || it.id || "",
+            name: it.name || it.item_name || "Medication",
+            quantity: it.quantity || 1,
+            unitPrice: it.unit_price || it.price || 0,
+            amount: it.amount || ((it.unit_price || 0) * (it.quantity || 1)),
+          })),
+          totalAmount: matchedRequest.total_amount,
+          status: matchedRequest.status === "dispensed" ? "paid" : "pending",
+          createdAt: matchedRequest.created_at || new Date().toISOString(),
+        };
+        (mappedBill as any).id =
+          matchedRequest.id ||
+          matchedRequest.request_id ||
+          matchedRequest.pharmacy_request_id ||
+          matchedRequest.billing_request_id;
+
+        toast.success(`Prescription bill loaded for ${mappedBill.patientName}.`);
+        setPharmacyBill(mappedBill);
         setForm((current) => ({
           ...current,
           paymentType: "cash",
         }));
+      } else {
+        toast.error(`No pending pharmacy requests found for "${code}".`);
+        setPharmacyBill(null);
       }
-    } else {
-      toast.error(`Pharmacy bill code "${code}" not found.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error looking up pharmacy bill.");
       setPharmacyBill(null);
+    } finally {
+      setIsSearchingPharmacyCode(false);
     }
-    setIsSearchingPharmacyCode(false);
   };
 
   const handleExpressSubmit = () => {
