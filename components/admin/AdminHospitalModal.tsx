@@ -77,7 +77,10 @@ function AdminHospitalModal({
     return isEditMode ? "Save Changes" : "Create Hospital";
   }, [isEditMode, isSubmitting]);
 
-  const updateField = (key: keyof FormState, value: any) => {
+  const updateField = <TKey extends keyof FormState>(
+    key: TKey,
+    value: FormState[TKey],
+  ) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 

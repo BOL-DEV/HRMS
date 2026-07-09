@@ -14,6 +14,9 @@ import {
   searchPatientsForPharmacy,
   BackendDrugItem,
   PatientMatchItem,
+  GetPharmacyInventoryResponse,
+  PharmacyBillingRequest,
+  unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
 
 interface PharmacyBillItem {
@@ -53,16 +56,17 @@ export default function PharmacyDispensePage() {
   const [patientId, setPatientId] = useState("");
   const [patientName, setPatientName] = useState("");
   const [patientPhone, setPatientPhone] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [departmentName, setDepartmentName] = useState("");
 
   // Patient Autocomplete State
   const [patientSearch, setPatientSearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const drugPickerRef = useRef<HTMLDivElement>(null);
 
   // Drug Select State
   const [selectedDrugId, setSelectedDrugId] = useState("");
+  const [drugSearch, setDrugSearch] = useState("");
+  const [showDrugSuggestions, setShowDrugSuggestions] = useState(false);
   const [dispenseQty, setDispenseQty] = useState("1");
 
   // Selected Items List
@@ -83,6 +87,9 @@ export default function PharmacyDispensePage() {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
+      if (drugPickerRef.current && !drugPickerRef.current.contains(e.target as Node)) {
+        setShowDrugSuggestions(false);
+      }
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
@@ -96,8 +103,8 @@ export default function PharmacyDispensePage() {
   });
 
   const inventory = useMemo<BackendDrugItem[]>(() => {
-    const rawItems = inventoryData?.items || (inventoryData as any)?.data?.items || [];
-    return (rawItems as BackendDrugItem[]).filter(
+    const rawData = unwrapPharmacyData<GetPharmacyInventoryResponse | null>(inventoryData, null);
+    return (rawData?.items ?? []).filter(
       (d: BackendDrugItem) => d.stock > 0 && d.status.toLowerCase() !== "expired"
     );
   }, [inventoryData]);
@@ -110,20 +117,14 @@ export default function PharmacyDispensePage() {
   });
 
   const patientSuggestions = useMemo<PatientMatchItem[]>(() => {
-    const rawData = patientQuery.data;
-    if (!rawData) return [];
-    if (Array.isArray(rawData)) return rawData as PatientMatchItem[];
-    if (rawData && "data" in rawData && Array.isArray((rawData as any).data)) {
-      return (rawData as any).data as PatientMatchItem[];
-    }
-    return [];
+    return unwrapPharmacyData<PatientMatchItem[]>(patientQuery.data, []);
   }, [patientQuery.data]);
 
   // Create Request Mutation
   const createRequestMutation = useMutation({
     mutationFn: createPharmacyRequest,
     onSuccess: (response) => {
-      const newRequest = (response as any).data || response;
+      const newRequest = unwrapPharmacyData<PharmacyBillingRequest>(response, response as PharmacyBillingRequest);
       // Map to local PharmacyBill preview format
       const previewBill: PharmacyBill = {
         id: newRequest.id,
@@ -134,6 +135,7 @@ export default function PharmacyDispensePage() {
         total_amount: newRequest.total_amount,
         status: newRequest.status,
         created_at: newRequest.created_at,
+        departmentName: "Pharmacy",
         items: billItems.map((item) => ({
           id: item.drugId,
           pharmacy_item_id: item.drugId,
@@ -154,24 +156,30 @@ export default function PharmacyDispensePage() {
     },
   });
 
-  const departments = [
-    { id: "dep-1", name: "General Medicine" },
-    { id: "dep-2", name: "Pediatrics" },
-    { id: "dep-3", name: "Cardiology" },
-    { id: "dep-4", name: "Surgery" },
-    { id: "dep-5", name: "Obstetrics & Gynecology" },
-    { id: "dep-6", name: "Pharmacy Department" },
-  ];
-
-  const handleDepartmentChange = (deptId: string) => {
-    setDepartmentId(deptId);
-    const match = departments.find((d) => d.id === deptId);
-    setDepartmentName(match ? match.name : "");
-  };
-
   const selectedDrug = useMemo(() => {
     return inventory.find((d: BackendDrugItem) => d.id === selectedDrugId) ?? null;
   }, [selectedDrugId, inventory]);
+
+  const filteredInventory = useMemo(() => {
+    const query = drugSearch.trim().toLowerCase();
+    if (!query) {
+      return inventory;
+    }
+
+    return inventory.filter((drug) => {
+      const haystack = [
+        drug.name,
+        drug.generic_name,
+        drug.category_name,
+        drug.batch_number,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [drugSearch, inventory]);
 
   // Add Item to Bill
   const handleAddItem = () => {
@@ -207,6 +215,8 @@ export default function PharmacyDispensePage() {
 
     setBillItems((current) => [...current, newItem]);
     setSelectedDrugId("");
+    setDrugSearch("");
+    setShowDrugSuggestions(false);
     setDispenseQty("1");
   };
 
@@ -225,11 +235,11 @@ export default function PharmacyDispensePage() {
     setPatientId("");
     setPatientName("");
     setPatientPhone("");
-    setDepartmentId("");
-    setDepartmentName("");
     setPatientSearch("");
     setBillItems([]);
     setSelectedDrugId("");
+    setDrugSearch("");
+    setShowDrugSuggestions(false);
     setDispenseQty("1");
   };
 
@@ -345,23 +355,12 @@ export default function PharmacyDispensePage() {
                   />
                 </label>
 
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Prescribing Department
+                <div className="rounded-xl border border-gray-100 bg-gray-50/70 px-4 py-3 text-sm text-gray-600 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-300">
+                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Billing Department
                   </span>
-                  <select
-                    value={departmentId}
-                    onChange={(e) => handleDepartmentChange(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                  >
-                    <option value="">Select Department</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  Pharmacy
+                </div>
               </div>
             </div>
 
@@ -369,23 +368,58 @@ export default function PharmacyDispensePage() {
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
               <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Add Formulations</h2>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                <label className="flex-1 block">
+                <div className="relative flex-1" ref={drugPickerRef}>
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                     Formulation / Drug
                   </span>
-                  <select
-                    value={selectedDrugId}
-                    onChange={(e) => setSelectedDrugId(e.target.value)}
+                  <input
+                    type="text"
+                    value={drugSearch}
+                    onFocus={() => setShowDrugSuggestions(true)}
+                    onChange={(e) => {
+                      setDrugSearch(e.target.value);
+                      setSelectedDrugId("");
+                      setShowDrugSuggestions(true);
+                    }}
+                    placeholder="Search drug name, generic name, category, or batch..."
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                  >
-                    <option value="">Select Drug (Stock count shown)</option>
-                    {inventory.map((d: BackendDrugItem) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name} (Qty: {d.stock}) - {formatCurrency(d.unit_price)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  />
+
+                  {showDrugSuggestions ? (
+                    <div className="absolute left-0 right-0 z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                      {filteredInventory.length === 0 ? (
+                        <div className="px-4 py-5 text-center text-sm text-gray-500">
+                          No matching drugs in stock.
+                        </div>
+                      ) : (
+                        filteredInventory.map((drug) => (
+                          <button
+                            key={drug.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDrugId(drug.id);
+                              setDrugSearch(drug.name);
+                              setShowDrugSuggestions(false);
+                            }}
+                            className="w-full border-b border-gray-50 px-4 py-3 text-left text-sm transition last:border-b-0 hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-slate-900 dark:text-white">{drug.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {drug.generic_name || drug.category_name} | Stock: {drug.stock}
+                                </p>
+                              </div>
+                              <span className="shrink-0 font-semibold text-brand-700 dark:text-brand-300">
+                                {formatCurrency(drug.unit_price)}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  ) : null}
+                </div>
 
                 <label className="block sm:w-32">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -473,7 +507,7 @@ export default function PharmacyDispensePage() {
                   {createRequestMutation.isPending ? "Generating..." : (
                     <>
                       <FiCheck />
-                      Generate Code & Dispense
+                      Generate Payment Code
                     </>
                   )}
                 </button>
@@ -499,7 +533,7 @@ export default function PharmacyDispensePage() {
             {/* Receipt Content */}
             <div className="text-center px-4">
               <span className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 mb-4">
-                Medication Dispensed
+                Prescription Generated
               </span>
               <h3 className="text-xl font-bold text-slate-950 dark:text-white">Prescription Receipt</h3>
               <p className="text-xs text-gray-500 mt-1">Please pay this code at the cashier&apos;s checkout terminal.</p>

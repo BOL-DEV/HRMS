@@ -17,16 +17,20 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { getAgentAccessToken } from "@/libs/auth";
+import { decodeJwt, getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getPharmacyRequests,
+  getPharmacyRequestById,
   updatePharmacyRequest,
   payPharmacyRequestSelf,
   getPharmacyInventory,
-  BackendDrugItem,
+  GetPharmacyInventoryResponse,
+  GetPharmacyRequestsResponse,
   PharmacyBillingRequest,
+  PharmacyRequestUpdatePayload,
+  unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
 
 interface LocalPharmacyBillItem {
@@ -37,14 +41,51 @@ interface LocalPharmacyBillItem {
   amount: number;
 }
 
+type PrescriptionStatusFilter = "all" | "pending" | "dispensed";
+
+function readBooleanClaim(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return undefined;
+}
+
+function getAllowPharmacySelfPay(accessToken: string | null) {
+  if (!accessToken) return false;
+
+  const decoded = decodeJwt(accessToken);
+  const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
+  const hospital =
+    user.hospital ??
+    user.hospital_settings ??
+    user.settings ??
+    decoded?.hospital ??
+    decoded?.hospital_settings ??
+    decoded?.settings ??
+    {};
+
+  return (
+    readBooleanClaim(user.allow_pharmacy_self_pay) ??
+    readBooleanClaim(user.allowPharmacySelfPay) ??
+    readBooleanClaim(hospital.allow_pharmacy_self_pay) ??
+    readBooleanClaim(hospital.allowPharmacySelfPay) ??
+    false
+  );
+}
+
 export default function PharmacyPrescriptionsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const allowPharmacySelfPay = useMemo(
+    () => getAllowPharmacySelfPay(accessToken),
+    [accessToken],
+  );
 
   // Active view states
-  const [activeTab, setActiveTab] = useState<"pending" | "dispensed">("pending");
+  const [activeTab, setActiveTab] = useState<PrescriptionStatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   // Modals state
@@ -69,11 +110,14 @@ export default function PharmacyPrescriptionsPage() {
 
   // Fetch Prescriptions List
   const { data: prescriptionsData, isLoading, error } = useQuery({
-    queryKey: ["pharmacy-prescriptions", activeTab],
+    queryKey: ["pharmacy-prescriptions", activeTab, startDate, endDate, currentPage],
     queryFn: () =>
       getPharmacyRequests({
-        status: activeTab,
-        limit: 100, // Fetch up to 100 recent ones for high-fidelity local filtering
+        status: activeTab === "all" ? undefined : activeTab,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        page: currentPage,
+        limit: 15,
       }),
     enabled: Boolean(accessToken),
   });
@@ -86,12 +130,12 @@ export default function PharmacyPrescriptionsPage() {
   });
 
   const inventory = useMemo(() => {
-    return inventoryData?.items || [];
+    return unwrapPharmacyData<GetPharmacyInventoryResponse | null>(inventoryData, null)?.items ?? [];
   }, [inventoryData]);
 
   // Mutations
   const updateRequestMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+    mutationFn: ({ id, payload }: { id: string; payload: PharmacyRequestUpdatePayload }) =>
       updatePharmacyRequest(id, payload),
     onSuccess: () => {
       toast.success("Prescription updated successfully.");
@@ -112,6 +156,28 @@ export default function PharmacyPrescriptionsPage() {
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to clear request.");
+    },
+  });
+
+  const requestDetailMutation = useMutation({
+    mutationFn: getPharmacyRequestById,
+    onSuccess: (response) => {
+      const request = unwrapPharmacyData<PharmacyBillingRequest>(response, response);
+      setViewingBill(request);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to load prescription details.");
+    },
+  });
+
+  const editDetailMutation = useMutation({
+    mutationFn: getPharmacyRequestById,
+    onSuccess: (response) => {
+      const request = unwrapPharmacyData<PharmacyBillingRequest>(response, response);
+      handleOpenEditModal(request);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to load prescription details.");
     },
   });
 
@@ -246,18 +312,39 @@ export default function PharmacyPrescriptionsPage() {
     return inventory.find((d) => d.id === selectedDrugId) ?? null;
   }, [selectedDrugId, inventory]);
 
-  // Safe mapping of the raw response
-  const rawList = useMemo<PharmacyBillingRequest[]>(() => {
-    if (!prescriptionsData) return [];
-    if (Array.isArray(prescriptionsData)) return prescriptionsData as PharmacyBillingRequest[];
-    const dataObj = (prescriptionsData as any).data || prescriptionsData;
-    if (Array.isArray(dataObj)) return dataObj as PharmacyBillingRequest[];
-    if (dataObj) {
-      if (Array.isArray(dataObj.requests)) return dataObj.requests as PharmacyBillingRequest[];
-      if (Array.isArray(dataObj.items)) return dataObj.items as PharmacyBillingRequest[];
+  const prescriptionsPayload = useMemo(() => {
+    const dataObj = unwrapPharmacyData<unknown>(prescriptionsData, []);
+
+    if (Array.isArray(dataObj)) {
+      return {
+        rows: dataObj as PharmacyBillingRequest[],
+        totalPages: 1,
+        totalItems: dataObj.length,
+        usesServerPagination: false,
+      };
     }
-    return [];
+
+    if (dataObj && typeof dataObj === "object") {
+      const response = dataObj as GetPharmacyRequestsResponse;
+      const rows = response.requests ?? response.items ?? [];
+
+      return {
+        rows,
+        totalPages: response.total_pages ?? 1,
+        totalItems: response.total_items ?? rows.length,
+        usesServerPagination: Boolean(response.total_pages),
+      };
+    }
+
+    return {
+      rows: [],
+      totalPages: 1,
+      totalItems: 0,
+      usesServerPagination: false,
+    };
   }, [prescriptionsData]);
+
+  const rawList = prescriptionsPayload.rows;
 
   // Local Search & Filtering
   const filteredList = useMemo(() => {
@@ -275,13 +362,18 @@ export default function PharmacyPrescriptionsPage() {
     return result;
   }, [rawList, searchQuery]);
 
-  // Local Pagination
   const itemsPerPage = 15;
-  const totalPages = Math.ceil(filteredList.length / itemsPerPage) || 1;
+  const totalPages = prescriptionsPayload.usesServerPagination
+    ? prescriptionsPayload.totalPages
+    : Math.ceil(filteredList.length / itemsPerPage) || 1;
   const paginatedList = useMemo(() => {
+    if (prescriptionsPayload.usesServerPagination) {
+      return filteredList;
+    }
+
     const start = (currentPage - 1) * itemsPerPage;
     return filteredList.slice(start, start + itemsPerPage);
-  }, [filteredList, currentPage]);
+  }, [filteredList, currentPage, prescriptionsPayload.usesServerPagination]);
 
   if (!accessToken) {
     return null;
@@ -299,10 +391,25 @@ export default function PharmacyPrescriptionsPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Prescription Orders</h1>
-            <p className="text-sm text-gray-500">Track drug prescriptions and dispense statuses</p>
+            <p className="text-sm text-gray-500">
+              Track all prescriptions, filter by date, and review payment status
+            </p>
           </div>
 
           <div className="inline-flex rounded-xl bg-gray-200/80 p-1 dark:bg-slate-800">
+            <button
+              onClick={() => {
+                setActiveTab("all");
+                setCurrentPage(1);
+              }}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                activeTab === "all"
+                  ? "bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white"
+                  : "text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200"
+              }`}
+            >
+              All
+            </button>
             <button
               onClick={() => {
                 setActiveTab("pending");
@@ -314,7 +421,7 @@ export default function PharmacyPrescriptionsPage() {
                   : "text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
-              To Dispense (Pending Pay)
+              Pending
             </button>
             <button
               onClick={() => {
@@ -327,24 +434,66 @@ export default function PharmacyPrescriptionsPage() {
                   : "text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
-              Dispensed (Completed)
+              Paid
             </button>
           </div>
         </div>
 
         {/* Filter Toolbar */}
-        <div className="relative">
-          <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
+        <div className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 lg:grid-cols-[1fr_auto_auto_auto]">
+          <div className="relative">
+            <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search by Patient Name, ID, Phone, or Bill Code..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+            />
+          </div>
+
+          <label className="block">
+            <span className="sr-only">Start date</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white lg:w-44"
+            />
+          </label>
+
+          <label className="block">
+            <span className="sr-only">End date</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white lg:w-44"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setStartDate("");
+              setEndDate("");
+              setActiveTab("all");
               setCurrentPage(1);
             }}
-            placeholder="Search by Patient Name, ID, Phone, or Bill Code..."
-            className="w-full rounded-xl border border-gray-200 bg-white py-3.5 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          />
+            className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Reset
+          </button>
         </div>
 
         {/* Orders Table */}
@@ -409,20 +558,24 @@ export default function PharmacyPrescriptionsPage() {
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2">
                             <button
-                              onClick={() => setViewingBill(bill)}
+                              onClick={() => requestDetailMutation.mutate(bill.id)}
+                              disabled={requestDetailMutation.isPending}
                               className="rounded-lg p-2 text-slate-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800"
                               title="View Receipt / Clearance Code"
                             >
                               <FiEye className="h-4 w-4" />
                             </button>
                             {bill.status === "pending" ? (
-                              <button
-                                onClick={() => handleOpenEditModal(bill)}
-                                className="rounded-lg p-2 text-brand-700 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10"
-                                title="Edit Drugs List"
-                              >
-                                <FiEdit2 className="h-4 w-4" />
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => editDetailMutation.mutate(bill.id)}
+                                  disabled={editDetailMutation.isPending}
+                                  className="rounded-lg p-2 text-brand-700 hover:bg-brand-50 disabled:opacity-50 dark:text-brand-400 dark:hover:bg-brand-500/10"
+                                  title="Edit Drugs List"
+                                >
+                                  <FiEdit2 className="h-4 w-4" />
+                                </button>
+                              </>
                             ) : null}
                           </div>
                         </td>
@@ -564,15 +717,17 @@ export default function PharmacyPrescriptionsPage() {
 
               {/* Printing / Dispense */}
               <div className="mt-6 flex flex-col gap-2">
-                {viewingBill.status === "pending" && (
-                  <button
-                    onClick={() => selfPayMutation.mutate(viewingBill.id)}
-                    disabled={selfPayMutation.isPending}
-                    className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <FiCheck />
-                    {selfPayMutation.isPending ? "Clearing..." : "Dispense & Clear Bill (Self Pay)"}
-                  </button>
+                {viewingBill.status === "pending" && allowPharmacySelfPay && (
+                  <div>
+                    <button
+                      onClick={() => selfPayMutation.mutate(viewingBill.id)}
+                      disabled={selfPayMutation.isPending}
+                      className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <FiCheck />
+                      {selfPayMutation.isPending ? "Clearing..." : "Self Pay"}
+                    </button>
+                  </div>
                 )}
                 <div className="flex gap-2">
                   <button

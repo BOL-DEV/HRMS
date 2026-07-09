@@ -25,6 +25,8 @@ import type {
   AgentReceiptSearchType,
   AgentTransactionsResponse,
   AgentTransactionsTimePeriod,
+  AgentPendingPharmacyRequestsResponse,
+  AgentPaymentType,
   AgentSelfTopupHistoryResponse,
   AuthRefreshResponse,
   HospitalImageUrlResponse,
@@ -365,7 +367,7 @@ export async function printApprovedAgentReceipt(
 
 export async function getAgentPendingPharmacyRequests(patientId: string) {
   return withAgentSessionRetry((accessToken) =>
-    getJson<any>(
+    getJson<AgentPendingPharmacyRequestsResponse>(
       `/api/payments/pharmacy-requests?patient_id=${encodeURIComponent(patientId)}`,
       {
         headers: getAgentAuthHeaders(accessToken),
@@ -376,7 +378,7 @@ export async function getAgentPendingPharmacyRequests(patientId: string) {
 
 export async function processAgentPharmacyPayment(payload: {
   request_id: string;
-  payment_type: "cash" | "transfer" | "pos" | string;
+  payment_type: AgentPaymentType;
 }) {
   return withAgentSessionRetry((accessToken) =>
     postJson<ProcessPaymentResponse>(

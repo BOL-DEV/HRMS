@@ -11,12 +11,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getPharmacyCategories,
   createPharmacyCategory,
+  updatePharmacyCategory,
+  deletePharmacyCategory,
   getPharmacyInventory,
   addPharmacyDrug,
   updatePharmacyDrug,
   deletePharmacyDrug,
   BackendDrugItem,
   PharmacyCategory,
+  PharmacyDrugPayload,
+  GetPharmacyInventoryResponse,
+  unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
 
 export default function PharmacyInventoryPage() {
@@ -47,6 +52,9 @@ export default function PharmacyInventoryPage() {
   // Category Creation Inline State
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState("");
+  const [editingCategoryName, setEditingCategoryName] = useState("");
 
   useEffect(() => {
     if (!accessToken) {
@@ -62,13 +70,7 @@ export default function PharmacyInventoryPage() {
   });
 
   const categories = React.useMemo<PharmacyCategory[]>(() => {
-    const rawData = categoriesQuery.data;
-    if (!rawData) return [];
-    if (Array.isArray(rawData)) return rawData as PharmacyCategory[];
-    if (rawData && "data" in rawData && Array.isArray((rawData as any).data)) {
-      return (rawData as any).data as PharmacyCategory[];
-    }
-    return [];
+    return unwrapPharmacyData<PharmacyCategory[]>(categoriesQuery.data, []);
   }, [categoriesQuery.data]);
 
   const { data: inventoryData, isLoading, error } = useQuery({
@@ -88,7 +90,15 @@ export default function PharmacyInventoryPage() {
   const createCategoryMutation = useMutation({
     mutationFn: createPharmacyCategory,
     onSuccess: (response) => {
-      const newCat = (response as any).data || response;
+      const newCat = unwrapPharmacyData<PharmacyCategory | null>(response, null);
+      if (!newCat) {
+        toast.success("Category created successfully.");
+        queryClient.invalidateQueries({ queryKey: ["pharmacy-categories"] });
+        setIsAddingCategory(false);
+        setNewCategoryName("");
+        return;
+      }
+
       toast.success(`Category "${newCat.name}" created successfully.`);
       queryClient.invalidateQueries({ queryKey: ["pharmacy-categories"] });
       setFormCategory(newCat.id);
@@ -113,7 +123,7 @@ export default function PharmacyInventoryPage() {
   });
 
   const updateDrugMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => updatePharmacyDrug(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: PharmacyDrugPayload }) => updatePharmacyDrug(id, payload),
     onSuccess: () => {
       toast.success("Formulation updated successfully.");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
@@ -132,6 +142,40 @@ export default function PharmacyInventoryPage() {
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to delete drug.");
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({
+      id,
+      name,
+      isActive,
+    }: {
+      id: string;
+      name: string;
+      isActive: boolean;
+    }) => updatePharmacyCategory(id, name, isActive),
+    onSuccess: () => {
+      toast.success("Category updated successfully.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+      setEditingCategoryId("");
+      setEditingCategoryName("");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to update category.");
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: deletePharmacyCategory,
+    onSuccess: () => {
+      toast.success("Category removed successfully.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to remove category.");
     },
   });
 
@@ -184,7 +228,7 @@ export default function PharmacyInventoryPage() {
     // backend expects YYYY-MM-DD
     const expiry_date = expiryRaw.length === 7 ? `${expiryRaw}-01` : expiryRaw;
 
-    const payload = {
+    const payload: PharmacyDrugPayload = {
       name,
       generic_name: generic_name || undefined,
       category_id: formCategory,
@@ -217,6 +261,25 @@ export default function PharmacyInventoryPage() {
     createCategoryMutation.mutate(catName);
   };
 
+  const handleStartEditCategory = (category: PharmacyCategory) => {
+    setEditingCategoryId(category.id);
+    setEditingCategoryName(category.name);
+  };
+
+  const handleSaveCategory = (category: PharmacyCategory) => {
+    const name = editingCategoryName.trim();
+    if (!name) {
+      toast.error("Enter a valid category name.");
+      return;
+    }
+
+    updateCategoryMutation.mutate({
+      id: category.id,
+      name,
+      isActive: category.is_active,
+    });
+  };
+
   const getStatusStyle = (status: BackendDrugItem["status"] | string) => {
     const cleanStatus = String(status).toLowerCase();
     if (cleanStatus === "in stock") {
@@ -234,9 +297,10 @@ export default function PharmacyInventoryPage() {
     return null;
   }
 
-  const items = inventoryData?.items || (inventoryData as any)?.data?.items || [];
-  const totalPages = inventoryData?.total_pages || (inventoryData as any)?.data?.total_pages || 1;
-  const totalItems = inventoryData?.total_items || (inventoryData as any)?.data?.total_items || 0;
+  const inventory = unwrapPharmacyData<GetPharmacyInventoryResponse | null>(inventoryData, null);
+  const items = inventory?.items ?? [];
+  const totalPages = inventory?.total_pages ?? 1;
+  const totalItems = inventory?.total_items ?? 0;
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
@@ -258,6 +322,13 @@ export default function PharmacyInventoryPage() {
           >
             <FiPlus />
             Add Drug
+          </button>
+          <button
+            onClick={() => setIsCategoryManagerOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <FiFolderPlus />
+            Categories
           </button>
         </div>
 
@@ -609,6 +680,122 @@ export default function PharmacyInventoryPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isCategoryManagerOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-bold text-slate-950 dark:text-white">Drug Categories</h3>
+                <p className="text-xs text-gray-500">Rename categories or suspend them from new use.</p>
+              </div>
+              <button
+                onClick={() => setIsCategoryManagerOpen(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+              {categories.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-500 dark:border-slate-700">
+                  No categories created yet.
+                </div>
+              ) : (
+                categories.map((category) => {
+                  const isEditing = editingCategoryId === category.id;
+
+                  return (
+                    <div
+                      key={category.id}
+                      className="flex flex-col gap-3 rounded-xl border border-gray-200 p-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0 flex-1">
+                        {isEditing ? (
+                          <input
+                            value={editingCategoryName}
+                            onChange={(event) => setEditingCategoryName(event.target.value)}
+                            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                          />
+                        ) : (
+                          <>
+                            <p className="font-semibold text-slate-900 dark:text-white">{category.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {category.item_count} active item(s) | {category.is_active ? "Active" : "Suspended"}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveCategory(category)}
+                              disabled={updateCategoryMutation.isPending}
+                              className="rounded-lg bg-brand-700 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCategoryId("");
+                                setEditingCategoryName("");
+                              }}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditCategory(category)}
+                              className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-200"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateCategoryMutation.mutate({
+                                  id: category.id,
+                                  name: category.name,
+                                  isActive: !category.is_active,
+                                })
+                              }
+                              disabled={updateCategoryMutation.isPending}
+                              className="rounded-lg border border-brand-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-60 dark:border-brand-500/40 dark:text-brand-300"
+                            >
+                              {category.is_active ? "Suspend" : "Reactivate"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Remove category "${category.name}"?`)) {
+                                  deleteCategoryMutation.mutate(category.id);
+                                }
+                              }}
+                              disabled={deleteCategoryMutation.isPending}
+                              className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       ) : null}

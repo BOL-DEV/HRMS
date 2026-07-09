@@ -10,7 +10,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAgentAccessToken } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
-import { getPharmacyDashboardStats, PharmacyDashboardStats } from "@/libs/pharmacy-api";
+import {
+  getPharmacyDashboardStats,
+  PharmacyDashboardStats,
+  unwrapPharmacyData,
+} from "@/libs/pharmacy-api";
 
 export default function PharmacyDashboardPage() {
   const router = useRouter();
@@ -27,14 +31,15 @@ export default function PharmacyDashboardPage() {
     queryKey: ["pharmacy-dashboard"],
     queryFn: getPharmacyDashboardStats,
     enabled: Boolean(accessToken),
-    refetchInterval: 10000, // auto refresh every 10 seconds for real-time dashboard feeling
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   if (!accessToken) {
     return null;
   }
 
-  const stats: PharmacyDashboardStats = (statsData as any)?.data || statsData || {
+  const stats = unwrapPharmacyData<PharmacyDashboardStats>(statsData, {
     revenue_today: 0,
     total_count_dispensed: 0,
     pending_requests_count: 0,
@@ -42,7 +47,7 @@ export default function PharmacyDashboardPage() {
     total_inventory_value: 0,
     pending_requests: [],
     low_stock_items: [],
-  };
+  });
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">

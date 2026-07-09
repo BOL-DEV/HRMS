@@ -141,18 +141,18 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             <div className="p-6 space-y-6">
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-                  Pharmacy Clearing
+                  Pharmacy Request Payment
                 </h3>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                   <label className="flex-1 block">
                     <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Patient Card Number / Patient ID
+                      Patient Card Number
                     </span>
                     <input
                       type="text"
                       value={pharmacyCode}
                       onChange={(e) => setPharmacyCode(e.target.value)}
-                      placeholder="Enter patient's card number (e.g. 100234 or P-12345)"
+                      placeholder="Enter patient's card number (e.g. 100234)"
                       className="w-full rounded-xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                     />
                   </label>
@@ -194,17 +194,23 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     </div>
 
                     <div className="border-t border-gray-100 pt-4 dark:border-slate-800">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Dispensed Items</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Requested Items</p>
                       <div className="space-y-2">
-                        {pharmacyBill.items.map((it) => (
-                          <div key={it.drugId} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 dark:border-slate-800">
-                            <div>
-                              <p className="font-semibold text-slate-900 dark:text-white">{it.name}</p>
-                              <p className="text-xs text-gray-500">{it.quantity} x {formatCurrency(it.unitPrice)}</p>
+                        {pharmacyBill.items.length > 0 ? (
+                          pharmacyBill.items.map((it) => (
+                            <div key={it.drugId || it.name} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 dark:border-slate-800">
+                              <div>
+                                <p className="font-semibold text-slate-900 dark:text-white">{it.name}</p>
+                                <p className="text-xs text-gray-500">{it.quantity} x {formatCurrency(it.unitPrice)}</p>
+                              </div>
+                              <span className="font-bold text-slate-950 dark:text-white">{formatCurrency(it.amount)}</span>
                             </div>
-                            <span className="font-bold text-slate-950 dark:text-white">{formatCurrency(it.amount)}</span>
+                          ))
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-gray-200 px-4 py-5 text-sm text-gray-500 dark:border-slate-800 dark:text-slate-400">
+                            Item details were not included in this lookup. Confirm the total before clearing.
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
                   </div>

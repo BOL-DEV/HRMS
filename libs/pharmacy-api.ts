@@ -45,6 +45,24 @@ export interface GetPharmacyInventoryParams {
   limit?: number;
 }
 
+export type PharmacyDrugPayload = {
+  name: string;
+  generic_name?: string;
+  category_id: string;
+  batch_number?: string;
+  expiry_date: string;
+  stock: number;
+  reorder_level: number;
+  unit_price: number;
+};
+
+export type PharmacyRequestUpdatePayload = Partial<{
+  patient_id: string;
+  patient_name: string;
+  phone_number: string;
+  items: { pharmacy_item_id: string; quantity: number }[];
+}>;
+
 export interface PatientMatchItem {
   patient_id: string;
   patient_name: string;
@@ -86,6 +104,15 @@ export interface GetPharmacyRequestsParams {
   limit?: number;
 }
 
+export interface GetPharmacyRequestsResponse {
+  total_items?: number;
+  page?: number;
+  limit?: number;
+  total_pages?: number;
+  requests?: PharmacyBillingRequest[];
+  items?: PharmacyBillingRequest[];
+}
+
 export interface PharmacyDashboardStats {
   revenue_today: number;
   total_count_dispensed: number;
@@ -110,6 +137,15 @@ export interface PharmacyDashboardStats {
     reorder_level: number;
     status: "Low stock";
   }[];
+}
+
+export function unwrapPharmacyData<T>(value: unknown, fallback: T): T {
+  if (value && typeof value === "object" && "data" in value) {
+    const data = (value as { data?: unknown }).data;
+    return (data ?? fallback) as T;
+  }
+
+  return (value ?? fallback) as T;
 }
 
 // --- Session Retry Helpers ---
@@ -210,16 +246,7 @@ export async function getPharmacyInventory(params?: GetPharmacyInventoryParams) 
   );
 }
 
-export async function addPharmacyDrug(drug: {
-  name: string;
-  generic_name?: string;
-  category_id: string;
-  batch_number?: string;
-  expiry_date: string;
-  stock: number;
-  reorder_level: number;
-  unit_price: number;
-}) {
+export async function addPharmacyDrug(drug: PharmacyDrugPayload) {
   return withPharmacySessionRetry((accessToken) =>
     postJson<BackendDrugItem>("/api/pharmacy/inventory", drug, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -227,16 +254,7 @@ export async function addPharmacyDrug(drug: {
   );
 }
 
-export async function updatePharmacyDrug(itemId: string, drug: Partial<{
-  name: string;
-  generic_name?: string;
-  category_id: string;
-  batch_number?: string;
-  expiry_date: string;
-  stock: number;
-  reorder_level: number;
-  unit_price: number;
-}>) {
+export async function updatePharmacyDrug(itemId: string, drug: Partial<PharmacyDrugPayload>) {
   return withPharmacySessionRetry((accessToken) =>
     patchJson<BackendDrugItem>(`/api/pharmacy/inventory/${itemId}`, drug, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -289,7 +307,7 @@ export async function getPharmacyRequests(params?: GetPharmacyRequestsParams) {
   const endpoint = `/api/pharmacy/request${queryStr ? `?${queryStr}` : ""}`;
 
   return withPharmacySessionRetry((accessToken) =>
-    getJson<{ items: PharmacyBillingRequest[] } | PharmacyBillingRequest[]>(endpoint, {
+    getJson<GetPharmacyRequestsResponse | PharmacyBillingRequest[]>(endpoint, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
@@ -303,12 +321,7 @@ export async function getPharmacyRequestById(requestId: string) {
   );
 }
 
-export async function updatePharmacyRequest(requestId: string, request: Partial<{
-  patient_id: string;
-  patient_name: string;
-  phone_number: string;
-  items: { pharmacy_item_id: string; quantity: number }[];
-}>) {
+export async function updatePharmacyRequest(requestId: string, request: PharmacyRequestUpdatePayload) {
   return withPharmacySessionRetry((accessToken) =>
     patchJson<PharmacyBillingRequest>(`/api/pharmacy/request/${requestId}`, request, {
       headers: { Authorization: `Bearer ${accessToken}` },

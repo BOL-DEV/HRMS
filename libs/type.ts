@@ -443,6 +443,45 @@ export type ProcessPaymentResponse = {
   };
 };
 
+export type AgentPendingPharmacyRequestItem = {
+  id?: string;
+  pharmacy_item_id?: string;
+  name?: string;
+  item_name?: string;
+  quantity?: number;
+  unit_price?: number;
+  price?: number;
+  amount?: number;
+};
+
+export type AgentPendingPharmacyRequest = {
+  id?: string;
+  request_id?: string;
+  pharmacy_request_id?: string;
+  billing_request_id?: string;
+  patient_id: string;
+  patient_name: string;
+  phone_number: string;
+  billing_code: string;
+  total_amount: number;
+  status: "pending" | "dispensed" | "cancelled";
+  created_at: string;
+  department_id?: string;
+  department_name?: string;
+  items?: AgentPendingPharmacyRequestItem[];
+};
+
+export type AgentPendingPharmacyRequestsResponse = {
+  status?: number;
+  message?: string;
+  data:
+    | AgentPendingPharmacyRequest[]
+    | {
+        requests?: AgentPendingPharmacyRequest[];
+        items?: AgentPendingPharmacyRequest[];
+      };
+};
+
 export type AgentReceiptSearchType =
   | "receipt_no"
   | "patient_name"
