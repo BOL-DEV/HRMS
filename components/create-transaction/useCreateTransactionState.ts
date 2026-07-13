@@ -192,12 +192,38 @@ function getPharmacyRequestId(request: AgentPendingPharmacyRequest) {
 }
 
 function mapPharmacyRequestToBill(request: AgentPendingPharmacyRequest): PharmacyBill {
+  console.log("CreateTransactionState: mapping raw lookup request:", request);
+
+  const patientNameVal =
+    request.patient_name ||
+    (request as any).patientName ||
+    (request as any).patient?.patient_name ||
+    (request as any).patient?.patientName ||
+    (request as any).patient?.name ||
+    "Patient";
+
+  const patientIdVal =
+    request.patient_id ||
+    (request as any).patientId ||
+    (request as any).patient?.patient_id ||
+    (request as any).patient?.patientId ||
+    "";
+
+  const phoneNumberVal =
+    request.phone_number ||
+    (request as any).phoneNumber ||
+    (request as any).patient?.phone_number ||
+    (request as any).patient?.phoneNumber ||
+    "";
+
+  const resolvedCode = (request.billing_code || (request as any).code || "").trim().toUpperCase();
+
   return {
     id: getPharmacyRequestId(request),
-    code: request.billing_code,
-    patientId: request.patient_id,
-    patientName: request.patient_name,
-    phoneNumber: request.phone_number,
+    code: resolvedCode,
+    patientId: patientIdVal,
+    patientName: patientNameVal,
+    phoneNumber: phoneNumberVal,
     departmentId: request.department_id ?? "",
     departmentName: request.department_name ?? "Pharmacy",
     items: (request.items ?? []).map(mapPharmacyRequestItem),
@@ -314,6 +340,31 @@ export function useCreateTransactionState({
   const paymentMode = paymentConfigQuery.data?.data.revenue_type ?? "";
   const hospitalId = paymentConfigQuery.data?.data.hospital_id ?? "";
   const isExpressMode = transactionMode === "express";
+  const showPharmacyOption = useMemo(() => {
+    const configData = paymentConfigQuery.data?.data;
+    console.log("CreateTransactionState: payment-config API returned:", configData);
+    if (!configData) return false;
+
+    const readBool = (val: unknown) => {
+      if (val === undefined || val === null) return undefined;
+      if (typeof val === "boolean") return val;
+      if (typeof val === "string") return val.toLowerCase() === "true";
+      return undefined;
+    };
+
+    const hasPharmacy =
+      readBool(configData.has_pharmacy_module) ??
+      readBool((configData as any).hasPharmacyModule) ??
+      true;
+
+    const allowAgentPay =
+      readBool(configData.allow_agent_pharmacy_pay) ??
+      readBool((configData as any).allowAgentPharmacyPay) ??
+      true;
+
+    console.log("CreateTransactionState: showPharmacyOption evaluated to:", hasPharmacy && allowAgentPay);
+    return hasPharmacy && allowAgentPay;
+  }, [paymentConfigQuery.data]);
 
   const departmentsQuery = useQuery({
     queryKey: ["agent-departments"],
@@ -449,18 +500,21 @@ export function useCreateTransactionState({
   const paymentMutation = useMutation({
     mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
       if (isPharmacyMode && pharmacyBill) {
-        if (!pharmacyBill.id) {
-          throw new Error("This pharmacy request is missing a request ID.");
+        if (!pharmacyBill.code) {
+          throw new Error("This pharmacy request is missing a billing code.");
         }
 
-        return processAgentPharmacyPayment({
-          request_id: pharmacyBill.id,
+        const payload = {
+          billing_code: pharmacyBill.code.trim().toUpperCase(),
           payment_type: form.paymentType,
-        });
+        };
+        console.log("CreateTransactionState: processAgentPharmacyPayment payload:", payload);
+        return processAgentPharmacyPayment(payload);
       }
       return processAgentPayment(variables);
     },
     onSuccess: async (response) => {
+      console.log("CreateTransactionState: paymentMutation onSuccess response:", response);
       toast.success(response.message || "Payment processed successfully.");
       if (isPharmacyMode && pharmacyBill) {
         if (!response.data.receipt?.receiptHTML) {
@@ -487,6 +541,7 @@ export function useCreateTransactionState({
       onClose();
     },
     onError: (error) => {
+      console.error("CreateTransactionState: paymentMutation onError:", error);
       toast.error(
         error instanceof Error ? error.message : "Unable to process payment.",
       );
@@ -530,13 +585,13 @@ export function useCreateTransactionState({
 
   const handlePharmacyCodeLookup = async (code: string) => {
     if (!code.trim()) {
-      toast.error("Enter a patient card number.");
+      toast.error("Enter a billing code.");
       return;
     }
 
     setIsSearchingPharmacyCode(true);
     try {
-      const res = await getAgentPendingPharmacyRequests(code);
+      const res = await getAgentPendingPharmacyRequests({ billing_code: code.trim().toUpperCase() });
       const requests = getPendingPharmacyRequests(res);
       const matchedRequest =
         requests.find(isPendingPharmacyRequest) ?? requests[0] ?? null;
@@ -544,8 +599,8 @@ export function useCreateTransactionState({
       if (matchedRequest) {
         const mappedBill = mapPharmacyRequestToBill(matchedRequest);
 
-        if (!mappedBill.id) {
-          toast.error("This pharmacy request is missing a request ID.");
+        if (!mappedBill.code) {
+          toast.error("This pharmacy request is missing a billing code.");
           setPharmacyBill(null);
           return;
         }
@@ -557,7 +612,7 @@ export function useCreateTransactionState({
           paymentType: "cash",
         }));
       } else {
-        toast.error(`No pending pharmacy requests found for patient "${code}".`);
+        toast.error(`No pending pharmacy requests found for code "${code}".`);
         setPharmacyBill(null);
       }
     } catch (error) {
@@ -1088,5 +1143,6 @@ export function useCreateTransactionState({
     isSearchingPharmacyCode,
     handlePharmacyCodeLookup,
     isPharmacyMode,
+    showPharmacyOption,
   };
 }

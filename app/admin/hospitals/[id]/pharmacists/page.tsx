@@ -18,7 +18,7 @@ import type {
 } from "@/libs/type";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { FiUsers } from "react-icons/fi";
 
@@ -101,8 +101,31 @@ export default function HospitalPharmacistsPage() {
     },
   });
 
-  const pharmacists = pharmacistsQuery.data?.data.pharmacists ?? [];
-  const totalPharmacists = pharmacistsQuery.data?.data.total_pharmacists ?? 0;
+  const pharmacists = useMemo<AdminHospitalPharmacistListItem[]>(() => {
+    const rawData = pharmacistsQuery.data;
+    if (!rawData) return [];
+    if (Array.isArray(rawData)) return rawData as unknown as AdminHospitalPharmacistListItem[];
+    if (rawData && typeof rawData === "object" && "data" in rawData) {
+      const inner = rawData.data;
+      if (Array.isArray(inner)) return inner as unknown as AdminHospitalPharmacistListItem[];
+      if (inner && typeof inner === "object" && "pharmacists" in inner) {
+        return (inner.pharmacists as AdminHospitalPharmacistListItem[]) ?? [];
+      }
+    }
+    return [];
+  }, [pharmacistsQuery.data]);
+
+  const totalPharmacists = useMemo<number>(() => {
+    const rawData = pharmacistsQuery.data;
+    if (!rawData) return 0;
+    if (rawData && typeof rawData === "object" && "data" in rawData) {
+      const inner = rawData.data;
+      if (inner && typeof inner === "object" && "total_pharmacists" in inner) {
+        return (inner.total_pharmacists as number) ?? pharmacists.length;
+      }
+    }
+    return pharmacists.length;
+  }, [pharmacistsQuery.data, pharmacists]);
 
   const handleUpdate = (payload: UpdateAdminHospitalPharmacistPayload) => {
     if (!editingPharmacist) {

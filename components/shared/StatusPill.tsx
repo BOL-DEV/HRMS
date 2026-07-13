@@ -13,7 +13,8 @@ interface Props {
     | "Suspended"
     | "Approved"
     | "Rejected"
-    | "Not Requested";
+    | "Not Requested"
+    | "Cancelled";
 }
 
 function StatusPill({ status }: Props) {
@@ -30,7 +31,7 @@ function StatusPill({ status }: Props) {
               ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
               : status === "Suspended"
                 ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
-                : status === "Refunded"
+                : status === "Refunded" || status === "Cancelled"
                   ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
                   : status === "Refund"
                     ? "bg-brand-100 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300"

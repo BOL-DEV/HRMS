@@ -375,6 +375,30 @@ export async function getAdminHospitalOverview(hospitalId: string) {
   );
 }
 
+export async function getAdminHospital(hospitalId: string) {
+  return adminGet<{
+    status: number;
+    message: string;
+    data: {
+      id: string;
+      hospital_code: string;
+      name: string;
+      logo_url?: string;
+      address: string;
+      contact_email: string;
+      contact_phone: string;
+      revenue_type: "manual" | "automatic";
+      has_pharmacy_module?: boolean;
+      allow_pharmacy_self_pay?: boolean;
+      allow_agent_pharmacy_pay?: boolean;
+      allow_pharmacy_walk_in?: boolean;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    };
+  }>(`/api/admin/hospitals/${hospitalId}`);
+}
+
 export async function getAdminHospitalImageUrl(hospitalId: string) {
   return adminGet<HospitalImageUrlResponse>(
     `/api/admin/hospitals/${hospitalId}/image-url`,

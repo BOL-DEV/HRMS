@@ -377,3 +377,188 @@ export async function getPharmacyProfile() {
     })
   );
 }
+
+export async function lookupPatientForPharmacy(patientId: string) {
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      exists: boolean;
+      patient: {
+        patient_id: string;
+        patient_name: string;
+        phone_number: string;
+      } | null;
+    }>(`/api/pharmacy/patients/${patientId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function searchPharmacyHospitalPatients(
+  hospitalId: string,
+  params: { query: string; limit?: number },
+) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("query", params.query);
+  if (params.limit) searchParams.set("limit", String(params.limit));
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: number;
+      message: string;
+      data: {
+        patients: Array<{
+          patient_id: string;
+          patient_name: string;
+          phone_number: string;
+          display_value: string;
+        }>;
+      };
+    }>(
+      `/api/hospitals/${hospitalId}/patients/search?${searchParams.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
+  );
+}
+
+
+// --- Reports APIs and Interfaces ---
+
+export interface PharmacyReportOverviewResponse {
+  status: number;
+  message: string;
+  data: {
+    date_range: {
+      start_date: string;
+      end_date: string;
+    };
+    financial_summary: {
+      total_revenue: number;
+      payment_breakdown: {
+        cash: number;
+        pos: number;
+        transfer: number;
+      };
+    };
+    top_dispensed_drugs: Array<{
+      item_name: string;
+      generic_name: string;
+      total_quantity: number;
+      total_revenue: number;
+    }>;
+    dispensed_summary: Array<{
+      date: string;
+      pharmacist_name: string;
+      requests_count: number;
+      total_amount: number;
+    }>;
+  };
+}
+
+export interface PharmacyReportDispensedResponse {
+  status: number;
+  message: string;
+  data: {
+    date_range: {
+      start_date: string;
+      end_date: string;
+    };
+    total_items: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    requests: Array<{
+      id: string;
+      billing_code: string;
+      patient_id: string;
+      patient_name: string;
+      phone_number: string;
+      total_amount: number;
+      dispensed_at: string;
+      pharmacist_name: string;
+      payment_type: string;
+      items: Array<{
+        pharmacy_item_id: string;
+        item_name: string;
+        generic_name: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+      }>;
+    }>;
+  };
+}
+
+export interface PharmacyReportStockAdditionsResponse {
+  status: number;
+  message: string;
+  data: {
+    date_range: {
+      start_date: string;
+      end_date: string;
+    };
+    total_items: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    logs: Array<{
+      id: string;
+      action_type: string;
+      quantity_changed: number;
+      old_stock: number;
+      new_stock: number;
+      old_batch: string;
+      new_batch: string;
+      old_expiry: string;
+      new_expiry: string;
+      created_at: string;
+      item_name: string;
+      generic_name: string;
+      pharmacist_name: string;
+    }>;
+  };
+}
+
+export async function getPharmacyReportOverview(params?: { start_date?: string; end_date?: string }) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyReportOverviewResponse>(`/api/pharmacy/report/overview${suffix}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyReportDispensed(params?: { start_date?: string; end_date?: string; page?: number; limit?: number }) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyReportDispensedResponse>(`/api/pharmacy/report/dispensed${suffix}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyReportStockAdditions(params?: { start_date?: string; end_date?: string; page?: number; limit?: number }) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyReportStockAdditionsResponse>(`/api/pharmacy/report/stock-additions${suffix}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}

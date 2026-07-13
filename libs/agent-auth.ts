@@ -365,10 +365,17 @@ export async function printApprovedAgentReceipt(
   );
 }
 
-export async function getAgentPendingPharmacyRequests(patientId: string) {
+export async function getAgentPendingPharmacyRequests(params: {
+  billing_code?: string;
+  patient_id?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params.billing_code) searchParams.set("billing_code", params.billing_code);
+  if (params.patient_id) searchParams.set("patient_id", params.patient_id);
+
   return withAgentSessionRetry((accessToken) =>
     getJson<AgentPendingPharmacyRequestsResponse>(
-      `/api/payments/pharmacy-requests?patient_id=${encodeURIComponent(patientId)}`,
+      `/api/payments/pharmacy-requests?${searchParams.toString()}`,
       {
         headers: getAgentAuthHeaders(accessToken),
       },
@@ -377,7 +384,8 @@ export async function getAgentPendingPharmacyRequests(patientId: string) {
 }
 
 export async function processAgentPharmacyPayment(payload: {
-  request_id: string;
+  billing_code?: string;
+  patient_id?: string;
   payment_type: AgentPaymentType;
 }) {
   return withAgentSessionRetry((accessToken) =>

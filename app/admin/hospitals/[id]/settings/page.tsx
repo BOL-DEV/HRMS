@@ -11,6 +11,7 @@ import {
   getAdminHospitalDepartments,
   getAdminHospitalIncomeHeads,
   getAdminHospitalOverview,
+  getAdminHospital,
   updateAdminHospital,
 } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
@@ -31,6 +32,7 @@ type FormState = {
   hasPharmacyModule: boolean;
   allowPharmacySelfPay: boolean;
   allowAgentPharmacyPay: boolean;
+  allowPharmacyWalkIn: boolean;
 };
 
 function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): FormState {
@@ -44,7 +46,14 @@ function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): F
     hasPharmacyModule: data?.hasPharmacyModule ?? false,
     allowPharmacySelfPay: data?.allowPharmacySelfPay ?? false,
     allowAgentPharmacyPay: data?.allowAgentPharmacyPay ?? true,
+    allowPharmacyWalkIn: data?.allowPharmacyWalkIn ?? true,
   };
+}
+
+function readBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return undefined;
 }
 
 function getHospitalFormDefaults(
@@ -56,8 +65,13 @@ function getHospitalFormDefaults(
     revenue_type: "manual" | "automatic";
     status: AdminHospitalStatus;
     has_pharmacy_module?: boolean;
+    hasPharmacyModule?: boolean;
     allow_pharmacy_self_pay?: boolean;
+    allowPharmacySelfPay?: boolean;
     allow_agent_pharmacy_pay?: boolean;
+    allowAgentPharmacyPay?: boolean;
+    allow_pharmacy_walk_in?: boolean;
+    allowPharmacyWalkIn?: boolean;
   },
 ) {
   if (!hospital) {
@@ -71,9 +85,22 @@ function getHospitalFormDefaults(
     address: hospital.address,
     revenueType: hospital.revenue_type,
     status: hospital.status,
-    hasPharmacyModule: hospital.has_pharmacy_module ?? false,
-    allowPharmacySelfPay: hospital.allow_pharmacy_self_pay ?? false,
-    allowAgentPharmacyPay: hospital.allow_agent_pharmacy_pay ?? true,
+    hasPharmacyModule:
+      readBoolean(hospital.has_pharmacy_module) ??
+      readBoolean(hospital.hasPharmacyModule) ??
+      false,
+    allowPharmacySelfPay:
+      readBoolean(hospital.allow_pharmacy_self_pay) ??
+      readBoolean(hospital.allowPharmacySelfPay) ??
+      false,
+    allowAgentPharmacyPay:
+      readBoolean(hospital.allow_agent_pharmacy_pay) ??
+      readBoolean(hospital.allowAgentPharmacyPay) ??
+      true,
+    allowPharmacyWalkIn:
+      readBoolean(hospital.allow_pharmacy_walk_in) ??
+      readBoolean(hospital.allowPharmacyWalkIn) ??
+      true,
   };
 }
 
@@ -135,6 +162,9 @@ function HospitalSettingsForm({
 
     if (form.allowAgentPharmacyPay !== defaults.allowAgentPharmacyPay) {
       payload.allow_agent_pharmacy_pay = form.allowAgentPharmacyPay;
+    }
+    if (form.allowPharmacyWalkIn !== defaults.allowPharmacyWalkIn) {
+      payload.allow_pharmacy_walk_in = form.allowPharmacyWalkIn;
     }
 
     if (!Object.keys(payload).length) {
@@ -311,6 +341,24 @@ function HospitalSettingsForm({
                   <span className="text-xs text-gray-500 font-normal">Allows agents and cashiers at terminal to clear pharmacy bills.</span>
                 </div>
               </label>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPharmacyWalkIn}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPharmacyWalkIn: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Walk-In Patients</span>
+                  <span className="text-xs text-gray-500 font-normal">Allow billing requests to be created without registering a patient ID.</span>
+                </div>
+              </label>
             </div>
           )}
         </div>
@@ -404,6 +452,12 @@ export default function HospitalSettingsPage() {
     enabled: Boolean(accessToken && hospitalId),
   });
 
+  const hospitalQuery = useQuery({
+    queryKey: ["admin-hospital-detail", hospitalId],
+    queryFn: () => getAdminHospital(hospitalId),
+    enabled: Boolean(accessToken && hospitalId),
+  });
+
   const catalogDepartmentsQuery = useQuery({
     queryKey: ["admin-hospital-settings-departments", hospitalId],
     queryFn: () => getAdminHospitalDepartments(hospitalId),
@@ -448,10 +502,23 @@ export default function HospitalSettingsPage() {
     [billItemIncomeHeadsQuery.data?.data.income_heads],
   );
 
-  const defaults = useMemo(
-    () => getHospitalFormDefaults(overviewQuery.data?.data.hospital),
-    [overviewQuery.data?.data.hospital],
-  );
+  const defaults = useMemo(() => {
+    const rawHospital = hospitalQuery.data?.data;
+    if (!rawHospital) return undefined;
+
+    return getHospitalFormDefaults({
+      hospital_name: rawHospital.name,
+      hospital_email: rawHospital.contact_email,
+      hospital_phone: rawHospital.contact_phone,
+      address: rawHospital.address,
+      revenue_type: rawHospital.revenue_type,
+      status: rawHospital.is_active ? "active" : "suspended",
+      has_pharmacy_module: rawHospital.has_pharmacy_module,
+      allow_pharmacy_self_pay: rawHospital.allow_pharmacy_self_pay,
+      allow_agent_pharmacy_pay: rawHospital.allow_agent_pharmacy_pay,
+      allow_pharmacy_walk_in: rawHospital.allow_pharmacy_walk_in,
+    });
+  }, [hospitalQuery.data]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -486,6 +553,9 @@ export default function HospitalSettingsPage() {
       updateAdminHospital(hospitalId, payload),
     onSuccess: (response) => {
       toast.success(response.message);
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-detail", hospitalId],
+      });
       queryClient.invalidateQueries({
         queryKey: ["admin-hospital-overview", hospitalId],
       });

@@ -232,6 +232,9 @@ export type AgentPaymentConfigResponse = {
     hospital_name: string;
     revenue_type: AgentRevenueType;
     status: string;
+    has_pharmacy_module?: boolean;
+    allow_agent_pharmacy_pay?: boolean;
+    allow_pharmacy_walk_in?: boolean;
   };
 };
 
@@ -784,6 +787,7 @@ export type AdminHospitalListItem = {
   has_pharmacy_module?: boolean;
   allow_pharmacy_self_pay?: boolean;
   allow_agent_pharmacy_pay?: boolean;
+  allow_pharmacy_walk_in?: boolean;
 };
 
 export type AdminHospitalsResponse = {
@@ -812,6 +816,7 @@ export type AdminHospitalOverviewResponse = {
       has_pharmacy_module?: boolean;
       allow_pharmacy_self_pay?: boolean;
       allow_agent_pharmacy_pay?: boolean;
+  allow_pharmacy_walk_in?: boolean;
     };
     overview: {
       total_revenue: number;
@@ -1679,6 +1684,7 @@ export type CreateAdminHospitalPayload = {
   has_pharmacy_module?: boolean;
   allow_pharmacy_self_pay?: boolean;
   allow_agent_pharmacy_pay?: boolean;
+  allow_pharmacy_walk_in?: boolean;
 };
 
 export type CreateAdminHospitalResponse = {

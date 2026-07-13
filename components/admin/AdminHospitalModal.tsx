@@ -38,6 +38,7 @@ type FormState = {
   has_pharmacy_module: boolean;
   allow_pharmacy_self_pay: boolean;
   allow_agent_pharmacy_pay: boolean;
+  allow_pharmacy_walk_in: boolean;
 };
 
 function buildInitialForm(hospital?: AdminHospitalListItem | null): FormState {
@@ -52,6 +53,7 @@ function buildInitialForm(hospital?: AdminHospitalListItem | null): FormState {
     has_pharmacy_module: hospital?.has_pharmacy_module ?? false,
     allow_pharmacy_self_pay: hospital?.allow_pharmacy_self_pay ?? false,
     allow_agent_pharmacy_pay: hospital?.allow_agent_pharmacy_pay ?? true,
+    allow_pharmacy_walk_in: hospital?.allow_pharmacy_walk_in ?? true,
   };
 }
 
@@ -104,6 +106,7 @@ function AdminHospitalModal({
         has_pharmacy_module: form.has_pharmacy_module,
         allow_pharmacy_self_pay: form.allow_pharmacy_self_pay,
         allow_agent_pharmacy_pay: form.allow_agent_pharmacy_pay,
+        allow_pharmacy_walk_in: form.allow_pharmacy_walk_in,
       });
       return;
     }
@@ -148,6 +151,9 @@ function AdminHospitalModal({
 
     if (form.allow_agent_pharmacy_pay !== hospital?.allow_agent_pharmacy_pay) {
       payload.allow_agent_pharmacy_pay = form.allow_agent_pharmacy_pay;
+    }
+    if (form.allow_pharmacy_walk_in !== hospital?.allow_pharmacy_walk_in) {
+      payload.allow_pharmacy_walk_in = form.allow_pharmacy_walk_in;
     }
 
     onSubmit(payload);
@@ -292,6 +298,19 @@ function AdminHospitalModal({
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Agent Pharmacy Pay</span>
                       <span className="text-xs text-gray-500 font-normal">Allows agents and cashiers at terminal to clear pharmacy bills.</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.allow_pharmacy_walk_in}
+                      onChange={(event) => updateField("allow_pharmacy_walk_in", event.target.checked)}
+                      className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Walk-In Patients</span>
+                      <span className="text-xs text-gray-500 font-normal">Allow billing requests to be created without registering a patient ID.</span>
                     </div>
                   </label>
                 </div>

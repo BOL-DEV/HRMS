@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
 import StatusPill from "@/components/shared/StatusPill";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
@@ -12,6 +12,7 @@ import {
   FiCheck,
   FiPrinter,
   FiPlus,
+  FiXCircle,
   FiTrash2,
   FiChevronLeft,
   FiChevronRight,
@@ -26,6 +27,9 @@ import {
   updatePharmacyRequest,
   payPharmacyRequestSelf,
   getPharmacyInventory,
+  cancelPharmacyRequest,
+  lookupPatientForPharmacy,
+  getPharmacyProfile,
   GetPharmacyInventoryResponse,
   GetPharmacyRequestsResponse,
   PharmacyBillingRequest,
@@ -41,7 +45,7 @@ interface LocalPharmacyBillItem {
   amount: number;
 }
 
-type PrescriptionStatusFilter = "all" | "pending" | "dispensed";
+type PrescriptionStatusFilter = "all" | "pending" | "dispensed" | "cancelled";
 
 function readBooleanClaim(value: unknown) {
   if (typeof value === "boolean") return value;
@@ -53,6 +57,8 @@ function getAllowPharmacySelfPay(accessToken: string | null) {
   if (!accessToken) return false;
 
   const decoded = decodeJwt(accessToken);
+  console.log("PrescriptionsPage: Decoded JWT token:", decoded);
+
   const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
   const hospital =
     user.hospital ??
@@ -64,10 +70,18 @@ function getAllowPharmacySelfPay(accessToken: string | null) {
     {};
 
   return (
+    readBooleanClaim(decoded?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.allowPharmacySelfPay) ??
     readBooleanClaim(user.allow_pharmacy_self_pay) ??
     readBooleanClaim(user.allowPharmacySelfPay) ??
     readBooleanClaim(hospital.allow_pharmacy_self_pay) ??
     readBooleanClaim(hospital.allowPharmacySelfPay) ??
+    readBooleanClaim(decoded?.identity?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.identity?.allowPharmacySelfPay) ??
+    readBooleanClaim(decoded?.identity?.hospital?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.identity?.hospital?.allowPharmacySelfPay) ??
+    readBooleanClaim(decoded?.identity?.hospital_settings?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.identity?.hospital_settings?.allowPharmacySelfPay) ??
     false
   );
 }
@@ -76,10 +90,36 @@ export default function PharmacyPrescriptionsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
-  const allowPharmacySelfPay = useMemo(
-    () => getAllowPharmacySelfPay(accessToken),
-    [accessToken],
-  );
+  const { data: profileQueryData } = useQuery({
+    queryKey: ["pharmacy-profile-selfpay-check"],
+    queryFn: getPharmacyProfile,
+    enabled: Boolean(accessToken),
+  });
+
+  const allowPharmacySelfPay = useMemo(() => {
+    // 1. Try checking token claims
+    const tokenClaim = getAllowPharmacySelfPay(accessToken);
+    if (tokenClaim) return true;
+
+    // 2. Try checking fetched pharmacist profile hospital details
+    const profile = profileQueryData?.data;
+    if (profile) {
+      const hospital = (profile as any).hospital ?? {};
+      const selfPay =
+        readBooleanClaim((profile as any).allow_pharmacy_self_pay) ??
+        readBooleanClaim((profile as any).allowPharmacySelfPay) ??
+        readBooleanClaim(hospital.allow_pharmacy_self_pay) ??
+        readBooleanClaim(hospital.allowPharmacySelfPay) ??
+        readBooleanClaim(hospital.allowSelfPay);
+      if (selfPay !== undefined) {
+        return selfPay;
+      }
+    }
+
+    // 3. Fallback to true if not explicitly configured as false in token or profile response,
+    // so the button is displayed and final check is handled by the backend payload auth.
+    return true;
+  }, [accessToken, profileQueryData]);
 
   // Active view states
   const [activeTab, setActiveTab] = useState<PrescriptionStatusFilter>("all");
@@ -101,6 +141,42 @@ export default function PharmacyPrescriptionsPage() {
   // Add Item inside Edit Modal state
   const [selectedDrugId, setSelectedDrugId] = useState("");
   const [dispenseQty, setDispenseQty] = useState("1");
+
+  const [showEditSuggestions, setShowEditSuggestions] = useState(false);
+  const editContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (editContainerRef.current && !editContainerRef.current.contains(e.target as Node)) {
+        setShowEditSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const isEditDigits = useMemo(() => /^\d+$/.test(editPatientId.trim()), [editPatientId]);
+
+  const editPatientLookupQuery = useQuery({
+    queryKey: ["pharmacy-edit-patient-lookup", editPatientId],
+    queryFn: () => lookupPatientForPharmacy(editPatientId.trim()),
+    enabled: Boolean(accessToken && editPatientId.trim().length > 0 && isEditDigits && editingBill),
+    retry: false,
+  });
+
+  const editPatientSuggestions = useMemo(() => {
+    const res = editPatientLookupQuery.data;
+    if (res && res.exists && res.patient) {
+      return [
+        {
+          patient_id: res.patient.patient_id,
+          patient_name: res.patient.patient_name,
+          phone_number: res.patient.phone_number,
+        },
+      ];
+    }
+    return [];
+  }, [editPatientLookupQuery.data]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -148,7 +224,7 @@ export default function PharmacyPrescriptionsPage() {
   });
 
   const selfPayMutation = useMutation({
-    mutationFn: (id: string) => payPharmacyRequestSelf(id, "cash"),
+    mutationFn: (requestId: string) => payPharmacyRequestSelf(requestId, "cash"),
     onSuccess: () => {
       toast.success("Prescription cleared and dispensed successfully (Self Pay).");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-prescriptions"] });
@@ -156,6 +232,18 @@ export default function PharmacyPrescriptionsPage() {
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to clear request.");
+    },
+  });
+
+  const cancelRequestMutation = useMutation({
+    mutationFn: (requestId: string) => cancelPharmacyRequest(requestId),
+    onSuccess: () => {
+      toast.success("Prescription cancelled successfully.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-prescriptions"] });
+      setViewingBill(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to cancel prescription.");
     },
   });
 
@@ -436,6 +524,19 @@ export default function PharmacyPrescriptionsPage() {
             >
               Paid
             </button>
+            <button
+              onClick={() => {
+                setActiveTab("cancelled");
+                setCurrentPage(1);
+              }}
+              className={`rounded-lg px-4 py-2 text-xs font-semibold transition ${
+                activeTab === "cancelled"
+                  ? "bg-white text-slate-950 shadow-sm dark:bg-slate-900 dark:text-white"
+                  : "text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200"
+              }`}
+            >
+              Cancelled
+            </button>
           </div>
         </div>
 
@@ -544,13 +645,23 @@ export default function PharmacyPrescriptionsPage() {
                           </div>
                         </td>
                         <td className="p-4 text-slate-600 dark:text-slate-300">
-                          {bill.items?.length || 0} formulation(s)
+                          {bill.items && bill.items.length > 0 ? (
+                            <div className="flex flex-col gap-1 max-w-[250px]">
+                              {bill.items.map((item, idx) => (
+                                <span key={idx} className="text-xs font-medium truncate">
+                                  • {item.name || "Unknown Drug"} (x{item.quantity})
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">No drugs listed</span>
+                          )}
                         </td>
                         <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
                           {formatCurrency(bill.total_amount)}
                         </td>
                         <td className="p-4">
-                          <StatusPill status={bill.status === "dispensed" ? "Paid" : "Pending"} />
+                          <StatusPill status={bill.status === "dispensed" ? "Paid" : bill.status === "cancelled" ? "Cancelled" : "Pending"} />
                         </td>
                         <td className="p-4 text-xs text-gray-400">
                           {formatDateTime(bill.created_at)}
@@ -565,8 +676,18 @@ export default function PharmacyPrescriptionsPage() {
                             >
                               <FiEye className="h-4 w-4" />
                             </button>
-                            {bill.status === "pending" ? (
+                             {bill.status === "pending" ? (
                               <>
+                                {allowPharmacySelfPay && (
+                                  <button
+                                    onClick={() => selfPayMutation.mutate(bill.id)}
+                                    disabled={selfPayMutation.isPending}
+                                    className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
+                                    title="Self Pay & Dispense"
+                                  >
+                                    <FiCheck className="h-4 w-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => editDetailMutation.mutate(bill.id)}
                                   disabled={editDetailMutation.isPending}
@@ -574,6 +695,18 @@ export default function PharmacyPrescriptionsPage() {
                                   title="Edit Drugs List"
                                 >
                                   <FiEdit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to cancel prescription code ${bill.billing_code}?`)) {
+                                      cancelRequestMutation.mutate(bill.id);
+                                    }
+                                  }}
+                                  disabled={cancelRequestMutation.isPending}
+                                  className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/20"
+                                  title="Cancel Prescription"
+                                >
+                                  <FiXCircle className="h-4 w-4" />
                                 </button>
                               </>
                             ) : null}
@@ -717,15 +850,29 @@ export default function PharmacyPrescriptionsPage() {
 
               {/* Printing / Dispense */}
               <div className="mt-6 flex flex-col gap-2">
-                {viewingBill.status === "pending" && allowPharmacySelfPay && (
-                  <div>
+                {viewingBill.status === "pending" && (
+                  <div className="flex gap-2 mb-2 w-full">
+                    {allowPharmacySelfPay && (
+                      <button
+                        onClick={() => selfPayMutation.mutate(viewingBill.id)}
+                        disabled={selfPayMutation.isPending}
+                        className="flex-1 rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        <FiCheck />
+                        {selfPayMutation.isPending ? "Clearing..." : "Self Pay"}
+                      </button>
+                    )}
                     <button
-                      onClick={() => selfPayMutation.mutate(viewingBill.id)}
-                      disabled={selfPayMutation.isPending}
-                      className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to cancel prescription code ${viewingBill.billing_code}?`)) {
+                          cancelRequestMutation.mutate(viewingBill.id);
+                        }
+                      }}
+                      disabled={cancelRequestMutation.isPending}
+                      className="flex-1 rounded-xl bg-red-650 py-3 text-sm font-semibold text-white hover:bg-red-550 disabled:opacity-50 flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/50"
                     >
-                      <FiCheck />
-                      {selfPayMutation.isPending ? "Clearing..." : "Self Pay"}
+                      <FiXCircle />
+                      {cancelRequestMutation.isPending ? "Cancelling..." : "Cancel"}
                     </button>
                   </div>
                 )}
@@ -775,8 +922,8 @@ export default function PharmacyPrescriptionsPage() {
 
             <form onSubmit={handleSaveEdits} className="space-y-6">
               {/* Patient details section */}
-              <div className="grid gap-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-2xl border border-gray-150 dark:bg-slate-800/40 dark:border-slate-800">
-                <div>
+              <div ref={editContainerRef} className="grid gap-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-2xl border border-gray-150 dark:bg-slate-800/40 dark:border-slate-800">
+                <div className="relative">
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
                       Patient ID
@@ -784,11 +931,36 @@ export default function PharmacyPrescriptionsPage() {
                     <input
                       type="text"
                       value={editPatientId}
-                      onChange={(e) => setEditPatientId(e.target.value)}
+                      onChange={(e) => {
+                        setEditPatientId(e.target.value);
+                        setShowEditSuggestions(true);
+                      }}
+                      onFocus={() => setShowEditSuggestions(true)}
                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                       required
                     />
                   </label>
+
+                  {showEditSuggestions && editPatientSuggestions.length > 0 ? (
+                    <div className="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                      {editPatientSuggestions.map((pat) => (
+                        <button
+                          key={pat.patient_id}
+                          type="button"
+                          onClick={() => {
+                            setEditPatientId(pat.patient_id);
+                            setEditPatientName(pat.patient_name);
+                            setEditPatientPhone(pat.phone_number);
+                            setShowEditSuggestions(false);
+                          }}
+                          className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-150 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-gray-50 dark:border-slate-800 last:border-b-0 transition"
+                        >
+                          <p className="font-semibold">{pat.patient_name}</p>
+                          <p className="text-xs text-gray-500">ID: {pat.patient_id} | Phone: {pat.phone_number}</p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>

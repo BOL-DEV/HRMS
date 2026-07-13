@@ -5,18 +5,20 @@ import Header from "@/components/shared/Header";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { getAgentAccessToken } from "@/libs/auth";
+import { decodeJwt, getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getPharmacyInventory,
   createPharmacyRequest,
-  searchPatientsForPharmacy,
+  lookupPatientForPharmacy,
   BackendDrugItem,
   PatientMatchItem,
   GetPharmacyInventoryResponse,
   PharmacyBillingRequest,
   unwrapPharmacyData,
+  payPharmacyRequestSelf,
+  getPharmacyProfile,
 } from "@/libs/pharmacy-api";
 
 interface PharmacyBillItem {
@@ -47,10 +49,128 @@ interface PharmacyBill {
   }[];
 }
 
+
+function getAllowPharmacySelfPay(accessToken: string | null) {
+  if (!accessToken) return false;
+
+  const decoded = decodeJwt(accessToken);
+  const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
+  const hospital =
+    user.hospital ??
+    user.hospital_settings ??
+    user.settings ??
+    decoded?.hospital ??
+    decoded?.hospital_settings ??
+    decoded?.settings ??
+    {};
+
+  return (
+    readBooleanClaim(decoded?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.allowPharmacySelfPay) ??
+    readBooleanClaim(user.allow_pharmacy_self_pay) ??
+    readBooleanClaim(user.allowPharmacySelfPay) ??
+    readBooleanClaim(hospital.allow_pharmacy_self_pay) ??
+    readBooleanClaim(hospital.allowPharmacySelfPay) ??
+    readBooleanClaim(decoded?.identity?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.identity?.allowPharmacySelfPay) ??
+    readBooleanClaim(decoded?.identity?.hospital?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.identity?.hospital?.allowPharmacySelfPay) ??
+    readBooleanClaim(decoded?.identity?.hospital_settings?.allow_pharmacy_self_pay) ??
+    readBooleanClaim(decoded?.identity?.hospital_settings?.allowPharmacySelfPay) ??
+    false
+  );
+}
+
+function readBooleanClaim(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return undefined;
+}
+
+function getAllowPharmacyWalkIn(accessToken: string | null) {
+  if (!accessToken) return false;
+
+  const decoded = decodeJwt(accessToken);
+  const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
+  const hospital =
+    user.hospital ??
+    user.hospital_settings ??
+    user.settings ??
+    decoded?.hospital ??
+    decoded?.hospital_settings ??
+    decoded?.settings ??
+    {};
+
+  return (
+    readBooleanClaim(user.allow_pharmacy_walk_in) ??
+    readBooleanClaim(user.allowPharmacyWalkIn) ??
+    readBooleanClaim(hospital.allow_pharmacy_walk_in) ??
+    readBooleanClaim(hospital.allowPharmacyWalkIn) ??
+    false
+  );
+}
+
 export default function PharmacyDispensePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+
+  const allowPharmacyWalkIn = useMemo(
+    () => getAllowPharmacyWalkIn(accessToken),
+    [accessToken],
+  );
+
+  const { data: profileQueryData } = useQuery({
+    queryKey: ["pharmacy-profile-selfpay-check"],
+    queryFn: getPharmacyProfile,
+    enabled: Boolean(accessToken),
+  });
+
+  const allowPharmacySelfPay = useMemo(() => {
+    const tokenClaim = getAllowPharmacySelfPay(accessToken);
+    if (tokenClaim) return true;
+
+    const profile = profileQueryData?.data;
+    if (profile) {
+      const hospital = (profile as any).hospital ?? {};
+      const selfPay =
+        readBooleanClaim((profile as any).allow_pharmacy_self_pay) ??
+        readBooleanClaim((profile as any).allowPharmacySelfPay) ??
+        readBooleanClaim(hospital.allow_pharmacy_self_pay) ??
+        readBooleanClaim(hospital.allowPharmacySelfPay) ??
+        readBooleanClaim(hospital.allowSelfPay);
+      if (selfPay !== undefined) {
+        return selfPay;
+      }
+    }
+
+    return true;
+  }, [accessToken, profileQueryData]);
+
+  const selfPayMutation = useMutation({
+    mutationFn: (requestId: string) => payPharmacyRequestSelf(requestId, "cash"),
+    onSuccess: () => {
+      toast.success("Prescription cleared and dispensed successfully (Self Pay).");
+      setGeneratedBill(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to clear request.");
+    },
+  });
+  const [isWalkIn, setIsWalkIn] = useState(false);
+
+  const handleWalkInChange = (checked: boolean) => {
+    setIsWalkIn(checked);
+    if (checked) {
+      setPatientId("MANUAL");
+      setPatientName("");
+      setPatientPhone("");
+    } else {
+      setPatientId("");
+      setPatientName("");
+      setPatientPhone("");
+    }
+  };
 
   // Form patient state
   const [patientId, setPatientId] = useState("");
@@ -109,16 +229,29 @@ export default function PharmacyDispensePage() {
     );
   }, [inventoryData]);
 
-  // Patient Match autocomplete search query
-  const patientQuery = useQuery({
-    queryKey: ["pharmacy-patient-match", patientSearch],
-    queryFn: () => searchPatientsForPharmacy(patientSearch),
-    enabled: Boolean(accessToken && patientSearch.trim().length > 1),
+  const isDigits = useMemo(() => /^\d+$/.test(patientSearch.trim()), [patientSearch]);
+
+  // Patient Lookup query for digits-only ID
+  const patientLookupQuery = useQuery({
+    queryKey: ["pharmacy-patient-lookup", patientSearch],
+    queryFn: () => lookupPatientForPharmacy(patientSearch.trim()),
+    enabled: Boolean(accessToken && patientSearch.trim().length > 0 && isDigits),
+    retry: false,
   });
 
   const patientSuggestions = useMemo<PatientMatchItem[]>(() => {
-    return unwrapPharmacyData<PatientMatchItem[]>(patientQuery.data, []);
-  }, [patientQuery.data]);
+    const res = patientLookupQuery.data;
+    if (res && res.exists && res.patient) {
+      return [
+        {
+          patient_id: res.patient.patient_id,
+          patient_name: res.patient.patient_name,
+          phone_number: res.patient.phone_number,
+        },
+      ];
+    }
+    return [];
+  }, [patientLookupQuery.data]);
 
   // Create Request Mutation
   const createRequestMutation = useMutation({
@@ -218,7 +351,8 @@ export default function PharmacyDispensePage() {
     setDrugSearch("");
     setShowDrugSuggestions(false);
     setDispenseQty("1");
-  };
+  setIsWalkIn(false);
+  }
 
   // Remove Item
   const handleRemoveItem = (drugId: string) => {
@@ -285,7 +419,20 @@ export default function PharmacyDispensePage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Patient Card */}
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Patient Information</h2>
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Patient Information</h2>
+                {allowPharmacyWalkIn && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isWalkIn}
+                      onChange={(e) => handleWalkInChange(e.target.checked)}
+                      className="rounded border-gray-300 text-brand-600 focus:ring-brand-500 h-4 w-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700 dark:text-slate-200">Walk-In Customer</span>
+                  </label>
+                )}
+              </div>
               <div className="grid gap-4 sm:grid-cols-2" ref={containerRef}>
                 <div className="relative block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -293,7 +440,7 @@ export default function PharmacyDispensePage() {
                   </span>
                   <input
                     type="text"
-                    value={patientId}
+                    value={isWalkIn ? "MANUAL (Walk-In)" : patientId}
                     onChange={(e) => {
                       setPatientId(e.target.value);
                       setPatientSearch(e.target.value);
@@ -301,7 +448,8 @@ export default function PharmacyDispensePage() {
                     }}
                     onFocus={() => setShowSuggestions(true)}
                     placeholder="Search by ID or card number..."
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                    disabled={isWalkIn}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-slate-950"
                     required
                   />
 
@@ -600,22 +748,34 @@ export default function PharmacyDispensePage() {
               </div>
 
               {/* Print Receipt Button */}
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => {
-                    window.print();
-                  }}
-                  className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 flex items-center justify-center gap-2"
-                >
-                  <FiPrinter />
-                  Print Code
-                </button>
-                <button
-                  onClick={() => setGeneratedBill(null)}
-                  className="flex-1 rounded-xl bg-brand-700 py-3 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
-                >
-                  Close Receipt
-                </button>
+              <div className="mt-6 flex flex-col gap-2">
+                {allowPharmacySelfPay && (
+                  <button
+                    onClick={() => selfPayMutation.mutate(generatedBill.id)}
+                    disabled={selfPayMutation.isPending}
+                    className="w-full rounded-xl bg-emerald-700 py-3.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <FiCheck />
+                    {selfPayMutation.isPending ? "Clearing..." : "Self Pay & Dispense"}
+                  </button>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      window.print();
+                    }}
+                    className="flex-1 rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 flex items-center justify-center gap-2"
+                  >
+                    <FiPrinter />
+                    Print Code
+                  </button>
+                  <button
+                    onClick={() => setGeneratedBill(null)}
+                    className="flex-1 rounded-xl bg-brand-700 py-3 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+                  >
+                    Close Receipt
+                  </button>
+                </div>
               </div>
             </div>
           </div>

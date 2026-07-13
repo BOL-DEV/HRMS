@@ -87,6 +87,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     isSearchingPharmacyCode,
     handlePharmacyCodeLookup,
     isPharmacyMode,
+    showPharmacyOption,
   } = useCreateTransactionState({ open, onClose, onSuccess });
 
   if (!open) {
@@ -134,6 +135,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             <TransactionModeToggle
               value={transactionMode}
               onChange={switchTransactionMode}
+              showPharmacy={showPharmacyOption}
             />
           </div>
 
@@ -146,13 +148,13 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                   <label className="flex-1 block">
                     <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Patient Card Number
+                      Billing Code
                     </span>
                     <input
                       type="text"
                       value={pharmacyCode}
                       onChange={(e) => setPharmacyCode(e.target.value)}
-                      placeholder="Enter patient's card number (e.g. 100234)"
+                      placeholder="Enter 8-char code (e.g. EL3DZ671)"
                       className="w-full rounded-xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                     />
                   </label>
@@ -162,7 +164,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     onClick={() => handlePharmacyCodeLookup(pharmacyCode)}
                     className="rounded-xl bg-slate-900 dark:bg-slate-800 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                   >
-                    {isSearchingPharmacyCode ? "Searching..." : "Lookup Bill"}
+                    {isSearchingPharmacyCode ? "Searching..." : "Lookup by Billing Code"}
                   </button>
                 </div>
               </div>
