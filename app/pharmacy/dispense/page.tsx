@@ -19,6 +19,7 @@ import {
   unwrapPharmacyData,
   payPharmacyRequestSelf,
   getPharmacyProfile,
+  searchPharmacyHospitalPatients,
 } from "@/libs/pharmacy-api";
 
 interface PharmacyBillItem {
@@ -162,9 +163,10 @@ export default function PharmacyDispensePage() {
   const handleWalkInChange = (checked: boolean) => {
     setIsWalkIn(checked);
     if (checked) {
-      setPatientId("MANUAL");
+      setPatientId("WALK_IN");
       setPatientName("");
       setPatientPhone("");
+      setPatientSearch("");
     } else {
       setPatientId("");
       setPatientName("");
@@ -229,29 +231,22 @@ export default function PharmacyDispensePage() {
     );
   }, [inventoryData]);
 
-  const isDigits = useMemo(() => /^\d+$/.test(patientSearch.trim()), [patientSearch]);
+  const hospitalId = profileQueryData?.data?.hospital_id ?? "";
 
-  // Patient Lookup query for digits-only ID
-  const patientLookupQuery = useQuery({
-    queryKey: ["pharmacy-patient-lookup", patientSearch],
-    queryFn: () => lookupPatientForPharmacy(patientSearch.trim()),
-    enabled: Boolean(accessToken && patientSearch.trim().length > 0 && isDigits),
-    retry: false,
+  // Patient Search query for autocomplete matching names/IDs/phone numbers
+  const patientSearchQuery = useQuery({
+    queryKey: ["pharmacy-patient-search", hospitalId, patientSearch],
+    queryFn: () =>
+      searchPharmacyHospitalPatients(hospitalId, {
+        query: patientSearch,
+        limit: 10,
+      }),
+    enabled: Boolean(accessToken && hospitalId && patientSearch.trim().length > 0),
   });
 
-  const patientSuggestions = useMemo<PatientMatchItem[]>(() => {
-    const res = patientLookupQuery.data;
-    if (res && res.exists && res.patient) {
-      return [
-        {
-          patient_id: res.patient.patient_id,
-          patient_name: res.patient.patient_name,
-          phone_number: res.patient.phone_number,
-        },
-      ];
-    }
-    return [];
-  }, [patientLookupQuery.data]);
+  const patientSuggestions = useMemo(() => {
+    return patientSearchQuery.data?.data?.patients ?? [];
+  }, [patientSearchQuery.data]);
 
   // Create Request Mutation
   const createRequestMutation = useMutation({
@@ -440,14 +435,18 @@ export default function PharmacyDispensePage() {
                   </span>
                   <input
                     type="text"
-                    value={isWalkIn ? "MANUAL (Walk-In)" : patientId}
+                    value={isWalkIn ? "WALK_IN" : patientSearch}
                     onChange={(e) => {
-                      setPatientId(e.target.value);
                       setPatientSearch(e.target.value);
+                      if (!e.target.value.trim()) {
+                        setPatientId("");
+                        setPatientName("");
+                        setPatientPhone("");
+                      }
                       setShowSuggestions(true);
                     }}
                     onFocus={() => setShowSuggestions(true)}
-                    placeholder="Search by ID or card number..."
+                    placeholder="Search by ID, name, or phone..."
                     disabled={isWalkIn}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-slate-950"
                     required
@@ -455,7 +454,7 @@ export default function PharmacyDispensePage() {
 
                   {showSuggestions && patientSuggestions.length > 0 ? (
                     <div className="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                      {patientSuggestions.map((pat: PatientMatchItem) => (
+                      {patientSuggestions.map((pat: any) => (
                         <button
                           key={pat.patient_id}
                           type="button"
@@ -463,11 +462,12 @@ export default function PharmacyDispensePage() {
                             setPatientId(pat.patient_id);
                             setPatientName(pat.patient_name);
                             setPatientPhone(pat.phone_number);
+                            setPatientSearch(pat.display_value || pat.patient_name);
                             setShowSuggestions(false);
                           }}
                           className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-150 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-gray-50 dark:border-slate-800 last:border-b-0 transition"
                         >
-                          <p className="font-semibold">{pat.patient_name}</p>
+                          <p className="font-semibold">{pat.display_value || pat.patient_name}</p>
                           <p className="text-xs text-gray-500">ID: {pat.patient_id} | Phone: {pat.phone_number}</p>
                         </button>
                       ))}
