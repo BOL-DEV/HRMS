@@ -9,6 +9,7 @@ import { getAgentProfile, logoutAgent } from "@/libs/agent-auth";
 import { logoutAdmin } from "@/libs/admin-auth";
 import { getFoProfile, logoutFo } from "@/libs/fo-auth";
 import { clearAuthTokens, decodeJwt, getAccessToken } from "@/libs/auth";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
 
 type HeaderProfileResponse =
@@ -59,16 +60,7 @@ export default function HeaderAgentProfile() {
     queryKey: [section, "header-profile"],
     queryFn: async (): Promise<HeaderProfileResponse> => {
       if (section === "pharmacy") {
-        const decoded = accessToken ? decodeJwt(accessToken) : null;
-        const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
-
-        return {
-          data: {
-            first_name: user.first_name,
-            last_name: user.last_name,
-            email: user.email,
-          },
-        };
+        return getPharmacyProfile();
       }
       return section === "fo" ? getFoProfile() : getAgentProfile();
     },

@@ -33,6 +33,7 @@ type FormState = {
   allowPharmacySelfPay: boolean;
   allowAgentPharmacyPay: boolean;
   allowPharmacyWalkIn: boolean;
+  pharmacyBatchStrategy: "single_row" | "multi_batch";
 };
 
 function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): FormState {
@@ -47,6 +48,7 @@ function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): F
     allowPharmacySelfPay: data?.allowPharmacySelfPay ?? false,
     allowAgentPharmacyPay: data?.allowAgentPharmacyPay ?? true,
     allowPharmacyWalkIn: data?.allowPharmacyWalkIn ?? true,
+    pharmacyBatchStrategy: data?.pharmacyBatchStrategy ?? "multi_batch",
   };
 }
 
@@ -57,22 +59,7 @@ function readBoolean(value: unknown) {
 }
 
 function getHospitalFormDefaults(
-  hospital?: {
-    hospital_name: string;
-    hospital_email: string;
-    hospital_phone: string;
-    address: string;
-    revenue_type: "manual" | "automatic";
-    status: AdminHospitalStatus;
-    has_pharmacy_module?: boolean;
-    hasPharmacyModule?: boolean;
-    allow_pharmacy_self_pay?: boolean;
-    allowPharmacySelfPay?: boolean;
-    allow_agent_pharmacy_pay?: boolean;
-    allowAgentPharmacyPay?: boolean;
-    allow_pharmacy_walk_in?: boolean;
-    allowPharmacyWalkIn?: boolean;
-  },
+  hospital?: any,
 ) {
   if (!hospital) {
     return undefined;
@@ -101,6 +88,10 @@ function getHospitalFormDefaults(
       readBoolean(hospital.allow_pharmacy_walk_in) ??
       readBoolean(hospital.allowPharmacyWalkIn) ??
       true,
+    pharmacyBatchStrategy:
+      (hospital as any).pharmacy_batch_strategy ??
+      (hospital as any).pharmacyBatchStrategy ??
+      "multi_batch",
   };
 }
 
@@ -165,6 +156,9 @@ function HospitalSettingsForm({
     }
     if (form.allowPharmacyWalkIn !== defaults.allowPharmacyWalkIn) {
       payload.allow_pharmacy_walk_in = form.allowPharmacyWalkIn;
+    }
+    if (form.pharmacyBatchStrategy !== defaults.pharmacyBatchStrategy) {
+      (payload as any).pharmacy_batch_strategy = form.pharmacyBatchStrategy;
     }
 
     if (!Object.keys(payload).length) {
@@ -359,6 +353,28 @@ function HospitalSettingsForm({
                   <span className="text-xs text-gray-500 font-normal">Allow billing requests to be created without registering a patient ID.</span>
                 </div>
               </label>
+
+              <label className="block space-y-2 pt-2 border-t border-line-subtle/30">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  Stock Restocking Strategy
+                </span>
+                <select
+                  value={form.pharmacyBatchStrategy}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      pharmacyBatchStrategy: event.target.value as "single_row" | "multi_batch",
+                    }))
+                  }
+                  className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm dark:text-slate-100"
+                >
+                  <option value="multi_batch">Multi-batch Tracking (Option B - Creates separate batches for different batch/expiry)</option>
+                  <option value="single_row">Single Row per Drug (Option A - Overwrites batch number & expiry date)</option>
+                </select>
+                <span className="block text-xs text-gray-500 font-normal">
+                  Define how restocking items with new batch numbers/expiry dates updates the inventory.
+                </span>
+              </label>
             </div>
           )}
         </div>
@@ -517,6 +533,7 @@ export default function HospitalSettingsPage() {
       allow_pharmacy_self_pay: rawHospital.allow_pharmacy_self_pay,
       allow_agent_pharmacy_pay: rawHospital.allow_agent_pharmacy_pay,
       allow_pharmacy_walk_in: rawHospital.allow_pharmacy_walk_in,
+      pharmacy_batch_strategy: (rawHospital as any).pharmacy_batch_strategy,
     });
   }, [hospitalQuery.data]);
 

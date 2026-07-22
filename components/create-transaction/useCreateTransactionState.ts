@@ -113,9 +113,17 @@ function isValidPhoneNumber(value: string) {
   return /^\d{10,15}$/.test(value); // Standard phone check
 }
 
+function readObjectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
 function getPendingPharmacyRequests(response: unknown): AgentPendingPharmacyRequest[] {
   if (Array.isArray(response)) {
     return response as AgentPendingPharmacyRequest[];
+  }
+
+  if (response && typeof response === "object" && ("billing_code" in response || "id" in response)) {
+    return [response as AgentPendingPharmacyRequest];
   }
 
   const data = (response as { data?: unknown } | null)?.data;
@@ -125,6 +133,10 @@ function getPendingPharmacyRequests(response: unknown): AgentPendingPharmacyRequ
   }
 
   if (data && typeof data === "object") {
+    if ("billing_code" in data || "id" in data) {
+      return [data as AgentPendingPharmacyRequest];
+    }
+
     const {
       requests,
       items,
@@ -192,31 +204,32 @@ function getPharmacyRequestId(request: AgentPendingPharmacyRequest) {
 }
 
 function mapPharmacyRequestToBill(request: AgentPendingPharmacyRequest): PharmacyBill {
-  console.log("CreateTransactionState: mapping raw lookup request:", request);
+  const requestClaims = readObjectValue(request);
+  const patientClaims = readObjectValue(requestClaims.patient);
 
   const patientNameVal =
     request.patient_name ||
-    (request as any).patientName ||
-    (request as any).patient?.patient_name ||
-    (request as any).patient?.patientName ||
-    (request as any).patient?.name ||
+    String(requestClaims.patientName ?? "") ||
+    String(patientClaims.patient_name ?? "") ||
+    String(patientClaims.patientName ?? "") ||
+    String(patientClaims.name ?? "") ||
     "Patient";
 
   const patientIdVal =
     request.patient_id ||
-    (request as any).patientId ||
-    (request as any).patient?.patient_id ||
-    (request as any).patient?.patientId ||
+    String(requestClaims.patientId ?? "") ||
+    String(patientClaims.patient_id ?? "") ||
+    String(patientClaims.patientId ?? "") ||
     "";
 
   const phoneNumberVal =
     request.phone_number ||
-    (request as any).phoneNumber ||
-    (request as any).patient?.phone_number ||
-    (request as any).patient?.phoneNumber ||
+    String(requestClaims.phoneNumber ?? "") ||
+    String(patientClaims.phone_number ?? "") ||
+    String(patientClaims.phoneNumber ?? "") ||
     "";
 
-  const resolvedCode = (request.billing_code || (request as any).code || "").trim().toUpperCase();
+  const resolvedCode = String(request.billing_code || requestClaims.code || "").trim().toUpperCase();
 
   return {
     id: getPharmacyRequestId(request),
@@ -342,8 +355,8 @@ export function useCreateTransactionState({
   const isExpressMode = transactionMode === "express";
   const showPharmacyOption = useMemo(() => {
     const configData = paymentConfigQuery.data?.data;
-    console.log("CreateTransactionState: payment-config API returned:", configData);
     if (!configData) return false;
+    const configClaims = readObjectValue(configData);
 
     const readBool = (val: unknown) => {
       if (val === undefined || val === null) return undefined;
@@ -354,15 +367,14 @@ export function useCreateTransactionState({
 
     const hasPharmacy =
       readBool(configData.has_pharmacy_module) ??
-      readBool((configData as any).hasPharmacyModule) ??
+      readBool(configClaims.hasPharmacyModule) ??
       true;
 
     const allowAgentPay =
       readBool(configData.allow_agent_pharmacy_pay) ??
-      readBool((configData as any).allowAgentPharmacyPay) ??
+      readBool(configClaims.allowAgentPharmacyPay) ??
       true;
 
-    console.log("CreateTransactionState: showPharmacyOption evaluated to:", hasPharmacy && allowAgentPay);
     return hasPharmacy && allowAgentPay;
   }, [paymentConfigQuery.data]);
 
@@ -507,14 +519,14 @@ export function useCreateTransactionState({
         const payload = {
           billing_code: pharmacyBill.code.trim().toUpperCase(),
           payment_type: form.paymentType,
+          request_id: (pharmacyBill as any).id,
+          code: pharmacyBill.code.trim().toUpperCase(),
         };
-        console.log("CreateTransactionState: processAgentPharmacyPayment payload:", payload);
         return processAgentPharmacyPayment(payload);
       }
       return processAgentPayment(variables);
     },
     onSuccess: async (response) => {
-      console.log("CreateTransactionState: paymentMutation onSuccess response:", response);
       toast.success(response.message || "Payment processed successfully.");
       if (isPharmacyMode && pharmacyBill) {
         if (!response.data.receipt?.receiptHTML) {
@@ -591,10 +603,26 @@ export function useCreateTransactionState({
 
     setIsSearchingPharmacyCode(true);
     try {
-      const res = await getAgentPendingPharmacyRequests({ billing_code: code.trim().toUpperCase() });
-      const requests = getPendingPharmacyRequests(res);
-      const matchedRequest =
+      const cleanCode = code.trim().toUpperCase();
+      let res = await getAgentPendingPharmacyRequests({ billing_code: cleanCode });
+      let requests = getPendingPharmacyRequests(res);
+      let matchedRequest =
         requests.find(isPendingPharmacyRequest) ?? requests[0] ?? null;
+
+      // Fallback: Try with prepended prefixes "PH-" and "PR-" if raw code returns no request
+      if (!matchedRequest && !cleanCode.startsWith("PH-") && !cleanCode.startsWith("PR-")) {
+        const codeWithPH = "PH-" + cleanCode;
+        res = await getAgentPendingPharmacyRequests({ billing_code: codeWithPH });
+        requests = getPendingPharmacyRequests(res);
+        matchedRequest = requests.find(isPendingPharmacyRequest) ?? requests[0] ?? null;
+
+        if (!matchedRequest) {
+          const codeWithPR = "PR-" + cleanCode;
+          res = await getAgentPendingPharmacyRequests({ billing_code: codeWithPR });
+          requests = getPendingPharmacyRequests(res);
+          matchedRequest = requests.find(isPendingPharmacyRequest) ?? requests[0] ?? null;
+        }
+      }
 
       if (matchedRequest) {
         const mappedBill = mapPharmacyRequestToBill(matchedRequest);

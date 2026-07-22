@@ -53,11 +53,14 @@ function readBooleanClaim(value: unknown) {
   return undefined;
 }
 
+function readObjectClaim(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
 function getAllowPharmacySelfPay(accessToken: string | null) {
   if (!accessToken) return false;
 
   const decoded = decodeJwt(accessToken);
-  console.log("PrescriptionsPage: Decoded JWT token:", decoded);
 
   const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
   const hospital =
@@ -104,10 +107,11 @@ export default function PharmacyPrescriptionsPage() {
     // 2. Try checking fetched pharmacist profile hospital details
     const profile = profileQueryData?.data;
     if (profile) {
-      const hospital = (profile as any).hospital ?? {};
+      const profileClaims = readObjectClaim(profile);
+      const hospital = readObjectClaim(profileClaims.hospital);
       const selfPay =
-        readBooleanClaim((profile as any).allow_pharmacy_self_pay) ??
-        readBooleanClaim((profile as any).allowPharmacySelfPay) ??
+        readBooleanClaim(profileClaims.allow_pharmacy_self_pay) ??
+        readBooleanClaim(profileClaims.allowPharmacySelfPay) ??
         readBooleanClaim(hospital.allow_pharmacy_self_pay) ??
         readBooleanClaim(hospital.allowPharmacySelfPay) ??
         readBooleanClaim(hospital.allowSelfPay);
@@ -116,9 +120,7 @@ export default function PharmacyPrescriptionsPage() {
       }
     }
 
-    // 3. Fallback to true if not explicitly configured as false in token or profile response,
-    // so the button is displayed and final check is handled by the backend payload auth.
-    return true;
+    return false;
   }, [accessToken, profileQueryData]);
 
   // Active view states
@@ -130,6 +132,7 @@ export default function PharmacyPrescriptionsPage() {
 
   // Modals state
   const [viewingBill, setViewingBill] = useState<PharmacyBillingRequest | null>(null);
+  const [paymentSelectionBillId, setPaymentSelectionBillId] = useState<string | null>(null);
   const [editingBill, setEditingBill] = useState<PharmacyBillingRequest | null>(null);
 
   // Edit form states
@@ -224,7 +227,8 @@ export default function PharmacyPrescriptionsPage() {
   });
 
   const selfPayMutation = useMutation({
-    mutationFn: (requestId: string) => payPharmacyRequestSelf(requestId, "cash"),
+    mutationFn: ({ id, paymentType }: { id: string; paymentType: "cash" | "transfer" | "pos" }) =>
+      payPharmacyRequestSelf(id, paymentType),
     onSuccess: () => {
       toast.success("Prescription cleared and dispensed successfully (Self Pay).");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-prescriptions"] });
@@ -680,7 +684,7 @@ export default function PharmacyPrescriptionsPage() {
                               <>
                                 {allowPharmacySelfPay && (
                                   <button
-                                    onClick={() => selfPayMutation.mutate(bill.id)}
+                                    onClick={() => setPaymentSelectionBillId(bill.id)}
                                     disabled={selfPayMutation.isPending}
                                     className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
                                     title="Self Pay & Dispense"
@@ -698,7 +702,7 @@ export default function PharmacyPrescriptionsPage() {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (confirm(`Are you sure you want to cancel prescription code ${bill.billing_code}?`)) {
+                                    if (confirm(`Cancel prescription code ${bill.billing_code}?`)) {
                                       cancelRequestMutation.mutate(bill.id);
                                     }
                                   }}
@@ -854,7 +858,7 @@ export default function PharmacyPrescriptionsPage() {
                   <div className="flex gap-2 mb-2 w-full">
                     {allowPharmacySelfPay && (
                       <button
-                        onClick={() => selfPayMutation.mutate(viewingBill.id)}
+                        onClick={() => setPaymentSelectionBillId(viewingBill.id)}
                         disabled={selfPayMutation.isPending}
                         className="flex-1 rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2"
                       >
@@ -864,12 +868,12 @@ export default function PharmacyPrescriptionsPage() {
                     )}
                     <button
                       onClick={() => {
-                        if (confirm(`Are you sure you want to cancel prescription code ${viewingBill.billing_code}?`)) {
+                        if (confirm(`Cancel prescription code ${viewingBill.billing_code}?`)) {
                           cancelRequestMutation.mutate(viewingBill.id);
                         }
                       }}
                       disabled={cancelRequestMutation.isPending}
-                      className="flex-1 rounded-xl bg-red-650 py-3 text-sm font-semibold text-white hover:bg-red-550 disabled:opacity-50 flex items-center justify-center gap-2 border border-red-200 dark:border-red-900/50"
+                      className="flex-1 rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20 flex items-center justify-center gap-2"
                     >
                       <FiXCircle />
                       {cancelRequestMutation.isPending ? "Cancelling..." : "Cancel"}
@@ -1148,6 +1152,56 @@ export default function PharmacyPrescriptionsPage() {
           </div>
         </div>
       ) : null}
+
+
+      {/* Payment Method Selection Modal */}
+      {paymentSelectionBillId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+            <h3 className="text-lg font-bold text-slate-950 dark:text-white text-center mb-4">
+              Select Payment Method
+            </h3>
+            <p className="text-xs text-gray-500 text-center mb-6">
+              Select the payment type to clear and dispense this prescription.
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "cash" });
+                  setPaymentSelectionBillId(null);
+                }}
+                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                💵 Cash
+              </button>
+              <button
+                onClick={() => {
+                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "pos" });
+                  setPaymentSelectionBillId(null);
+                }}
+                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                💳 POS Card
+              </button>
+              <button
+                onClick={() => {
+                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "transfer" });
+                  setPaymentSelectionBillId(null);
+                }}
+                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                📲 Bank Transfer
+              </button>
+              <button
+                onClick={() => setPaymentSelectionBillId(null)}
+                className="w-full rounded-xl border border-gray-200 text-gray-700 dark:border-slate-700 dark:text-slate-300 py-3 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

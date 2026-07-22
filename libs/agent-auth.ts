@@ -370,7 +370,10 @@ export async function getAgentPendingPharmacyRequests(params: {
   patient_id?: string;
 }) {
   const searchParams = new URLSearchParams();
-  if (params.billing_code) searchParams.set("billing_code", params.billing_code);
+  if (params.billing_code) {
+    searchParams.set("billing_code", params.billing_code);
+    searchParams.set("code", params.billing_code);
+  }
   if (params.patient_id) searchParams.set("patient_id", params.patient_id);
 
   return withAgentSessionRetry((accessToken) =>

@@ -98,12 +98,14 @@ export default function PharmacyReportsPage() {
   }, [additionsQuery.data]);
 
   // Totals calculations
-  const totalRev = overviewData?.financial_summary?.total_revenue ?? 0;
-  const breakdown = overviewData?.financial_summary?.payment_breakdown ?? {
-    cash: 0,
-    pos: 0,
-    transfer: 0,
-  };
+  const totalRev = overviewData?.summary?.total_revenue ?? 0;
+  const breakdown = useMemo(() => {
+    const arr = overviewData?.sales_by_payment_type ?? [];
+    const cashVal = arr.find((x) => x.payment_type === "cash")?.amount ?? 0;
+    const posVal = arr.find((x) => x.payment_type === "pos")?.amount ?? 0;
+    const transferVal = arr.find((x) => x.payment_type === "transfer")?.amount ?? 0;
+    return { cash: cashVal, pos: posVal, transfer: transferVal };
+  }, [overviewData]);
 
   const handlePrintReport = () => {
     window.print();
@@ -265,22 +267,22 @@ export default function PharmacyReportsPage() {
                           </td>
                         </tr>
                       ))
-                    ) : (overviewData?.top_dispensed_drugs ?? []).length === 0 ? (
+                    ) : (overviewData?.top_selling_items ?? []).length === 0 ? (
                       <tr>
                         <td colSpan={4} className="py-8 text-center text-gray-500">
                           No dispensed drug logs found for this range.
                         </td>
                       </tr>
                     ) : (
-                      overviewData?.top_dispensed_drugs.map((drug, index) => (
+                      overviewData?.top_selling_items.map((drug, index) => (
                         <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                           <td className="py-3 font-semibold text-slate-900 dark:text-white">
                             {drug.item_name}
                           </td>
                           <td className="py-3 text-xs italic">{drug.generic_name}</td>
-                          <td className="py-3 text-center">{drug.total_quantity}</td>
+                          <td className="py-3 text-center">{drug.quantity_sold}</td>
                           <td className="py-3 text-right font-semibold text-brand-600 dark:text-brand-400">
-                            {formatCurrency(drug.total_revenue)}
+                            {formatCurrency(drug.revenue_generated)}
                           </td>
                         </tr>
                       ))
@@ -290,46 +292,44 @@ export default function PharmacyReportsPage() {
               </div>
             </div>
 
-            {/* Daily Dispensed Summary */}
+            {/* Sales by Payment Method */}
             <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-                Dispensed Logs Trend
+                Sales by Payment Method
               </h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm text-left">
                   <thead>
                     <tr className="border-b border-gray-150 dark:border-slate-800 text-gray-500 font-semibold uppercase tracking-wider text-xs">
-                      <th className="pb-3">Date</th>
-                      <th className="pb-3">Pharmacist</th>
-                      <th className="pb-3 text-center">Requests</th>
-                      <th className="pb-3 text-right">Revenue</th>
+                      <th className="pb-3">Payment Type</th>
+                      <th className="pb-3 text-center">Transactions Count</th>
+                      <th className="pb-3 text-right">Revenue Generated</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                     {overviewQuery.isLoading ? (
-                      Array.from({ length: 4 }).map((_, index) => (
+                      Array.from({ length: 3 }).map((_, index) => (
                         <tr key={index}>
-                          <td colSpan={4} className="py-4">
+                          <td colSpan={3} className="py-4">
                             <div className="h-6 animate-pulse bg-gray-100 dark:bg-slate-800 rounded-lg" />
                           </td>
                         </tr>
                       ))
-                    ) : (overviewData?.dispensed_summary ?? []).length === 0 ? (
+                    ) : (overviewData?.sales_by_payment_type ?? []).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-8 text-center text-gray-500">
-                          No summarized transaction trends found.
+                        <td colSpan={3} className="py-8 text-center text-gray-500">
+                          No payment breakdown details found.
                         </td>
                       </tr>
                     ) : (
-                      overviewData?.dispensed_summary.map((summary, index) => (
+                      overviewData?.sales_by_payment_type.map((payment, index) => (
                         <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                          <td className="py-3 font-medium">
-                            {new Date(summary.date).toLocaleDateString()}
+                          <td className="py-3 font-semibold text-slate-900 dark:text-white uppercase">
+                            {payment.payment_type}
                           </td>
-                          <td className="py-3 text-xs">{summary.pharmacist_name}</td>
-                          <td className="py-3 text-center font-semibold">{summary.requests_count}</td>
+                          <td className="py-3 text-center font-semibold">{payment.count}</td>
                           <td className="py-3 text-right font-semibold text-brand-600 dark:text-brand-400">
-                            {formatCurrency(summary.total_amount)}
+                            {formatCurrency(payment.amount)}
                           </td>
                         </tr>
                       ))
@@ -369,14 +369,14 @@ export default function PharmacyReportsPage() {
                       </td>
                     </tr>
                   ))
-                ) : (dispensedData?.requests ?? []).length === 0 ? (
+                ) : (dispensedData?.logs ?? []).length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-gray-500">
                       No dispensed billing records found for this range.
                     </td>
                   </tr>
                 ) : (
-                  dispensedData?.requests.map((req) => (
+                  dispensedData?.logs.map((req) => (
                     <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                       <td className="py-4 font-mono font-bold text-brand-600 dark:text-brand-400">
                         {req.billing_code}
@@ -436,7 +436,7 @@ export default function PharmacyReportsPage() {
                 <button
                   onClick={() => setDispensedPage((p) => Math.min(p + 1, dispensedData.total_pages))}
                   disabled={dispensedPage === dispensedData.total_pages}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-955"
+                  className="p-2 rounded-lg border border-gray-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <FiChevronRight />
                 </button>
@@ -532,14 +532,14 @@ export default function PharmacyReportsPage() {
                 <button
                   onClick={() => setAdditionsPage((p) => Math.max(p - 1, 1))}
                   disabled={additionsPage === 1}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-905"
+                  className="p-2 rounded-lg border border-gray-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <FiChevronLeft />
                 </button>
                 <button
                   onClick={() => setAdditionsPage((p) => Math.min(p + 1, additionsData.total_pages))}
                   disabled={additionsPage === additionsData.total_pages}
-                  className="p-2 rounded-lg border border-gray-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-910"
+                  className="p-2 rounded-lg border border-gray-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   <FiChevronRight />
                 </button>

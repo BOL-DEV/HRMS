@@ -114,29 +114,32 @@ export interface GetPharmacyRequestsResponse {
 }
 
 export interface PharmacyDashboardStats {
-  revenue_today: number;
-  total_count_dispensed: number;
-  pending_requests_count: number;
-  low_stock_count: number;
-  total_inventory_value: number;
-  pending_requests: {
-    id: string;
-    patient_id: string;
-    patient_name: string;
-    phone_number: string;
-    billing_code: string;
-    total_amount: number;
-    status: "pending";
-    created_at: string;
-  }[];
-  low_stock_items: {
+  summary: {
+    total_inventory_items: number;
+    total_categories: number;
+    low_stock_items: number;
+    expired_items: number;
+    pending_billing_requests: number;
+  };
+  sales: {
+    today_total_revenue: number;
+    today_dispensed_count: number;
+  };
+  low_stock_alerts: Array<{
     id: string;
     name: string;
-    category_name: string;
+    generic_name?: string;
     stock: number;
     reorder_level: number;
-    status: "Low stock";
-  }[];
+    status: string;
+  }>;
+  expiry_alerts: Array<{
+    id: string;
+    name: string;
+    generic_name?: string;
+    expiry_date: string;
+    status: string;
+  }>;
 }
 
 export function unwrapPharmacyData<T>(value: unknown, fallback: T): T {
@@ -367,10 +370,17 @@ export async function getPharmacyProfile() {
         email: string;
         phone: string;
         role: "PHARMACY";
-        hospital_id: string;
         is_active: boolean;
         created_at: string;
-        updated_at: string;
+        hospital_id: string;
+        hospital_name: string;
+        hospital_code: string;
+        hospital_modules: {
+          has_pharmacy_module: boolean;
+          allow_pharmacy_self_pay: boolean;
+          allow_agent_pharmacy_pay: boolean;
+          allow_pharmacy_walk_in: boolean;
+        };
       };
     }>("/api/pharmacy/profile", {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -429,29 +439,22 @@ export interface PharmacyReportOverviewResponse {
   status: number;
   message: string;
   data: {
-    date_range: {
-      start_date: string;
-      end_date: string;
-    };
-    financial_summary: {
+    summary: {
       total_revenue: number;
-      payment_breakdown: {
-        cash: number;
-        pos: number;
-        transfer: number;
-      };
+      dispensed_count: number;
+      unique_patients_served: number;
     };
-    top_dispensed_drugs: Array<{
-      item_name: string;
-      generic_name: string;
-      total_quantity: number;
-      total_revenue: number;
+    sales_by_payment_type: Array<{
+      payment_type: string;
+      amount: number;
+      count: number;
     }>;
-    dispensed_summary: Array<{
-      date: string;
-      pharmacist_name: string;
-      requests_count: number;
-      total_amount: number;
+    top_selling_items: Array<{
+      pharmacy_item_id: string;
+      item_name: string;
+      generic_name?: string;
+      quantity_sold: number;
+      revenue_generated: number;
     }>;
   };
 }
@@ -468,7 +471,7 @@ export interface PharmacyReportDispensedResponse {
     page: number;
     limit: number;
     total_pages: number;
-    requests: Array<{
+    logs: Array<{
       id: string;
       billing_code: string;
       patient_id: string;
@@ -481,7 +484,7 @@ export interface PharmacyReportDispensedResponse {
       items: Array<{
         pharmacy_item_id: string;
         item_name: string;
-        generic_name: string;
+        generic_name?: string;
         quantity: number;
         unit_price: number;
         total_price: number;
@@ -559,6 +562,71 @@ export async function getPharmacyReportStockAdditions(params?: { start_date?: st
   return withPharmacySessionRetry((accessToken) =>
     getJson<PharmacyReportStockAdditionsResponse>(`/api/pharmacy/report/stock-additions${suffix}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyWalkInPatient(phoneNumber: string) {
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: number;
+      message: string;
+      data: {
+        patient_name: string;
+      } | null;
+    }>('/api/pharmacy/walk-in/' + phoneNumber, {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    })
+  );
+}
+
+export async function getPharmacyInventoryStockAddition(params?: {
+  search?: string;
+  category_id?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.category_id) searchParams.set("category_id", params.category_id);
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = '/api/pharmacy/inventory/stock-addition' + (queryStr ? '?' + queryStr : '');
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<GetPharmacyInventoryResponse>(endpoint, {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    })
+  );
+}
+
+export async function restockPharmacyItem(payload: {
+  pharmacy_item_id: string;
+  quantity: number;
+  batch_number?: string;
+  expiry_date?: string;
+}) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: number;
+      message: string;
+      data: BackendDrugItem;
+    }>("/api/pharmacy/inventory/stock-addition", payload, {
+      headers: { Authorization: 'Bearer ' + accessToken },
+    })
+  );
+}
+
+export async function getPharmacyInventoryItemById(itemId: string) {
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: number;
+      message: string;
+      data: BackendDrugItem;
+    }>('/api/pharmacy/inventory/' + itemId, {
+      headers: { Authorization: 'Bearer ' + accessToken },
     })
   );
 }

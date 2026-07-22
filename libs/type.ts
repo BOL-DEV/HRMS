@@ -788,6 +788,7 @@ export type AdminHospitalListItem = {
   allow_pharmacy_self_pay?: boolean;
   allow_agent_pharmacy_pay?: boolean;
   allow_pharmacy_walk_in?: boolean;
+  pharmacy_batch_strategy?: "single_row" | "multi_batch";
 };
 
 export type AdminHospitalsResponse = {

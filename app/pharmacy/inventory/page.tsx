@@ -17,6 +17,7 @@ import {
   addPharmacyDrug,
   updatePharmacyDrug,
   deletePharmacyDrug,
+  restockPharmacyItem,
   BackendDrugItem,
   PharmacyCategory,
   PharmacyDrugPayload,
@@ -48,6 +49,52 @@ export default function PharmacyInventoryPage() {
   const [formStock, setFormStock] = useState("");
   const [formReorderLevel, setFormReorderLevel] = useState("50");
   const [formPrice, setFormPrice] = useState("");
+
+  // Restock states
+  const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+  const [restockItem, setRestockItem] = useState<BackendDrugItem | null>(null);
+  const [restockQty, setRestockQty] = useState("");
+  const [restockBatch, setRestockBatch] = useState("");
+  const [restockExpiry, setRestockExpiry] = useState("");
+
+  const restockMutation = useMutation({
+    mutationFn: restockPharmacyItem,
+    onSuccess: () => {
+      toast.success("Stock added/updated successfully.");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+      setIsRestockModalOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to add stock.");
+    },
+  });
+
+  const handleOpenRestockModal = (item: BackendDrugItem) => {
+    setRestockItem(item);
+    setRestockQty("");
+    setRestockBatch(item.batch_number || "");
+    setRestockExpiry(item.expiry_date ? item.expiry_date.substring(0, 7) : "");
+    setIsRestockModalOpen(true);
+  };
+
+  const handleRestockSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restockItem) return;
+    const qty = Number(restockQty);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid positive quantity.");
+      return;
+    }
+    const expiryRaw = restockExpiry.trim();
+    const expiry_date = expiryRaw.length === 7 ? `${expiryRaw}-01` : expiryRaw;
+
+    restockMutation.mutate({
+      pharmacy_item_id: restockItem.id,
+      quantity: qty,
+      batch_number: restockBatch.trim() || undefined,
+      expiry_date: expiry_date || undefined,
+    });
+  };
 
   // Category Creation Inline State
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -240,7 +287,8 @@ export default function PharmacyInventoryPage() {
     };
 
     if (editingDrug) {
-      updateDrugMutation.mutate({ id: editingDrug.id, payload });
+      const { stock: _, ...updatePayload } = payload;
+      updateDrugMutation.mutate({ id: editingDrug.id, payload: updatePayload as any });
     } else {
       addDrugMutation.mutate(payload);
     }
@@ -439,6 +487,13 @@ export default function PharmacyInventoryPage() {
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2">
                             <button
+                              onClick={() => handleOpenRestockModal(item)}
+                              className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                              title="Restock Item"
+                            >
+                              <FiPlus className="h-4 w-4" />
+                            </button>
+                            <button
                               onClick={() => handleOpenEditModal(item)}
                               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
                               title="Edit Drug"
@@ -616,20 +671,22 @@ export default function PharmacyInventoryPage() {
                   />
                 </label>
 
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Stock Count
-                  </span>
-                  <input
-                    type="number"
-                    value={formStock}
-                    onChange={(e) => setFormStock(e.target.value)}
-                    placeholder="e.g. 500"
-                    min="0"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
-                  />
-                </label>
+                {!editingDrug && (
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Stock Count
+                    </span>
+                    <input
+                      type="number"
+                      value={formStock}
+                      onChange={(e) => setFormStock(e.target.value)}
+                      placeholder="e.g. 500"
+                      min="0"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      required
+                    />
+                  </label>
+                )}
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -677,6 +734,89 @@ export default function PharmacyInventoryPage() {
                   className="rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm disabled:opacity-60"
                 >
                   {editingDrug ? "Save Formulation" : "Add Formulation"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isRestockModalOpen && restockItem ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs overflow-y-auto">
+          <div className="my-8 w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-950 dark:text-white">
+                Restock Formulation
+              </h3>
+              <button
+                onClick={() => setIsRestockModalOpen(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-gray-150 dark:border-slate-800 animate-fade-in">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{restockItem.name}</p>
+              <p className="text-xs text-gray-500 italic mt-0.5">{restockItem.generic_name || 'Generic not specified'}</p>
+              <p className="text-xs text-gray-600 dark:text-slate-400 mt-2">Current stock count: <span className="font-bold text-slate-800 dark:text-white">{restockItem.stock}</span></p>
+            </div>
+
+            <form onSubmit={handleRestockSubmit} className="mt-5 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                  Quantity to Add
+                </span>
+                <input
+                  type="number"
+                  value={restockQty}
+                  onChange={(e) => setRestockQty(e.target.value)}
+                  placeholder="e.g. 100"
+                  min="1"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                  required
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                  Batch Number (Optional)
+                </span>
+                <input
+                  type="text"
+                  value={restockBatch}
+                  onChange={(e) => setRestockBatch(e.target.value)}
+                  placeholder="e.g. B123-NEW"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                  Expiry Month/Year (Optional)
+                </span>
+                <input
+                  type="month"
+                  value={restockExpiry}
+                  onChange={(e) => setRestockExpiry(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                />
+              </label>
+
+              <div className="flex justify-end gap-3 border-t border-gray-100 pt-4 mt-6 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsRestockModalOpen(false)}
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={restockMutation.isPending}
+                  className="rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm disabled:opacity-60"
+                >
+                  Add Stock
                 </button>
               </div>
             </form>

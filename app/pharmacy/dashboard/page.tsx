@@ -12,6 +12,8 @@ import { getAgentAccessToken } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPharmacyDashboardStats,
+  getPharmacyProfile,
+  getPharmacyRequests,
   PharmacyDashboardStats,
   unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
@@ -35,19 +37,72 @@ export default function PharmacyDashboardPage() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: requestsData, isLoading: isRequestsLoading } = useQuery({
+    queryKey: ["pharmacy-dashboard-pending-requests"],
+    queryFn: () => getPharmacyRequests({ status: "pending", limit: 5 }),
+    enabled: Boolean(accessToken),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: profileData } = useQuery({
+    queryKey: ["pharmacy-dashboard-profile"],
+    queryFn: getPharmacyProfile,
+    enabled: Boolean(accessToken),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const pendingRequests = React.useMemo(() => {
+    const unwrapped = unwrapPharmacyData<any>(requestsData, []);
+    if (Array.isArray(unwrapped)) {
+      return unwrapped;
+    }
+    return unwrapped?.requests ?? unwrapped?.items ?? [];
+  }, [requestsData]);
+
   if (!accessToken) {
     return null;
   }
 
-  const stats = unwrapPharmacyData<PharmacyDashboardStats>(statsData, {
-    revenue_today: 0,
-    total_count_dispensed: 0,
-    pending_requests_count: 0,
-    low_stock_count: 0,
-    total_inventory_value: 0,
-    pending_requests: [],
-    low_stock_items: [],
-  });
+  const config = React.useMemo(() => {
+    const raw = unwrapPharmacyData<any>(profileData, {});
+    const modules = raw?.hospital_modules ?? {};
+
+    const readBool = (val: unknown) => {
+      if (val === undefined || val === null) return false;
+      if (typeof val === "boolean") return val;
+      if (typeof val === "string") return val.toLowerCase() === "true";
+      return false;
+    };
+
+    return {
+      hasPharmacyModule: readBool(modules.has_pharmacy_module),
+      allowSelfPay: readBool(modules.allow_pharmacy_self_pay),
+      allowAgentPay: readBool(modules.allow_agent_pharmacy_pay),
+      allowWalkIn: readBool(modules.allow_pharmacy_walk_in),
+      batchStrategy: raw?.pharmacy_batch_strategy ?? raw?.batch_strategy ?? "multi_batch",
+    };
+  }, [profileData]);
+
+  const stats = React.useMemo(() => {
+    const raw = unwrapPharmacyData<any>(statsData, {});
+    return {
+      summary: {
+        total_inventory_items: raw?.summary?.total_inventory_items ?? raw?.total_inventory_items ?? 0,
+        total_categories: raw?.summary?.total_categories ?? raw?.total_categories ?? 0,
+        low_stock_items: raw?.summary?.low_stock_items ?? raw?.low_stock_count ?? 0,
+        expired_items: raw?.summary?.expired_items ?? raw?.expired_items ?? 0,
+        pending_billing_requests: raw?.summary?.pending_billing_requests ?? raw?.pending_requests_count ?? 0,
+      },
+      sales: {
+        today_total_revenue: raw?.sales?.today_total_revenue ?? raw?.revenue_today ?? 0,
+        today_dispensed_count: raw?.sales?.today_dispensed_count ?? raw?.total_count_dispensed ?? 0,
+      },
+      low_stock_alerts: raw?.low_stock_alerts ?? raw?.low_stock_items ?? [],
+      expiry_alerts: raw?.expiry_alerts ?? raw?.expiry_items ?? [],
+    };
+  }, [statsData]);
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
@@ -93,7 +148,7 @@ export default function PharmacyDashboardPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Revenue Today"
-                value={formatCurrency(stats.revenue_today)}
+                value={formatCurrency(stats.sales.today_total_revenue)}
                 delta="Direct collections"
                 icon={<FiDollarSign className="text-xl" />}
                 accentClassName="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
@@ -103,9 +158,9 @@ export default function PharmacyDashboardPage() {
               />
               <StatCard
                 title="Low / Out of Stock"
-                value={String(stats.low_stock_count)}
+                value={String(stats.summary.low_stock_items)}
                 delta="Restock required"
-                deltaTone={stats.low_stock_count > 0 ? "negative" : "neutral"}
+                deltaTone={stats.summary.low_stock_items > 0 ? "negative" : "neutral"}
                 icon={<FiAlertTriangle className="text-xl" />}
                 accentClassName="border-amber-200 bg-white dark:border-amber-500/30 dark:bg-slate-900"
                 iconClassName="text-amber-700 dark:text-amber-300"
@@ -113,9 +168,9 @@ export default function PharmacyDashboardPage() {
                 valueClassName="text-amber-700 dark:text-amber-300"
               />
               <StatCard
-                title="Inventory Valuation"
-                value={formatCurrency(stats.total_inventory_value)}
-                delta="Total stock assets"
+                title="Total Inventory Items"
+                value={String(stats.summary.total_inventory_items)}
+                delta="Catalog formulations"
                 icon={<FiPackage className="text-xl" />}
                 accentClassName="border-brand-200 bg-white dark:border-brand-500/30 dark:bg-slate-900"
                 iconClassName="text-brand-700 dark:text-brand-300"
@@ -124,7 +179,7 @@ export default function PharmacyDashboardPage() {
               />
               <StatCard
                 title="Dispensed Today"
-                value={String(stats.total_count_dispensed)}
+                value={String(stats.sales.today_dispensed_count)}
                 delta="Prescriptions cleared"
                 icon={<FiFileText className="text-xl" />}
                 accentClassName="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
@@ -132,6 +187,36 @@ export default function PharmacyDashboardPage() {
                 iconBackgroundClassName="bg-slate-100 dark:bg-slate-800"
                 valueClassName="text-slate-800 dark:text-slate-100"
               />
+            </div>
+
+            {/* Hospital Pharmacy Settings Section */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">Hospital Module Configuration</h2>
+              <p className="text-xs text-gray-500 mb-4">Active pharmacy module settings set by the system administrator.</p>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/30">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Walk-in Patients</span>
+                  <StatusPill status={config.allowWalkIn ? "Active" : "Inactive"} />
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/30">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Pharmacist Self-Pay</span>
+                  <StatusPill status={config.allowSelfPay ? "Active" : "Inactive"} />
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/30">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Agent Checkout Pay</span>
+                  <StatusPill status={config.allowAgentPay ? "Active" : "Inactive"} />
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-slate-50/50 p-3.5 dark:border-slate-800 dark:bg-slate-800/30">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Stock Strategy</span>
+                  <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                    {config.batchStrategy === "multi_batch" ? "Multi-batch Tracking" : "Single Row Tracking"}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Recent Prescription Bills */}
@@ -162,14 +247,20 @@ export default function PharmacyDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                    {stats.pending_requests.length === 0 ? (
+                    {isRequestsLoading ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center">
+                          <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-700 border-t-transparent mx-auto"></div>
+                        </td>
+                      </tr>
+                    ) : pendingRequests.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-8 text-center text-gray-500">
                           No pending prescriptions generated yet. Go to Dispense to generate one.
                         </td>
                       </tr>
                     ) : (
-                      stats.pending_requests.map((bill) => (
+                      pendingRequests.map((bill: any) => (
                         <tr key={bill.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
                           <td className="p-4 font-mono font-bold text-brand-700 dark:text-brand-400">
                             {bill.billing_code}
@@ -194,6 +285,65 @@ export default function PharmacyDashboardPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            {/* Alerts Section (Low Stock & Expiry) */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Low Stock Alerts */}
+              <div className="rounded-xl border border-amber-100 bg-white p-5 shadow-sm dark:border-amber-950/30 dark:bg-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-3">
+                  <FiAlertTriangle className="text-amber-500" />
+                  Low Stock Alerts ({stats.low_stock_alerts.length})
+                </h3>
+                <div className="max-h-60 overflow-y-auto space-y-2.5">
+                  {stats.low_stock_alerts.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-4 text-center">No low stock items detected.</p>
+                  ) : (
+                    stats.low_stock_alerts.map((item: any) => (
+                      <div key={item.id} className="flex justify-between items-center bg-amber-50/40 dark:bg-amber-950/10 p-3 rounded-lg border border-amber-100/50 dark:border-amber-950/20">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
+                          <p className="text-xs text-gray-500 italic">{item.generic_name || 'Generic not specified'}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-950/50 px-2 py-0.5 rounded-full">
+                            {item.stock} left
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-1">Reorder level: {item.reorder_level}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Expired Stock Alerts */}
+              <div className="rounded-xl border border-red-150 bg-white p-5 shadow-sm dark:border-red-950/30 dark:bg-slate-900">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-3">
+                  <FiAlertTriangle className="text-red-500" />
+                  Expired Stock Alerts ({stats.expiry_alerts.length})
+                </h3>
+                <div className="max-h-60 overflow-y-auto space-y-2.5">
+                  {stats.expiry_alerts.length === 0 ? (
+                    <p className="text-sm text-gray-500 py-4 text-center">No expired stock detected.</p>
+                  ) : (
+                    stats.expiry_alerts.map((item: any) => (
+                      <div key={item.id} className="flex justify-between items-center bg-red-50/40 dark:bg-red-950/10 p-3 rounded-lg border border-red-100/50 dark:border-red-950/20">
+                        <div>
+                          <p className="text-sm font-semibold text-red-800 dark:text-red-400">{item.name}</p>
+                          <p className="text-xs text-gray-500 italic">{item.generic_name || 'Generic not specified'}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-semibold text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-950/50 px-2 py-0.5 rounded-full">
+                            Expired
+                          </span>
+                          <p className="text-[10px] text-gray-500 mt-1">Date: {item.expiry_date}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </>
