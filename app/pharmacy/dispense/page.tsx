@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
-import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { decodeJwt, getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
@@ -18,7 +18,7 @@ import {
   unwrapPharmacyData,
   payPharmacyRequestSelf,
   getPharmacyProfile,
-  searchPharmacyHospitalPatients,
+
   getPharmacyWalkInPatient,
 } from "@/libs/pharmacy-api";
 
@@ -245,7 +245,6 @@ export default function PharmacyDispensePage() {
       setPatientId("WALK_IN");
       setPatientName("");
       setPatientPhone("");
-      setPatientSearch("");
       setPatientExists(false);
     } else {
       setPatientId("");
@@ -276,8 +275,8 @@ export default function PharmacyDispensePage() {
   const [patientExists, setPatientExists] = useState(false);
 
   // Patient Autocomplete State
-  const [patientSearch, setPatientSearch] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
+
+
   const containerRef = useRef<HTMLDivElement>(null);
   const drugPickerRef = useRef<HTMLDivElement>(null);
   const lastAutoLookupPatientIdRef = useRef("");
@@ -303,9 +302,6 @@ export default function PharmacyDispensePage() {
   // Click away listener for autocomplete
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
       if (drugPickerRef.current && !drugPickerRef.current.contains(e.target as Node)) {
         setShowDrugSuggestions(false);
       }
@@ -330,20 +326,7 @@ export default function PharmacyDispensePage() {
 
   const hospitalId = profileQueryData?.data?.hospital_id ?? getPharmacyHospitalId(accessToken);
 
-  // Patient Search query for autocomplete matching names/IDs/phone numbers
-  const patientSearchQuery = useQuery({
-    queryKey: ["pharmacy-patient-search", hospitalId, patientSearch],
-    queryFn: () =>
-      searchPharmacyHospitalPatients(hospitalId, {
-        query: patientSearch,
-        limit: 10,
-      }),
-    enabled: Boolean(accessToken && hospitalId && patientSearch.trim().length > 0),
-  });
 
-  const patientSuggestions = useMemo(() => {
-    return patientSearchQuery.data?.data?.patients ?? [];
-  }, [patientSearchQuery.data]);
 
   const patientLookupMutation = useMutation({
     mutationFn: lookupPatientForPharmacy,
@@ -354,19 +337,16 @@ export default function PharmacyDispensePage() {
         setPatientId(patient.patient_id);
         setPatientName(patient.patient_name);
         setPatientPhone(patient.phone_number);
-        setPatientSearch(patient.patient_id);
         setPatientExists(true);
-        setShowSuggestions(false);
+        toast.success(`Patient details loaded: ${patient.patient_name}`);
         return;
       }
 
       setPatientExists(false);
-      setShowSuggestions(false);
       toast("Patient not found. Enter name and phone manually.");
     },
     onError: (err) => {
       setPatientExists(false);
-      setShowSuggestions(false);
       toast.error(err instanceof Error ? err.message : "Unable to verify patient ID.");
     },
   });
@@ -392,10 +372,6 @@ export default function PharmacyDispensePage() {
       return;
     }
 
-    if (patientSuggestions.some((patient) => patient.patient_id === nextPatientId)) {
-      return;
-    }
-
     const timeoutId = window.setTimeout(() => {
       lastAutoLookupPatientIdRef.current = nextPatientId;
       patientLookupMutation.mutate(nextPatientId);
@@ -409,7 +385,6 @@ export default function PharmacyDispensePage() {
     isWalkIn,
     patientId,
     patientLookupMutation,
-    patientSuggestions,
   ]);
 
   // Create Request Mutation
@@ -527,7 +502,6 @@ export default function PharmacyDispensePage() {
     setPatientId("");
     setPatientName("");
     setPatientPhone("");
-    setPatientSearch("");
     setPatientExists(false);
     setBillItems([]);
     setSelectedDrugId("");
@@ -598,62 +572,30 @@ export default function PharmacyDispensePage() {
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                     Patient ID / Card Number
                   </span>
-                  <input
-                    type="text"
-                    value={isWalkIn ? "MANUAL" : patientSearch}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const digitsOnly = value.replace(/\D/g, "");
-
-                      setPatientSearch(value);
-                      setPatientId(digitsOnly);
-                      setPatientExists(false);
-                      if (!value.trim()) {
-                        setPatientId("");
-                        setPatientName("");
-                        setPatientPhone("");
-                      }
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    placeholder="Search by ID, name, or phone..."
-                    disabled={isWalkIn}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-slate-950"
-                    required
-                  />
-
-                  {showSuggestions && patientSearch.trim() && !isWalkIn ? (
-                    <div className="absolute left-0 right-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
-                      {patientSearchQuery.isLoading ? (
-                        <div className="px-4 py-5 text-center text-sm text-gray-500 dark:text-slate-400">
-                          Searching patients...
-                        </div>
-                      ) : patientSuggestions.length === 0 ? (
-                        <div className="px-4 py-5 text-center text-sm text-gray-500 dark:text-slate-400">
-                          No patient matched. Enter name and phone manually.
-                        </div>
-                      ) : (
-                        patientSuggestions.map((pat) => (
-                          <button
-                            key={pat.patient_id}
-                            type="button"
-                            onClick={() => {
-                              setPatientId(pat.patient_id);
-                              setPatientName(pat.patient_name);
-                              setPatientPhone(pat.phone_number);
-                              setPatientSearch(pat.display_value || pat.patient_name);
-                              setPatientExists(true);
-                              setShowSuggestions(false);
-                            }}
-                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-150 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border-b border-gray-50 dark:border-slate-800 last:border-b-0 transition"
-                          >
-                            <p className="font-semibold">{pat.display_value || pat.patient_name}</p>
-                            <p className="text-xs text-gray-500">ID: {pat.patient_id} | Phone: {pat.phone_number}</p>
-                          </button>
-                        ))
-                      )}
+                  <div className="relative">
+                    <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      <FiSearch />
                     </div>
-                  ) : null}
+                    <input
+                      type="text"
+                      value={isWalkIn ? "MANUAL" : patientId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        const digitsOnly = value.replace(/\D/g, "");
+
+                        setPatientId(digitsOnly);
+                        setPatientExists(false);
+                        if (!digitsOnly.trim()) {
+                          setPatientName("");
+                          setPatientPhone("");
+                        }
+                      }}
+                      placeholder="Enter Patient ID..."
+                      disabled={isWalkIn}
+                      className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white disabled:opacity-60 disabled:bg-gray-50 dark:disabled:bg-slate-950"
+                      required
+                    />
+                  </div>
                   {patientLookupMutation.isPending ? (
                     <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                       Checking patient ID...

@@ -389,18 +389,23 @@ export async function getPharmacyProfile() {
 }
 
 export async function lookupPatientForPharmacy(patientId: string) {
-  return withPharmacySessionRetry((accessToken) =>
+  const response = await withPharmacySessionRetry((accessToken) =>
     getJson<{
-      exists: boolean;
-      patient: {
-        patient_id: string;
-        patient_name: string;
-        phone_number: string;
-      } | null;
+      status: number;
+      message: string;
+      data: {
+        exists: boolean;
+        patient: {
+          patient_id: string;
+          patient_name: string;
+          phone_number: string;
+        } | null;
+      };
     }>(`/api/pharmacy/patients/${patientId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
+  return response.data;
 }
 
 export async function searchPharmacyHospitalPatients(
@@ -439,22 +444,42 @@ export interface PharmacyReportOverviewResponse {
   status: number;
   message: string;
   data: {
-    summary: {
+    summary?: {
       total_revenue: number;
       dispensed_count: number;
       unique_patients_served: number;
     };
-    sales_by_payment_type: Array<{
+    sales_by_payment_type?: Array<{
       payment_type: string;
       amount: number;
       count: number;
     }>;
-    top_selling_items: Array<{
+    top_selling_items?: Array<{
       pharmacy_item_id: string;
       item_name: string;
       generic_name?: string;
       quantity_sold: number;
       revenue_generated: number;
+    }>;
+    financial_summary?: {
+      total_revenue: number;
+      payment_breakdown: {
+        cash: number;
+        pos: number;
+        transfer: number;
+      };
+    };
+    top_dispensed_drugs?: Array<{
+      item_name: string;
+      generic_name: string;
+      total_quantity: number;
+      total_revenue: number;
+    }>;
+    dispensed_summary?: Array<{
+      date: string;
+      pharmacist_name: string;
+      requests_count: number;
+      total_amount: number;
     }>;
   };
 }
@@ -471,7 +496,26 @@ export interface PharmacyReportDispensedResponse {
     page: number;
     limit: number;
     total_pages: number;
-    logs: Array<{
+    logs?: Array<{
+      id: string;
+      billing_code: string;
+      patient_id: string;
+      patient_name: string;
+      phone_number: string;
+      total_amount: number;
+      dispensed_at: string;
+      pharmacist_name: string;
+      payment_type: string;
+      items: Array<{
+        pharmacy_item_id: string;
+        item_name: string;
+        generic_name?: string;
+        quantity: number;
+        unit_price: number;
+        total_price: number;
+      }>;
+    }>;
+    requests?: Array<{
       id: string;
       billing_code: string;
       patient_id: string;
@@ -572,7 +616,9 @@ export async function getPharmacyWalkInPatient(phoneNumber: string) {
       status: number;
       message: string;
       data: {
+        patient_id: "MANUAL";
         patient_name: string;
+        phone_number: string;
       } | null;
     }>('/api/pharmacy/walk-in/' + phoneNumber, {
       headers: { Authorization: 'Bearer ' + accessToken },

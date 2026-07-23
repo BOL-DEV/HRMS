@@ -98,8 +98,16 @@ export default function PharmacyReportsPage() {
   }, [additionsQuery.data]);
 
   // Totals calculations
-  const totalRev = overviewData?.summary?.total_revenue ?? 0;
+  const totalRev = overviewData?.financial_summary?.total_revenue ?? overviewData?.summary?.total_revenue ?? 0;
   const breakdown = useMemo(() => {
+    if (overviewData?.financial_summary?.payment_breakdown) {
+      const pb = overviewData.financial_summary.payment_breakdown;
+      return {
+        cash: pb.cash ?? 0,
+        pos: pb.pos ?? 0,
+        transfer: pb.transfer ?? 0,
+      };
+    }
     const arr = overviewData?.sales_by_payment_type ?? [];
     const cashVal = arr.find((x) => x.payment_type === "cash")?.amount ?? 0;
     const posVal = arr.find((x) => x.payment_type === "pos")?.amount ?? 0;
@@ -267,25 +275,37 @@ export default function PharmacyReportsPage() {
                           </td>
                         </tr>
                       ))
-                    ) : (overviewData?.top_selling_items ?? []).length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-gray-500">
-                          No dispensed drug logs found for this range.
-                        </td>
-                      </tr>
                     ) : (
-                      overviewData?.top_selling_items.map((drug, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                          <td className="py-3 font-semibold text-slate-900 dark:text-white">
-                            {drug.item_name}
-                          </td>
-                          <td className="py-3 text-xs italic">{drug.generic_name}</td>
-                          <td className="py-3 text-center">{drug.quantity_sold}</td>
-                          <td className="py-3 text-right font-semibold text-brand-600 dark:text-brand-400">
-                            {formatCurrency(drug.revenue_generated)}
-                          </td>
-                        </tr>
-                      ))
+                      (() => {
+                        const topSelling = overviewData?.top_dispensed_drugs ?? overviewData?.top_selling_items ?? [];
+                        if (topSelling.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={4} className="py-8 text-center text-gray-500">
+                                No dispensed drug logs found for this range.
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return topSelling.map((drug, index) => {
+                          const name = drug.item_name;
+                          const gen = drug.generic_name;
+                          const qty = "total_quantity" in drug ? drug.total_quantity : ("quantity_sold" in drug ? drug.quantity_sold : 0);
+                          const rev = "total_revenue" in drug ? drug.total_revenue : ("revenue_generated" in drug ? drug.revenue_generated : 0);
+                          return (
+                            <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                              <td className="py-3 font-semibold text-slate-900 dark:text-white">
+                                {name}
+                              </td>
+                              <td className="py-3 text-xs italic">{gen}</td>
+                              <td className="py-3 text-center">{qty}</td>
+                              <td className="py-3 text-right font-semibold text-brand-600 dark:text-brand-400">
+                                {formatCurrency(rev)}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()
                     )}
                   </tbody>
                 </table>
@@ -315,24 +335,39 @@ export default function PharmacyReportsPage() {
                           </td>
                         </tr>
                       ))
-                    ) : (overviewData?.sales_by_payment_type ?? []).length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="py-8 text-center text-gray-500">
-                          No payment breakdown details found.
-                        </td>
-                      </tr>
                     ) : (
-                      overviewData?.sales_by_payment_type.map((payment, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                          <td className="py-3 font-semibold text-slate-900 dark:text-white uppercase">
-                            {payment.payment_type}
-                          </td>
-                          <td className="py-3 text-center font-semibold">{payment.count}</td>
-                          <td className="py-3 text-right font-semibold text-brand-600 dark:text-brand-400">
-                            {formatCurrency(payment.amount)}
-                          </td>
-                        </tr>
-                      ))
+                      (() => {
+                        const paymentList = overviewData?.sales_by_payment_type ?? (
+                          overviewData?.financial_summary?.payment_breakdown
+                            ? [
+                                { payment_type: "cash", amount: overviewData.financial_summary.payment_breakdown.cash, count: 0 },
+                                { payment_type: "pos", amount: overviewData.financial_summary.payment_breakdown.pos, count: 0 },
+                                { payment_type: "transfer", amount: overviewData.financial_summary.payment_breakdown.transfer, count: 0 }
+                              ]
+                            : []
+                        );
+                        const hasPayments = paymentList.some(x => x.amount > 0 || (x.count && x.count > 0));
+                        if (paymentList.length === 0 || !hasPayments) {
+                          return (
+                            <tr>
+                              <td colSpan={3} className="py-8 text-center text-gray-500">
+                                No payment breakdown details found.
+                              </td>
+                            </tr>
+                          );
+                        }
+                        return paymentList.map((payment, index) => (
+                          <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                            <td className="py-3 font-semibold text-slate-900 dark:text-white uppercase">
+                              {payment.payment_type}
+                            </td>
+                            <td className="py-3 text-center font-semibold">{payment.count || "-"}</td>
+                            <td className="py-3 text-right font-semibold text-brand-600 dark:text-brand-400">
+                              {formatCurrency(payment.amount)}
+                            </td>
+                          </tr>
+                        ));
+                      })()
                     )}
                   </tbody>
                 </table>
@@ -369,51 +404,57 @@ export default function PharmacyReportsPage() {
                       </td>
                     </tr>
                   ))
-                ) : (dispensedData?.logs ?? []).length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-500">
-                      No dispensed billing records found for this range.
-                    </td>
-                  </tr>
                 ) : (
-                  dispensedData?.logs.map((req) => (
-                    <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                      <td className="py-4 font-mono font-bold text-brand-600 dark:text-brand-400">
-                        {req.billing_code}
-                      </td>
-                      <td className="py-4 text-xs whitespace-nowrap">
-                        {formatDateTime(req.dispensed_at)}
-                      </td>
-                      <td className="py-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-900 dark:text-white">
-                            {req.patient_name}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            ID: {req.patient_id || "Walk-In"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 text-xs">{req.pharmacist_name}</td>
-                      <td className="py-4 whitespace-nowrap">
-                        <span className="inline-flex rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase">
-                          {req.payment_type}
-                        </span>
-                      </td>
-                      <td className="py-4">
-                        <div className="flex flex-col gap-1 max-w-[240px]">
-                          {(req.items ?? []).map((item, index) => (
-                            <span key={index} className="text-xs">
-                              • {item.item_name} (x{item.quantity})
+                  (() => {
+                    const dispensedLogs = dispensedData?.requests ?? dispensedData?.logs ?? [];
+                    if (dispensedLogs.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-gray-500">
+                            No dispensed billing records found for this range.
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return dispensedLogs.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                        <td className="py-4 font-mono font-bold text-brand-600 dark:text-brand-400">
+                          {req.billing_code}
+                        </td>
+                        <td className="py-4 text-xs whitespace-nowrap">
+                          {formatDateTime(req.dispensed_at)}
+                        </td>
+                        <td className="py-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-900 dark:text-white">
+                              {req.patient_name}
                             </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-4 text-right font-bold text-slate-900 dark:text-white">
-                        {formatCurrency(req.total_amount)}
-                      </td>
-                    </tr>
-                  ))
+                            <span className="text-xs text-gray-500">
+                              ID: {req.patient_id || "Walk-In"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-4 text-xs">{req.pharmacist_name}</td>
+                        <td className="py-4 whitespace-nowrap">
+                          <span className="inline-flex rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase">
+                            {req.payment_type}
+                          </span>
+                        </td>
+                        <td className="py-4">
+                          <div className="flex flex-col gap-1 max-w-[240px]">
+                            {(req.items ?? []).map((item, index) => (
+                              <span key={index} className="text-xs">
+                                • {item.item_name} (x{item.quantity})
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-4 text-right font-bold text-slate-900 dark:text-white">
+                          {formatCurrency(req.total_amount)}
+                        </td>
+                      </tr>
+                    ));
+                  })()
                 )}
               </tbody>
             </table>
