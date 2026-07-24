@@ -1566,6 +1566,7 @@ export type AdminHospitalPatientReportResponse = {
     hospital_code: string;
     filters: {
       patient_id: string | null;
+      phone_number: string | null;
       start_date: string | null;
       end_date: string | null;
       show_all: boolean;
@@ -1577,6 +1578,7 @@ export type AdminHospitalPatientReportResponse = {
     report: Array<{
       patient_id: string;
       patient_name: string;
+      phone_number?: string | null;
       department: string;
       income_head: string;
       bill_name: string;
@@ -2064,6 +2066,7 @@ export type FoReportsResponse = {
 export type FoPatientReportTransaction = {
   patient_id: string;
   patient_name: string;
+  phone_number?: string | null;
   department: string;
   income_head: string;
   bill_name: string;
@@ -2080,7 +2083,8 @@ export type FoPatientReportResponse = {
     hospital_name: string;
     hospital_code: string;
     filters: {
-      patient_id: string;
+      patient_id: string | null;
+      phone_number: string | null;
       start_date: string | null;
       end_date: string | null;
       show_all: boolean;

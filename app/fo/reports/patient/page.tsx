@@ -25,6 +25,7 @@ function Page() {
   const today = getTodayDate();
   const [patientQuery, setPatientQuery] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const deferredPatientQuery = useDeferredValue(patientQuery.trim());
@@ -59,14 +60,15 @@ function Page() {
   }, [patientLookupQuery.data?.data.patients]);
 
   const reportQuery = useQuery({
-    queryKey: ["fo-patient-report", selectedPatientId, startDate, endDate],
+    queryKey: ["fo-patient-report", selectedPatientId, phoneNumber, startDate, endDate],
     queryFn: () =>
       getFoPatientReport({
-        patientId: selectedPatientId,
+        patientId: selectedPatientId || undefined,
+        phoneNumber: phoneNumber || undefined,
         startDate,
         endDate,
       }),
-    enabled: Boolean(accessToken && selectedPatientId) && !dateRangeIsInvalid,
+    enabled: Boolean(accessToken && (selectedPatientId || phoneNumber)) && !dateRangeIsInvalid,
   });
 
   useEffect(() => {
@@ -115,23 +117,32 @@ function Page() {
       onFilterChange={(value) => {
         setPatientQuery(value);
         setSelectedPatientId("");
+        setPhoneNumber("");
       }}
       onFilterOptionSelect={(option) => {
         setPatientQuery(option.name);
         setSelectedPatientId(option.id);
+        setPhoneNumber("");
       }}
       filterSearchOptions={patientOptions}
       isFilterOptionSelected={Boolean(selectedPatientId)}
       filterPlaceholder="Search patient by ID or name"
       emptyFilterSearchMessage="No matching patients found."
       isFilterSearchLoading={patientLookupQuery.isLoading}
+      phoneNumber={phoneNumber}
+      onPhoneNumberChange={(value) => {
+        setPhoneNumber(value);
+        setPatientQuery("");
+        setSelectedPatientId("");
+      }}
+      phoneNumberPlaceholder="Search by phone number"
       startDate={startDate}
       endDate={endDate}
       onStartDateChange={setStartDate}
       onEndDateChange={setEndDate}
       onViewAllReports={() => {
-        if (!selectedPatientId) {
-          toast.error("Enter a patient ID to view all patient reports.");
+        if (!selectedPatientId && !phoneNumber) {
+          toast.error("Enter a patient ID or Phone Number to view reports.");
           return;
         }
 
@@ -139,10 +150,11 @@ function Page() {
         setEndDate("");
       }}
       onExport={() =>
-        !selectedPatientId
+        !selectedPatientId && !phoneNumber
           ? Promise.resolve(toast.error("Generate a patient report before exporting."))
           : exportFoPatientReportCsv({
-              patientId: selectedPatientId,
+              patientId: selectedPatientId || undefined,
+              phoneNumber: phoneNumber || undefined,
               startDate,
               endDate,
             }).catch((error) =>
@@ -152,10 +164,11 @@ function Page() {
             )
       }
       onPrint={() =>
-        !selectedPatientId
+        !selectedPatientId && !phoneNumber
           ? Promise.resolve(toast.error("Generate a patient report before printing."))
           : printFoPatientReport({
-              patientId: selectedPatientId,
+              patientId: selectedPatientId || undefined,
+              phoneNumber: phoneNumber || undefined,
               startDate,
               endDate,
             }).catch((error) =>

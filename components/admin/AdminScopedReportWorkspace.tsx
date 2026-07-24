@@ -55,6 +55,9 @@ type Props = {
     | AdminHospitalPatientReportResponse["data"]
     | AdminHospitalDepartmentReportResponse["data"]
     | AdminHospitalAgentReportResponse["data"];
+  phoneNumber?: string;
+  onPhoneNumberChange?: (value: string) => void;
+  phoneNumberPlaceholder?: string;
 };
 
 function formatDate(date: Date) {
@@ -237,6 +240,9 @@ function AdminScopedReportWorkspace({
   errorMessage,
   isLoading = false,
   data,
+  phoneNumber = "",
+  onPhoneNumberChange,
+  phoneNumberPlaceholder,
 }: Props) {
   const rows = extractTransactions(mode, data);
   const patientRows =
@@ -301,7 +307,7 @@ function AdminScopedReportWorkspace({
 
         <div className="rounded-xl border border-line-subtle bg-panel p-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="grid min-w-70 flex-1 gap-3 md:grid-cols-2">
+            <div className={`grid min-w-70 flex-1 gap-3 ${mode === "patient" && onPhoneNumberChange !== undefined ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   Hospital
@@ -349,6 +355,21 @@ function AdminScopedReportWorkspace({
                   />
                 )}
               </div>
+
+              {mode === "patient" && onPhoneNumberChange !== undefined && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                    Phone Number
+                  </p>
+                  <input
+                    value={phoneNumber}
+                    onChange={(event) => onPhoneNumberChange(event.target.value)}
+                    placeholder={phoneNumberPlaceholder ?? "Search by phone number"}
+                    disabled={!hospitalId}
+                    className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2">

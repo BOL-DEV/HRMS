@@ -1155,6 +1155,7 @@ export async function getAdminHospitalPatientReport(
   hospitalId: string,
   params?: {
     patientId?: string;
+    phoneNumber?: string;
     startDate?: string;
     endDate?: string;
   },
@@ -1164,6 +1165,10 @@ export async function getAdminHospitalPatientReport(
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   applyDateRangeQuery(query, params);
@@ -1177,6 +1182,7 @@ export async function exportAdminHospitalPatientReportCsv(
   hospitalId: string,
   params?: {
     patientId?: string;
+    phoneNumber?: string;
     startDate?: string;
     endDate?: string;
   },
@@ -1186,6 +1192,10 @@ export async function exportAdminHospitalPatientReportCsv(
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   applyDateRangeQuery(query, params);
@@ -1202,6 +1212,7 @@ export async function printAdminHospitalPatientReport(
   hospitalId: string,
   params?: {
     patientId?: string;
+    phoneNumber?: string;
     startDate?: string;
     endDate?: string;
   },
@@ -1211,6 +1222,10 @@ export async function printAdminHospitalPatientReport(
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   applyDateRangeQuery(query, params);

@@ -114,18 +114,18 @@ export interface GetPharmacyRequestsResponse {
 }
 
 export interface PharmacyDashboardStats {
-  summary: {
+  summary?: {
     total_inventory_items: number;
     total_categories: number;
     low_stock_items: number;
     expired_items: number;
     pending_billing_requests: number;
   };
-  sales: {
+  sales?: {
     today_total_revenue: number;
     today_dispensed_count: number;
   };
-  low_stock_alerts: Array<{
+  low_stock_alerts?: Array<{
     id: string;
     name: string;
     generic_name?: string;
@@ -133,7 +133,40 @@ export interface PharmacyDashboardStats {
     reorder_level: number;
     status: string;
   }>;
-  expiry_alerts: Array<{
+  expiry_alerts?: Array<{
+    id: string;
+    name: string;
+    generic_name?: string;
+    expiry_date: string;
+    status: string;
+  }>;
+
+  // Live backend fields
+  revenue_today?: number;
+  total_count_dispensed?: number;
+  pending_requests_count?: number;
+  low_stock_count?: number;
+  total_inventory_value?: number;
+  pending_requests?: Array<{
+    id: string;
+    patient_id: string;
+    patient_name: string;
+    phone_number: string;
+    billing_code: string;
+    total_amount: number;
+    status: string;
+    created_at: string;
+  }>;
+  low_stock_items?: Array<{
+    id: string;
+    name: string;
+    generic_name?: string;
+    stock: number;
+    reorder_level: number;
+    status: string;
+  }>;
+  expired_items?: number;
+  expiry_items?: Array<{
     id: string;
     name: string;
     generic_name?: string;

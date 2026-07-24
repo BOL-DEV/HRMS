@@ -18,7 +18,6 @@ import {
   unwrapPharmacyData,
   payPharmacyRequestSelf,
   getPharmacyProfile,
-
   getPharmacyWalkInPatient,
 } from "@/libs/pharmacy-api";
 

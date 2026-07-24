@@ -99,6 +99,9 @@ type Props = {
   } | null;
   onPreviousPage?: () => void;
   onNextPage?: () => void;
+  phoneNumber?: string;
+  onPhoneNumberChange?: (value: string) => void;
+  phoneNumberPlaceholder?: string;
 };
 
 function toMethodLabel(value: FoReportPaymentType): "Cash" | "Transfer" | "POS" {
@@ -293,6 +296,9 @@ function FoScopedReportWorkspace({
   pagination,
   onPreviousPage,
   onNextPage,
+  phoneNumber = "",
+  onPhoneNumberChange,
+  phoneNumberPlaceholder,
 }: Props) {
   const rows = extractTransactions(mode, data);
   const patientRows = mode === "patient" ? extractPatientRows(data) : [];
@@ -354,74 +360,89 @@ function FoScopedReportWorkspace({
 
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="min-w-[240px] flex-1 space-y-1">
-              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                {filterLabel}
-              </p>
-              {filterType === "select" ? (
-                <select
-                  value={filterValue}
-                  onChange={(event) => onFilterChange(event.target.value)}
-                  disabled={isFilterLoading}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
-                >
-                  <option value="All">All</option>
-                  {filterOptions.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              ) : filterType === "search-select" ? (
-                <div className="relative">
+            <div className="flex min-w-[240px] flex-1 flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  {filterLabel}
+                </p>
+                {filterType === "select" ? (
+                  <select
+                    value={filterValue}
+                    onChange={(event) => onFilterChange(event.target.value)}
+                    disabled={isFilterLoading}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
+                  >
+                    <option value="All">All</option>
+                    {filterOptions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : filterType === "search-select" ? (
+                  <div className="relative">
+                    <input
+                      value={filterValue}
+                      onChange={(event) => onFilterChange(event.target.value)}
+                      placeholder={filterPlaceholder}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
+                    />
+                    {filterValue.trim() && !isFilterOptionSelected ? (
+                      <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-line-subtle dark:bg-panel">
+                        {isFilterSearchLoading ? (
+                          <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
+                            Searching...
+                          </div>
+                        ) : filterSearchOptions.length === 0 ? (
+                          <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
+                            {emptyFilterSearchMessage}
+                          </div>
+                        ) : (
+                          <ul className="max-h-64 overflow-y-auto">
+                            {filterSearchOptions.map((item) => (
+                              <li key={item.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => onFilterOptionSelect?.(item)}
+                                  className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-line-subtle dark:hover:bg-panel-strong"
+                                >
+                                  <span className="font-semibold text-gray-900 dark:text-slate-100">
+                                    {item.name}
+                                  </span>
+                                  {item.description ? (
+                                    <span className="text-xs text-gray-600 dark:text-slate-300">
+                                      {item.description}
+                                    </span>
+                                  ) : null}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
                   <input
                     value={filterValue}
                     onChange={(event) => onFilterChange(event.target.value)}
                     placeholder={filterPlaceholder}
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
                   />
-                  {filterValue.trim() && !isFilterOptionSelected ? (
-                    <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-lg dark:border-line-subtle dark:bg-panel">
-                      {isFilterSearchLoading ? (
-                        <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
-                          Searching...
-                        </div>
-                      ) : filterSearchOptions.length === 0 ? (
-                        <div className="p-3 text-sm text-gray-600 dark:text-slate-300">
-                          {emptyFilterSearchMessage}
-                        </div>
-                      ) : (
-                        <ul className="max-h-64 overflow-y-auto">
-                          {filterSearchOptions.map((item) => (
-                            <li key={item.id}>
-                              <button
-                                type="button"
-                                onClick={() => onFilterOptionSelect?.(item)}
-                                className="flex w-full flex-col gap-1 border-b border-gray-100 px-4 py-3 text-left text-sm hover:bg-gray-50 dark:border-line-subtle dark:hover:bg-panel-strong"
-                              >
-                                <span className="font-semibold text-gray-900 dark:text-slate-100">
-                                  {item.name}
-                                </span>
-                                {item.description ? (
-                                  <span className="text-xs text-gray-600 dark:text-slate-300">
-                                    {item.description}
-                                  </span>
-                                ) : null}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  ) : null}
+                )}
+              </div>
+              {mode === "patient" && onPhoneNumberChange !== undefined && (
+                <div className="w-full sm:w-64 space-y-1">
+                  <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                    Phone Number
+                  </p>
+                  <input
+                    value={phoneNumber}
+                    onChange={(event) => onPhoneNumberChange(event.target.value)}
+                    placeholder={phoneNumberPlaceholder ?? "Search by phone number"}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
+                  />
                 </div>
-              ) : (
-                <input
-                  value={filterValue}
-                  onChange={(event) => onFilterChange(event.target.value)}
-                  placeholder={filterPlaceholder}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-line-subtle dark:bg-canvas-alt dark:text-slate-100"
-                />
               )}
             </div>
 

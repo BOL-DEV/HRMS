@@ -858,6 +858,7 @@ export async function exportFoTransactionsCsv(params?: {
 
 export async function getFoPatientReport(params?: {
   patientId?: string;
+  phoneNumber?: string;
   startDate?: string;
   endDate?: string;
   exportType?: "csv";
@@ -867,6 +868,10 @@ export async function getFoPatientReport(params?: {
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   if (params?.startDate && params?.endDate) {
@@ -894,6 +899,7 @@ export async function getFoPatientReport(params?: {
 
 export async function exportFoPatientReportCsv(params?: {
   patientId?: string;
+  phoneNumber?: string;
   startDate?: string;
   endDate?: string;
 }) {
@@ -901,6 +907,10 @@ export async function exportFoPatientReportCsv(params?: {
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   if (params?.startDate && params?.endDate) {
@@ -921,6 +931,7 @@ export async function exportFoPatientReportCsv(params?: {
 
 export async function printFoPatientReport(params?: {
   patientId?: string;
+  phoneNumber?: string;
   startDate?: string;
   endDate?: string;
 }) {
@@ -928,6 +939,10 @@ export async function printFoPatientReport(params?: {
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   if (params?.startDate && params?.endDate) {
