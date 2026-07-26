@@ -414,6 +414,7 @@ export async function getPharmacyProfile() {
           allow_agent_pharmacy_pay: boolean;
           allow_pharmacy_walk_in: boolean;
         };
+        modules?: string[];
       };
     }>("/api/pharmacy/profile", {
       headers: { Authorization: `Bearer ${accessToken}` },

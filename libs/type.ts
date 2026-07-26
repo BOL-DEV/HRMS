@@ -599,6 +599,7 @@ export type AgentProfileResponse = {
     last_wallet_topup: number;
     balance_created_at: string;
     balance_updated_at: string;
+    modules?: string[];
   };
 };
 
@@ -645,6 +646,7 @@ export type FoProfileResponse = {
     is_active: boolean;
     last_activity: string;
     created_at: string;
+    modules?: string[];
   };
 };
 
@@ -851,6 +853,7 @@ export type AdminHospitalAgentListItem = {
   last_wallet_topup: number;
   status: AdminHospitalAgentStatus;
   role?: string;
+  modules?: string[];
 };
 
 export type AdminHospitalAgentsResponse = {
@@ -945,6 +948,7 @@ export type CreateAdminHospitalAgentPayload = {
   phone: string;
   password: string;
   role?: string;
+  modules?: string[];
 };
 
 export type CreateAdminHospitalAgentResponse = {
@@ -996,6 +1000,7 @@ export type AdminHospitalFoListItem = {
   email: string;
   phone: string;
   status: AdminHospitalFoStatus;
+  modules?: string[];
 };
 
 export type AdminHospitalFosResponse = {
@@ -1018,6 +1023,7 @@ export type CreateAdminHospitalFoPayload = {
   email: string;
   phone: string;
   password: string;
+  modules?: string[];
 };
 
 export type CreateAdminHospitalFoResponse = {
@@ -1069,6 +1075,7 @@ export type AdminHospitalPharmacistListItem = {
   status: AdminHospitalPharmacistStatus;
   created_at: string;
   updated_at: string;
+  modules?: string[];
 };
 
 export type CreateAdminHospitalPharmacistPayload = {
@@ -1077,6 +1084,7 @@ export type CreateAdminHospitalPharmacistPayload = {
   email: string;
   phone: string;
   password?: string;
+  modules?: string[];
 };
 
 export type CreateAdminHospitalPharmacistResponse = {

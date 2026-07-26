@@ -25,6 +25,7 @@ type FormState = {
   phone: string;
   password: string;
   status: AdminHospitalPharmacistStatus;
+  modules: string[];
 };
 
 function splitPharmacistName(name?: string) {
@@ -49,6 +50,7 @@ function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null):
     phone: pharmacist?.phone ?? "",
     password: "",
     status: pharmacist?.status ?? "active",
+    modules: pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"],
   };
 }
 
@@ -78,6 +80,16 @@ function AdminHospitalPharmacistFormModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const handleModuleToggle = (moduleKey: string) => {
+    setForm((current) => {
+      const exists = current.modules.includes(moduleKey);
+      const updated = exists
+        ? current.modules.filter((m) => m !== moduleKey)
+        : [...current.modules, moduleKey];
+      return { ...current, modules: updated };
+    });
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -94,6 +106,7 @@ function AdminHospitalPharmacistFormModal({
         email,
         phone,
         password,
+        modules: form.modules,
       });
       return;
     }
@@ -125,6 +138,14 @@ function AdminHospitalPharmacistFormModal({
 
     if (form.status !== pharmacist?.status) {
       payload.status = form.status;
+    }
+
+    const originalModules = pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"];
+    const modulesChanged =
+      form.modules.length !== originalModules.length ||
+      !form.modules.every((m) => originalModules.includes(m));
+    if (modulesChanged) {
+      payload.modules = form.modules;
     }
 
     onSubmit(payload);
@@ -231,6 +252,31 @@ function AdminHospitalPharmacistFormModal({
               </button>
             </div>
           </label>
+
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+              Module Access Permissions
+            </span>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-line-subtle bg-canvas-alt p-3.5 sm:grid-cols-3">
+              {[
+                { key: "dashboard", label: "Dashboard" },
+                { key: "dispense", label: "Dispense Control" },
+                { key: "prescriptions", label: "Prescriptions" },
+                { key: "inventory", label: "Inventory Setup" },
+                { key: "reports", label: "Reports Logs" },
+              ].map((mod) => (
+                <label key={mod.key} className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.modules.includes(mod.key)}
+                    onChange={() => handleModuleToggle(mod.key)}
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span>{mod.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {isEditMode ? (
             <label className="block space-y-2">

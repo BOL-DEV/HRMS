@@ -25,6 +25,7 @@ type FormState = {
   phone: string;
   password: string;
   status: AdminHospitalFoStatus;
+  modules: string[];
 };
 
 function splitFoName(name?: string) {
@@ -49,6 +50,19 @@ function buildInitialState(fo?: AdminHospitalFoListItem | null): FormState {
     phone: fo?.phone ?? "",
     password: "",
     status: fo?.status ?? "active",
+    modules: fo?.modules ?? [
+      "dashboard",
+      "agents",
+      "bill-items",
+      "departments",
+      "income-heads",
+      "receipts",
+      "transactions",
+      "reports-general",
+      "reports-patient",
+      "reports-department",
+      "reports-agent",
+    ],
   };
 }
 
@@ -78,6 +92,16 @@ function AdminHospitalFoFormModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const handleModuleToggle = (moduleKey: string) => {
+    setForm((current) => {
+      const exists = current.modules.includes(moduleKey);
+      const updated = exists
+        ? current.modules.filter((m) => m !== moduleKey)
+        : [...current.modules, moduleKey];
+      return { ...current, modules: updated };
+    });
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -94,6 +118,7 @@ function AdminHospitalFoFormModal({
         email,
         phone,
         password,
+        modules: form.modules,
       });
       return;
     }
@@ -123,6 +148,26 @@ function AdminHospitalFoFormModal({
 
     if (form.status !== fo?.status) {
       payload.status = form.status;
+    }
+
+    const originalModules = fo?.modules ?? [
+      "dashboard",
+      "agents",
+      "bill-items",
+      "departments",
+      "income-heads",
+      "receipts",
+      "transactions",
+      "reports-general",
+      "reports-patient",
+      "reports-department",
+      "reports-agent",
+    ];
+    const modulesChanged =
+      form.modules.length !== originalModules.length ||
+      !form.modules.every((m) => originalModules.includes(m));
+    if (modulesChanged) {
+      payload.modules = form.modules;
     }
 
     onSubmit(payload);
@@ -228,6 +273,37 @@ function AdminHospitalFoFormModal({
               </button>
             </div>
           </label>
+
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+              Module Access Permissions
+            </span>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-line-subtle bg-canvas-alt p-3.5 sm:grid-cols-3">
+              {[
+                { key: "dashboard", label: "Dashboard" },
+                { key: "agents", label: "Agents Control" },
+                { key: "bill-items", label: "Bill Items" },
+                { key: "departments", label: "Departments" },
+                { key: "income-heads", label: "Income Heads" },
+                { key: "receipts", label: "Receipts Admin" },
+                { key: "transactions", label: "Transactions Log" },
+                { key: "reports-general", label: "General Report" },
+                { key: "reports-patient", label: "Patient Report" },
+                { key: "reports-department", label: "Dept Report" },
+                { key: "reports-agent", label: "Agent Report" },
+              ].map((mod) => (
+                <label key={mod.key} className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.modules.includes(mod.key)}
+                    onChange={() => handleModuleToggle(mod.key)}
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span>{mod.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {isEditMode ? (
             <label className="block space-y-2">

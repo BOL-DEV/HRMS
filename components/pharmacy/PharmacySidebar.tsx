@@ -44,18 +44,44 @@ const sidebarData = {
   ],
 };
 
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
+import { getAgentAccessToken } from "@/libs/auth";
+import { useQuery } from "@tanstack/react-query";
+
 const PharmacySidebar = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
 
-  const links = useMemo(
-    () =>
-      sidebarData.links.map((link) => ({
+  const { data: profileResponse } = useQuery({
+    queryKey: ["pharmacy-profile-sidebar"],
+    queryFn: getPharmacyProfile,
+    enabled: Boolean(accessToken),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const activeModules = profileResponse?.data?.modules;
+
+  const links = useMemo(() => {
+    return sidebarData.links
+      .filter((link) => {
+        if (!activeModules) return true; // fallback if profile not loaded
+        const keyMap: Record<string, string> = {
+          "/pharmacy/dashboard": "dashboard",
+          "/pharmacy/dispense": "dispense",
+          "/pharmacy/prescriptions": "prescriptions",
+          "/pharmacy/inventory": "inventory",
+          "/pharmacy/reports": "reports",
+        };
+        const key = keyMap[link.link];
+        return !key || activeModules.includes(key);
+      })
+      .map((link) => ({
         ...link,
         active: pathname === link.link,
-      })),
-    [pathname],
-  );
+      }));
+  }, [pathname, activeModules]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);

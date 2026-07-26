@@ -119,24 +119,65 @@ const FoSidebar = () => {
 
   const revenueType = profileQuery.data?.data.revenue_type;
   const showBillItems = revenueType !== "manual";
+  const activeModules = profileQuery.data?.data?.modules;
 
   const links = useMemo(() => {
     const sourceLinks = showBillItems
       ? sidebarData.links
       : sidebarData.links.filter((link) => link.link !== "/fo/bill-items");
 
-    return sourceLinks.map((link) => ({
-      ...link,
-      active:
-        link.link === "/fo/reports"
-          ? pathname === "/fo/reports" || pathname.startsWith("/fo/reports/")
-          : pathname === link.link,
-      children: link.children?.map((child) => ({
-        ...child,
-        active: pathname === child.link,
-      })),
-    }));
-  }, [pathname, showBillItems]);
+    return sourceLinks
+      .map((link) => {
+        let filteredChildren = link.children;
+        if (link.children) {
+          filteredChildren = link.children.filter((child) => {
+            if (!activeModules) return true;
+            const childKeyMap: Record<string, string> = {
+              "/fo/reports": "reports-general",
+              "/fo/reports/department": "reports-department",
+              "/fo/reports/agent": "reports-agent",
+              "/fo/reports/patient": "reports-patient",
+            };
+            const key = childKeyMap[child.link];
+            return !key || activeModules.includes(key);
+          });
+        }
+
+        return {
+          ...link,
+          children: filteredChildren,
+          active:
+            link.link === "/fo/reports"
+              ? pathname === "/fo/reports" || pathname.startsWith("/fo/reports/")
+              : pathname === link.link,
+        };
+      })
+      .filter((link) => {
+        if (link.link === "/fo/settings") return true;
+        if (link.children && link.children.length === 0) return false;
+        if (!activeModules) return true;
+
+        const keyMap: Record<string, string> = {
+          "/fo/dashboard": "dashboard",
+          "/fo/agents": "agents",
+          "/fo/agent-topups": "agents",
+          "/fo/transactions": "transactions",
+          "/fo/departments": "departments",
+          "/fo/income-heads": "income-heads",
+          "/fo/bill-items": "bill-items",
+          "/fo/receipts": "receipts",
+        };
+        const key = keyMap[link.link];
+        return !key || activeModules.includes(key);
+      })
+      .map((link) => ({
+        ...link,
+        children: link.children?.map((child) => ({
+          ...child,
+          active: pathname === child.link,
+        })),
+      }));
+  }, [pathname, showBillItems, activeModules]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);

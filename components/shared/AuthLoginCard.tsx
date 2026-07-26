@@ -10,6 +10,7 @@ import { ApiError } from "@/libs/api";
 import { clearAuthTokens, storeAgentTokens, decodeJwt } from "@/libs/auth";
 import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
 
 type Props = {
   mode?: "embedded" | "page";
@@ -52,21 +53,93 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       if (decodedRole === "FO") {
-        toast.success(response.message || "Login successful.");
-        router.push("/fo/dashboard");
-        return;
+        try {
+          const profile = await getFoProfile();
+          const activeModules = profile?.data?.modules ?? [];
+          let targetPath = "/fo/settings";
+          const priority = [
+            { key: "dashboard", path: "/fo/dashboard" },
+            { key: "agents", path: "/fo/agents" },
+            { key: "transactions", path: "/fo/transactions" },
+            { key: "departments", path: "/fo/departments" },
+            { key: "income-heads", path: "/fo/income-heads" },
+            { key: "bill-items", path: "/fo/bill-items" },
+            { key: "receipts", path: "/fo/receipts" },
+            { key: "reports-general", path: "/fo/reports" },
+            { key: "reports-patient", path: "/fo/reports/patient" },
+            { key: "reports-department", path: "/fo/reports/department" },
+            { key: "reports-agent", path: "/fo/reports/agent" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        } catch (err) {
+          toast.success(response.message || "Login successful.");
+          router.push("/fo/dashboard");
+          return;
+        }
       }
 
       if (decodedRole === "PHARMACY") {
-        toast.success(response.message || "Login successful.");
-        router.push("/pharmacy/dashboard");
-        return;
+        try {
+          const profile = await getPharmacyProfile();
+          const activeModules = profile?.data?.modules ?? [];
+          let targetPath = "/pharmacy/dashboard";
+          const priority = [
+            { key: "dashboard", path: "/pharmacy/dashboard" },
+            { key: "dispense", path: "/pharmacy/dispense" },
+            { key: "prescriptions", path: "/pharmacy/prescriptions" },
+            { key: "inventory", path: "/pharmacy/inventory" },
+            { key: "reports", path: "/pharmacy/reports" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        } catch (err) {
+          toast.success(response.message || "Login successful.");
+          router.push("/pharmacy/dashboard");
+          return;
+        }
       }
 
       if (decodedRole === "AGENT") {
-        toast.success(response.message || "Login successful.");
-        router.push("/agents/dashboard");
-        return;
+        try {
+          const profile = await getAgentProfile();
+          const activeModules = profile?.data?.modules ?? [];
+          let targetPath = "/agents/settings";
+          const priority = [
+            { key: "dashboard", path: "/agents/dashboard" },
+            { key: "transactions", path: "/agents/transactions" },
+            { key: "receipts", path: "/agents/receipts" },
+            { key: "topup-history", path: "/agents/topup-history" },
+            { key: "reports", path: "/agents/reports" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        } catch (err) {
+          toast.success(response.message || "Login successful.");
+          router.push("/agents/dashboard");
+          return;
+        }
       }
 
       try {
@@ -83,9 +156,30 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       try {
-        await getFoProfile();
+        const profile = await getFoProfile();
+        const activeModules = profile?.data?.modules ?? [];
+        let targetPath = "/fo/settings";
+        const priority = [
+          { key: "dashboard", path: "/fo/dashboard" },
+          { key: "agents", path: "/fo/agents" },
+          { key: "transactions", path: "/fo/transactions" },
+          { key: "departments", path: "/fo/departments" },
+          { key: "income-heads", path: "/fo/income-heads" },
+          { key: "bill-items", path: "/fo/bill-items" },
+          { key: "receipts", path: "/fo/receipts" },
+          { key: "reports-general", path: "/fo/reports" },
+          { key: "reports-patient", path: "/fo/reports/patient" },
+          { key: "reports-department", path: "/fo/reports/department" },
+          { key: "reports-agent", path: "/fo/reports/agent" },
+        ];
+        for (const item of priority) {
+          if (activeModules.includes(item.key)) {
+            targetPath = item.path;
+            break;
+          }
+        }
         toast.success(response.message || "Login successful.");
-        router.push("/fo/dashboard");
+        router.push(targetPath);
         return;
       } catch (error) {
         if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
@@ -98,13 +192,43 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       try {
         const profile = await getAgentProfile();
         const role = String(profile.data.role).toUpperCase();
+        const activeModules = profile?.data?.modules ?? [];
         if (role === "PHARMACY") {
+          let targetPath = "/pharmacy/dashboard";
+          const priority = [
+            { key: "dashboard", path: "/pharmacy/dashboard" },
+            { key: "dispense", path: "/pharmacy/dispense" },
+            { key: "prescriptions", path: "/pharmacy/prescriptions" },
+            { key: "inventory", path: "/pharmacy/inventory" },
+            { key: "reports", path: "/pharmacy/reports" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
           toast.success(response.message || "Login successful.");
-          router.push("/pharmacy/dashboard");
+          router.push(targetPath);
           return;
         }
+
+        let targetPath = "/agents/settings";
+        const priority = [
+          { key: "dashboard", path: "/agents/dashboard" },
+          { key: "transactions", path: "/agents/transactions" },
+          { key: "receipts", path: "/agents/receipts" },
+          { key: "topup-history", path: "/agents/topup-history" },
+          { key: "reports", path: "/agents/reports" },
+        ];
+        for (const item of priority) {
+          if (activeModules.includes(item.key)) {
+            targetPath = item.path;
+            break;
+          }
+        }
         toast.success(response.message || "Login successful.");
-        router.push("/agents/dashboard");
+        router.push(targetPath);
         return;
       } catch (error) {
         clearAuthTokens();
