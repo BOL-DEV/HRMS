@@ -7,9 +7,10 @@ import toast from "react-hot-toast";
 import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { ApiError } from "@/libs/api";
-import { clearAuthTokens, storeAgentTokens } from "@/libs/auth";
+import { clearAuthTokens, storeAgentTokens, decodeJwt } from "@/libs/auth";
 import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
 
 type Props = {
   mode?: "embedded" | "page";
@@ -31,7 +32,7 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
 
   const loginMutation = useMutation({
     mutationFn: loginAgent,
-    onSuccess: async (response) => {
+    onSuccess: async (response, variables) => {
       const accessToken = response.data?.accessToken;
       const refreshToken = response.data?.refreshToken;
 
@@ -41,6 +42,105 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       storeAgentTokens({ accessToken, refreshToken });
+
+      const decoded = decodeJwt(accessToken);
+      const decodedRole = String(decoded?.role || decoded?.user?.role || decoded?.identity?.role || decoded?.data?.role || "").toUpperCase();
+
+      if (decodedRole === "PLATFORM_ADMIN") {
+        toast.success(response.message || "Login successful.");
+        router.push("/admin/dashboard");
+        return;
+      }
+
+      if (decodedRole === "FO") {
+        try {
+          const profile = await getFoProfile();
+          const activeModules = profile?.data?.modules ?? [];
+          let targetPath = "/fo/settings";
+          const priority = [
+            { key: "dashboard", path: "/fo/dashboard" },
+            { key: "agents", path: "/fo/agents" },
+            { key: "transactions", path: "/fo/transactions" },
+            { key: "departments", path: "/fo/departments" },
+            { key: "income-heads", path: "/fo/income-heads" },
+            { key: "bill-items", path: "/fo/bill-items" },
+            { key: "receipts", path: "/fo/receipts" },
+            { key: "reports-general", path: "/fo/reports" },
+            { key: "reports-patient", path: "/fo/reports/patient" },
+            { key: "reports-department", path: "/fo/reports/department" },
+            { key: "reports-agent", path: "/fo/reports/agent" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        } catch (err) {
+          toast.success(response.message || "Login successful.");
+          router.push("/fo/dashboard");
+          return;
+        }
+      }
+
+      if (decodedRole === "PHARMACY") {
+        try {
+          const profile = await getPharmacyProfile();
+          const activeModules = profile?.data?.modules ?? [];
+          let targetPath = "/pharmacy/dashboard";
+          const priority = [
+            { key: "dashboard", path: "/pharmacy/dashboard" },
+            { key: "dispense", path: "/pharmacy/dispense" },
+            { key: "prescriptions", path: "/pharmacy/prescriptions" },
+            { key: "inventory", path: "/pharmacy/inventory" },
+            { key: "reports", path: "/pharmacy/reports" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        } catch (err) {
+          toast.success(response.message || "Login successful.");
+          router.push("/pharmacy/dashboard");
+          return;
+        }
+      }
+
+      if (decodedRole === "AGENT") {
+        try {
+          const profile = await getAgentProfile();
+          const activeModules = profile?.data?.modules ?? [];
+          let targetPath = "/agents/settings";
+          const priority = [
+            { key: "dashboard", path: "/agents/dashboard" },
+            { key: "transactions", path: "/agents/transactions" },
+            { key: "receipts", path: "/agents/receipts" },
+            { key: "topup-history", path: "/agents/topup-history" },
+            { key: "reports", path: "/agents/reports" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        } catch (err) {
+          toast.success(response.message || "Login successful.");
+          router.push("/agents/dashboard");
+          return;
+        }
+      }
 
       try {
         await getAdminDashboard();
@@ -56,9 +156,30 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       try {
-        await getFoProfile();
+        const profile = await getFoProfile();
+        const activeModules = profile?.data?.modules ?? [];
+        let targetPath = "/fo/settings";
+        const priority = [
+          { key: "dashboard", path: "/fo/dashboard" },
+          { key: "agents", path: "/fo/agents" },
+          { key: "transactions", path: "/fo/transactions" },
+          { key: "departments", path: "/fo/departments" },
+          { key: "income-heads", path: "/fo/income-heads" },
+          { key: "bill-items", path: "/fo/bill-items" },
+          { key: "receipts", path: "/fo/receipts" },
+          { key: "reports-general", path: "/fo/reports" },
+          { key: "reports-patient", path: "/fo/reports/patient" },
+          { key: "reports-department", path: "/fo/reports/department" },
+          { key: "reports-agent", path: "/fo/reports/agent" },
+        ];
+        for (const item of priority) {
+          if (activeModules.includes(item.key)) {
+            targetPath = item.path;
+            break;
+          }
+        }
         toast.success(response.message || "Login successful.");
-        router.push("/fo/dashboard");
+        router.push(targetPath);
         return;
       } catch (error) {
         if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
@@ -69,20 +190,55 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
 
       try {
-        await getAgentProfile();
+        const profile = await getAgentProfile();
+        const role = String(profile.data.role).toUpperCase();
+        const activeModules = profile?.data?.modules ?? [];
+        if (role === "PHARMACY") {
+          let targetPath = "/pharmacy/dashboard";
+          const priority = [
+            { key: "dashboard", path: "/pharmacy/dashboard" },
+            { key: "dispense", path: "/pharmacy/dispense" },
+            { key: "prescriptions", path: "/pharmacy/prescriptions" },
+            { key: "inventory", path: "/pharmacy/inventory" },
+            { key: "reports", path: "/pharmacy/reports" },
+          ];
+          for (const item of priority) {
+            if (activeModules.includes(item.key)) {
+              targetPath = item.path;
+              break;
+            }
+          }
+          toast.success(response.message || "Login successful.");
+          router.push(targetPath);
+          return;
+        }
+
+        let targetPath = "/agents/settings";
+        const priority = [
+          { key: "dashboard", path: "/agents/dashboard" },
+          { key: "transactions", path: "/agents/transactions" },
+          { key: "receipts", path: "/agents/receipts" },
+          { key: "topup-history", path: "/agents/topup-history" },
+          { key: "reports", path: "/agents/reports" },
+        ];
+        for (const item of priority) {
+          if (activeModules.includes(item.key)) {
+            targetPath = item.path;
+            break;
+          }
+        }
         toast.success(response.message || "Login successful.");
-        router.push("/agents/dashboard");
+        router.push(targetPath);
         return;
       } catch (error) {
-        if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
-          clearAuthTokens();
+        clearAuthTokens();
+        if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
+          toast.error("Your account does not have a valid role assigned.");
+        } else {
           toast.error(getErrorMessage(error));
-          return;
         }
       }
 
-      toast.success(response.message || "Login successful.");
-      router.push("/catalog/dashboard");
     },
     onError: (error) => {
       clearAuthTokens();
@@ -110,6 +266,9 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
       }
     >
       <div className="text-center">
+        <p className="mb-3 inline-flex items-center rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+          Welcome to the development environment
+        </p>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
           Sign in to continue
         </p>

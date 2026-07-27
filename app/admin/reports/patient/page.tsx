@@ -28,6 +28,7 @@ export default function Page() {
   const today = getTodayDate();
   const [hospitalId, setHospitalId] = useState("");
   const [patientId, setPatientId] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(today);
   const [showAll, setShowAll] = useState(false);
@@ -42,16 +43,18 @@ export default function Page() {
   const selectedHospitalId = hospitalId || hospitals[0]?.hospital_id || "";
 
   const trimmedPatientId = patientId.trim();
+  const trimmedPhoneNumber = phoneNumber.trim();
   const patientIdIsValid =
     !trimmedPatientId || isNumericPatientId(trimmedPatientId);
   const dateRangeIsInvalid =
     !showAll && Boolean(startDate && endDate && startDate > endDate);
   const applied =
-    !selectedHospitalId || !patientIdIsValid || dateRangeIsInvalid
+    !selectedHospitalId || !patientIdIsValid || dateRangeIsInvalid || (!trimmedPatientId && !trimmedPhoneNumber)
       ? null
       : {
           hospitalId: selectedHospitalId,
           patientId: trimmedPatientId,
+          phoneNumber: trimmedPhoneNumber,
           startDate: showAll ? "" : startDate,
           endDate: showAll ? "" : endDate,
         };
@@ -66,7 +69,8 @@ export default function Page() {
       }
 
       return getAdminHospitalPatientReport(current.hospitalId, {
-        patientId: current.patientId,
+        patientId: current.patientId || undefined,
+        phoneNumber: current.phoneNumber || undefined,
         startDate: current.startDate,
         endDate: current.endDate,
       });
@@ -113,9 +117,17 @@ export default function Page() {
       filterValue={patientId}
       onFilterChange={(value) => {
         setPatientId(value);
+        setPhoneNumber("");
         setShowAll(false);
       }}
       filterPlaceholder="Enter patient ID"
+      phoneNumber={phoneNumber}
+      onPhoneNumberChange={(value) => {
+        setPhoneNumber(value);
+        setPatientId("");
+        setShowAll(false);
+      }}
+      phoneNumberPlaceholder="Enter phone number"
       startDate={startDate}
       endDate={endDate}
       onStartDateChange={(value) => {
@@ -133,6 +145,12 @@ export default function Page() {
         }
 
         const trimmedPatientId = patientId.trim();
+        const trimmedPhoneNumber = phoneNumber.trim();
+
+        if (!trimmedPatientId && !trimmedPhoneNumber) {
+          toast.error("Enter a patient ID or Phone Number to view reports.");
+          return;
+        }
 
         if (trimmedPatientId && !isNumericPatientId(trimmedPatientId)) {
           toast.error("Patient ID must contain only numbers.");
@@ -155,6 +173,7 @@ export default function Page() {
 
           return exportAdminHospitalPatientReportCsv(current.hospitalId, {
             patientId: current.patientId || undefined,
+            phoneNumber: current.phoneNumber || undefined,
             startDate: current.startDate,
             endDate: current.endDate,
           }).catch((error) =>
@@ -176,6 +195,7 @@ export default function Page() {
 
           return printAdminHospitalPatientReport(current.hospitalId, {
             patientId: current.patientId || undefined,
+            phoneNumber: current.phoneNumber || undefined,
             startDate: current.startDate,
             endDate: current.endDate,
           }).catch((error) =>

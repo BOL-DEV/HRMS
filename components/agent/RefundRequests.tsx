@@ -1,6 +1,6 @@
 import StatusPill from "@/components/shared/StatusPill";
 import { RefundRequest } from "@/libs/type";
-import { formatUsd } from "@/libs/helper";
+import { formatNaira } from "@/libs/helper";
 
 type Props = {
   requests?: RefundRequest[];
@@ -63,7 +63,7 @@ function RefundRequests({ requests = refundRequests }: Props) {
 
             <div className="flex items-center justify-between">
               <p className="font-semibold text-brand-700">
-                {formatUsd(item.amount)}
+                {formatNaira(item.amount)}
               </p>
               <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-50">
                 Review

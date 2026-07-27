@@ -232,6 +232,9 @@ export type AgentPaymentConfigResponse = {
     hospital_name: string;
     revenue_type: AgentRevenueType;
     status: string;
+    has_pharmacy_module?: boolean;
+    allow_agent_pharmacy_pay?: boolean;
+    allow_pharmacy_walk_in?: boolean;
   };
 };
 
@@ -443,6 +446,45 @@ export type ProcessPaymentResponse = {
   };
 };
 
+export type AgentPendingPharmacyRequestItem = {
+  id?: string;
+  pharmacy_item_id?: string;
+  name?: string;
+  item_name?: string;
+  quantity?: number;
+  unit_price?: number;
+  price?: number;
+  amount?: number;
+};
+
+export type AgentPendingPharmacyRequest = {
+  id?: string;
+  request_id?: string;
+  pharmacy_request_id?: string;
+  billing_request_id?: string;
+  patient_id: string;
+  patient_name: string;
+  phone_number: string;
+  billing_code: string;
+  total_amount: number;
+  status: "pending" | "dispensed" | "cancelled";
+  created_at: string;
+  department_id?: string;
+  department_name?: string;
+  items?: AgentPendingPharmacyRequestItem[];
+};
+
+export type AgentPendingPharmacyRequestsResponse = {
+  status?: number;
+  message?: string;
+  data:
+    | AgentPendingPharmacyRequest[]
+    | {
+        requests?: AgentPendingPharmacyRequest[];
+        items?: AgentPendingPharmacyRequest[];
+      };
+};
+
 export type AgentReceiptSearchType =
   | "receipt_no"
   | "patient_name"
@@ -557,6 +599,7 @@ export type AgentProfileResponse = {
     last_wallet_topup: number;
     balance_created_at: string;
     balance_updated_at: string;
+    modules?: string[];
   };
 };
 
@@ -603,6 +646,7 @@ export type FoProfileResponse = {
     is_active: boolean;
     last_activity: string;
     created_at: string;
+    modules?: string[];
   };
 };
 
@@ -742,6 +786,11 @@ export type AdminHospitalListItem = {
   transaction_count: number;
   total_revenue: number;
   status: AdminHospitalStatus;
+  has_pharmacy_module?: boolean;
+  allow_pharmacy_self_pay?: boolean;
+  allow_agent_pharmacy_pay?: boolean;
+  allow_pharmacy_walk_in?: boolean;
+  pharmacy_batch_strategy?: "single_row" | "multi_batch";
 };
 
 export type AdminHospitalsResponse = {
@@ -767,6 +816,10 @@ export type AdminHospitalOverviewResponse = {
       hospital_phone: string;
       address: string;
       status: AdminHospitalStatus;
+      has_pharmacy_module?: boolean;
+      allow_pharmacy_self_pay?: boolean;
+      allow_agent_pharmacy_pay?: boolean;
+  allow_pharmacy_walk_in?: boolean;
     };
     overview: {
       total_revenue: number;
@@ -799,6 +852,8 @@ export type AdminHospitalAgentListItem = {
   total_topup: number;
   last_wallet_topup: number;
   status: AdminHospitalAgentStatus;
+  role?: string;
+  modules?: string[];
 };
 
 export type AdminHospitalAgentsResponse = {
@@ -892,6 +947,8 @@ export type CreateAdminHospitalAgentPayload = {
   email: string;
   phone: string;
   password: string;
+  role?: string;
+  modules?: string[];
 };
 
 export type CreateAdminHospitalAgentResponse = {
@@ -943,6 +1000,7 @@ export type AdminHospitalFoListItem = {
   email: string;
   phone: string;
   status: AdminHospitalFoStatus;
+  modules?: string[];
 };
 
 export type AdminHospitalFosResponse = {
@@ -965,6 +1023,7 @@ export type CreateAdminHospitalFoPayload = {
   email: string;
   phone: string;
   password: string;
+  modules?: string[];
 };
 
 export type CreateAdminHospitalFoResponse = {
@@ -1000,6 +1059,79 @@ export type UpdateAdminHospitalFoResponse = {
     hospital_id: string;
     status: AdminHospitalFoStatus;
     updated_at: string;
+  };
+};
+
+export type AdminHospitalPharmacistStatus = "active" | "suspended";
+
+export type AdminHospitalPharmacistListItem = {
+  pharmacist_id: string;
+  pharmacist_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  hospital_id: string;
+  status: AdminHospitalPharmacistStatus;
+  created_at: string;
+  updated_at: string;
+  modules?: string[];
+};
+
+export type CreateAdminHospitalPharmacistPayload = {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  password?: string;
+  modules?: string[];
+};
+
+export type CreateAdminHospitalPharmacistResponse = {
+  status: number;
+  message: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: "PHARMACY";
+    hospital_id: string;
+    is_active: boolean;
+  };
+};
+
+export type UpdateAdminHospitalPharmacistPayload = Partial<
+  CreateAdminHospitalPharmacistPayload & {
+    status: AdminHospitalPharmacistStatus;
+  }
+>;
+
+export type UpdateAdminHospitalPharmacistResponse = {
+  status: number;
+  message: string;
+  data: {
+    pharmacist_id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    hospital_id: string;
+    status: AdminHospitalPharmacistStatus;
+    updated_at: string;
+  };
+};
+
+export type AdminHospitalPharmacistsResponse = {
+  status: number;
+  message: string;
+  data: {
+    hospital_id: string;
+    filters: {
+      search: string | null;
+    };
+    total_pharmacists: number;
+    pharmacists: AdminHospitalPharmacistListItem[];
   };
 };
 
@@ -1442,6 +1574,7 @@ export type AdminHospitalPatientReportResponse = {
     hospital_code: string;
     filters: {
       patient_id: string | null;
+      phone_number: string | null;
       start_date: string | null;
       end_date: string | null;
       show_all: boolean;
@@ -1453,6 +1586,7 @@ export type AdminHospitalPatientReportResponse = {
     report: Array<{
       patient_id: string;
       patient_name: string;
+      phone_number?: string | null;
       department: string;
       income_head: string;
       bill_name: string;
@@ -1558,6 +1692,10 @@ export type CreateAdminHospitalPayload = {
   contact_email: string;
   contact_phone: string;
   revenue_type: "manual" | "automatic";
+  has_pharmacy_module?: boolean;
+  allow_pharmacy_self_pay?: boolean;
+  allow_agent_pharmacy_pay?: boolean;
+  allow_pharmacy_walk_in?: boolean;
 };
 
 export type CreateAdminHospitalResponse = {
@@ -1936,6 +2074,7 @@ export type FoReportsResponse = {
 export type FoPatientReportTransaction = {
   patient_id: string;
   patient_name: string;
+  phone_number?: string | null;
   department: string;
   income_head: string;
   bill_name: string;
@@ -1952,7 +2091,8 @@ export type FoPatientReportResponse = {
     hospital_name: string;
     hospital_code: string;
     filters: {
-      patient_id: string;
+      patient_id: string | null;
+      phone_number: string | null;
       start_date: string | null;
       end_date: string | null;
       show_all: boolean;

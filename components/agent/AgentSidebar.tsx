@@ -60,18 +60,45 @@ const sidebarData = {
   ],
 };
 
+import { getAgentProfile } from "@/libs/agent-auth";
+import { getAgentAccessToken } from "@/libs/auth";
+import { useQuery } from "@tanstack/react-query";
+
 const AgentSidebar = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
 
-  const links = useMemo(
-    () =>
-      sidebarData.links.map((link) => ({
+  const { data: profileResponse } = useQuery({
+    queryKey: ["agent-profile-sidebar"],
+    queryFn: getAgentProfile,
+    enabled: Boolean(accessToken),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const activeModules = profileResponse?.data?.modules;
+
+  const links = useMemo(() => {
+    return sidebarData.links
+      .filter((link) => {
+        if (link.link === "/agents/settings") return true; // Profile is always allowed
+        if (!activeModules) return true; // Omit filter if not loaded or fallback
+        const keyMap: Record<string, string> = {
+          "/agents/dashboard": "dashboard",
+          "/agents/transactions": "transactions",
+          "/agents/receipts": "receipts",
+          "/agents/topup-history": "topup-history",
+          "/agents/reports": "reports",
+        };
+        const key = keyMap[link.link];
+        return !key || activeModules.includes(key);
+      })
+      .map((link) => ({
         ...link,
         active: pathname === link.link,
-      })),
-    [pathname],
-  );
+      }));
+  }, [pathname, activeModules]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);

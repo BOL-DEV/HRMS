@@ -70,6 +70,11 @@ import type {
   UpdateAdminHospitalPayload,
   UpdateAdminHospitalResponse,
   DeleteAdminHospitalDepartmentResponse,
+  CreateAdminHospitalPharmacistPayload,
+  CreateAdminHospitalPharmacistResponse,
+  UpdateAdminHospitalPharmacistPayload,
+  UpdateAdminHospitalPharmacistResponse,
+  AdminHospitalPharmacistsResponse,
 } from "@/libs/type";
 
 function getAdminAuthHeaders(accessToken?: string) {
@@ -370,6 +375,30 @@ export async function getAdminHospitalOverview(hospitalId: string) {
   );
 }
 
+export async function getAdminHospital(hospitalId: string) {
+  return adminGet<{
+    status: number;
+    message: string;
+    data: {
+      id: string;
+      hospital_code: string;
+      name: string;
+      logo_url?: string;
+      address: string;
+      contact_email: string;
+      contact_phone: string;
+      revenue_type: "manual" | "automatic";
+      has_pharmacy_module?: boolean;
+      allow_pharmacy_self_pay?: boolean;
+      allow_agent_pharmacy_pay?: boolean;
+      allow_pharmacy_walk_in?: boolean;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    };
+  }>(`/api/admin/hospitals/${hospitalId}`);
+}
+
 export async function getAdminHospitalImageUrl(hospitalId: string) {
   return adminGet<HospitalImageUrlResponse>(
     `/api/admin/hospitals/${hospitalId}/image-url`,
@@ -481,6 +510,46 @@ export async function updateAdminHospitalFo(
 ) {
   return adminPatch<UpdateAdminHospitalFoResponse>(
     `/api/admin/hospitals/${hospitalId}/fos/${foId}`,
+    payload,
+  );
+}
+
+export async function getAdminHospitalPharmacists(
+  hospitalId: string,
+  params?: {
+    search?: string;
+  },
+) {
+  const query = new URLSearchParams();
+
+  if (params?.search?.trim()) {
+    query.set("search", params.search.trim());
+  }
+
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return adminGet<AdminHospitalPharmacistsResponse>(
+    `/api/admin/hospitals/${hospitalId}/pharmacists${suffix}`,
+  );
+}
+
+export async function createAdminHospitalPharmacist(
+  hospitalId: string,
+  payload: CreateAdminHospitalPharmacistPayload,
+) {
+  return adminPost<CreateAdminHospitalPharmacistResponse>(
+    `/api/admin/hospitals/${hospitalId}/pharmacists`,
+    payload,
+  );
+}
+
+export async function updateAdminHospitalPharmacist(
+  hospitalId: string,
+  pharmacistId: string,
+  payload: UpdateAdminHospitalPharmacistPayload,
+) {
+  return adminPatch<UpdateAdminHospitalPharmacistResponse>(
+    `/api/admin/hospitals/${hospitalId}/pharmacists/${pharmacistId}`,
     payload,
   );
 }
@@ -1086,6 +1155,7 @@ export async function getAdminHospitalPatientReport(
   hospitalId: string,
   params?: {
     patientId?: string;
+    phoneNumber?: string;
     startDate?: string;
     endDate?: string;
   },
@@ -1095,6 +1165,10 @@ export async function getAdminHospitalPatientReport(
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   applyDateRangeQuery(query, params);
@@ -1108,6 +1182,7 @@ export async function exportAdminHospitalPatientReportCsv(
   hospitalId: string,
   params?: {
     patientId?: string;
+    phoneNumber?: string;
     startDate?: string;
     endDate?: string;
   },
@@ -1117,6 +1192,10 @@ export async function exportAdminHospitalPatientReportCsv(
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   applyDateRangeQuery(query, params);
@@ -1133,6 +1212,7 @@ export async function printAdminHospitalPatientReport(
   hospitalId: string,
   params?: {
     patientId?: string;
+    phoneNumber?: string;
     startDate?: string;
     endDate?: string;
   },
@@ -1142,6 +1222,10 @@ export async function printAdminHospitalPatientReport(
 
   if (params?.patientId?.trim()) {
     query.set("patient_id", params.patientId.trim());
+  }
+
+  if (params?.phoneNumber?.trim()) {
+    query.set("phone_number", params.phoneNumber.trim());
   }
 
   applyDateRangeQuery(query, params);

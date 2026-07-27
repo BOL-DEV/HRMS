@@ -4,6 +4,7 @@ import {
   getAgentAccessToken,
   getAgentRefreshToken,
   storeAgentTokens,
+  decodeJwt,
 } from "@/libs/auth";
 import type {
   AgentBillItemsResponse,
@@ -24,6 +25,8 @@ import type {
   AgentReceiptSearchType,
   AgentTransactionsResponse,
   AgentTransactionsTimePeriod,
+  AgentPendingPharmacyRequestsResponse,
+  AgentPaymentType,
   AgentSelfTopupHistoryResponse,
   AuthRefreshResponse,
   HospitalImageUrlResponse,
@@ -361,3 +364,41 @@ export async function printApprovedAgentReceipt(
     ),
   );
 }
+
+export async function getAgentPendingPharmacyRequests(params: {
+  billing_code?: string;
+  patient_id?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params.billing_code) {
+    searchParams.set("billing_code", params.billing_code);
+    searchParams.set("code", params.billing_code);
+  }
+  if (params.patient_id) searchParams.set("patient_id", params.patient_id);
+
+  return withAgentSessionRetry((accessToken) =>
+    getJson<AgentPendingPharmacyRequestsResponse>(
+      `/api/payments/pharmacy-requests?${searchParams.toString()}`,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+export async function processAgentPharmacyPayment(payload: {
+  billing_code?: string;
+  patient_id?: string;
+  payment_type: AgentPaymentType;
+}) {
+  return withAgentSessionRetry((accessToken) =>
+    postJson<ProcessPaymentResponse>(
+      "/api/payments/pharmacy/process",
+      payload,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+

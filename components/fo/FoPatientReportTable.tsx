@@ -17,6 +17,7 @@ function FoPatientReportTable({ rows }: Props) {
             <tr className="bg-gray-100 text-left text-gray-600 dark:bg-panel-strong dark:text-slate-300">
               <th className="p-3 font-semibold">Patient ID</th>
               <th className="p-3 font-semibold">Patient Name</th>
+              <th className="p-3 font-semibold">Phone Number</th>
               <th className="p-3 font-semibold">Department</th>
               <th className="p-3 font-semibold">Income Head</th>
               <th className="p-3 font-semibold">Bill Name</th>
@@ -30,7 +31,7 @@ function FoPatientReportTable({ rows }: Props) {
               <tr>
                 <td
                   className="p-4 text-gray-500 dark:text-slate-400"
-                  colSpan={8}
+                  colSpan={9}
                 >
                   No patient transactions available for the current filters.
                 </td>
@@ -46,6 +47,9 @@ function FoPatientReportTable({ rows }: Props) {
                   </td>
                   <td className="p-3 font-semibold whitespace-nowrap text-gray-900 dark:text-slate-100">
                     {item.patient_name}
+                  </td>
+                  <td className="p-3 whitespace-nowrap text-gray-700 dark:text-slate-300">
+                    {item.phone_number || "-"}
                   </td>
                   <td className="p-3 whitespace-nowrap text-gray-700 dark:text-slate-300">
                     {item.department}

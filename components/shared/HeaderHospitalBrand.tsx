@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { FiActivity } from "react-icons/fi";
 import { getAgentHospitalImageUrl, getAgentProfile } from "@/libs/agent-auth";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
 import { getAccessToken } from "@/libs/auth";
 import { getFoHospitalImageUrl, getFoProfile } from "@/libs/fo-auth";
 import { PLATFORM_LOGO_SRC } from "@/libs/brand";
@@ -34,13 +35,19 @@ export default function HeaderHospitalBrand() {
       ? "admin"
     : pathname.startsWith("/agents")
       ? "agent"
+    : pathname.startsWith("/pharmacy")
+      ? "pharmacy"
       : "default";
 
   const profileQuery = useQuery({
     queryKey: [section, "header-profile"],
-    queryFn: async () =>
-      section === "fo" ? getFoProfile() : getAgentProfile(),
-    enabled: Boolean(accessToken && (section === "fo" || section === "agent")),
+    queryFn: async () => {
+      if (section === "pharmacy") {
+        return getPharmacyProfile();
+      }
+      return section === "fo" ? getFoProfile() : getAgentProfile();
+    },
+    enabled: Boolean(accessToken && (section === "fo" || section === "agent" || section === "pharmacy")),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -55,7 +62,7 @@ export default function HeaderHospitalBrand() {
     enabled: Boolean(
       accessToken &&
         hospitalId &&
-        (section === "fo" || section === "agent"),
+        (section === "fo" || section === "agent" || section === "pharmacy"),
     ),
     staleTime: 1000 * 60 * 10,
   });
@@ -77,7 +84,12 @@ export default function HeaderHospitalBrand() {
     if (!profile) {
       return {
         isPlatformLogo: false,
-        label: section === "fo" ? "FO" : "Agent",
+        label:
+          section === "fo"
+            ? "FO"
+            : section === "pharmacy"
+              ? "Pharmacy"
+              : "Agent",
         title: hospitalImageQuery.isLoading ? "Loading hospital..." : "Hospital",
         subtitle: "Connected workspace",
         imageUrl: "",
@@ -86,7 +98,12 @@ export default function HeaderHospitalBrand() {
 
     return {
       isPlatformLogo: false,
-      label: section === "fo" ? "MDA Workspace" : "Agent Workspace",
+      label:
+        section === "fo"
+          ? "MDA Workspace"
+          : section === "pharmacy"
+            ? "Pharmacy Workspace"
+            : "Agent Workspace",
       title: imageData?.hospital_name || profile.hospital_name || "Hospital",
       subtitle: profile.hospital_code || "Connected workspace",
       imageUrl: imageData?.image_url ?? "",

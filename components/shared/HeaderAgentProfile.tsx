@@ -8,10 +8,20 @@ import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { getAgentProfile, logoutAgent } from "@/libs/agent-auth";
 import { logoutAdmin } from "@/libs/admin-auth";
 import { getFoProfile, logoutFo } from "@/libs/fo-auth";
-import { clearAuthTokens, getAccessToken } from "@/libs/auth";
+import { clearAuthTokens, decodeJwt, getAccessToken } from "@/libs/auth";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
 
-type HeaderProfileResponse = AgentProfileResponse | FoProfileResponse;
+type HeaderProfileResponse =
+  | AgentProfileResponse
+  | FoProfileResponse
+  | {
+      data: {
+        first_name?: string;
+        last_name?: string;
+        email?: string;
+      };
+    };
 
 function useHydrated() {
   return useSyncExternalStore(
@@ -42,13 +52,19 @@ export default function HeaderAgentProfile() {
       ? "admin"
     : pathname.startsWith("/agents")
       ? "agent"
+    : pathname.startsWith("/pharmacy")
+      ? "pharmacy"
       : "default";
 
   const profileQuery = useQuery({
     queryKey: [section, "header-profile"],
-    queryFn: async (): Promise<HeaderProfileResponse> =>
-      section === "fo" ? getFoProfile() : getAgentProfile(),
-    enabled: Boolean(accessToken && (section === "fo" || section === "agent")),
+    queryFn: async (): Promise<HeaderProfileResponse> => {
+      if (section === "pharmacy") {
+        return getPharmacyProfile();
+      }
+      return section === "fo" ? getFoProfile() : getAgentProfile();
+    },
+    enabled: Boolean(accessToken && (section === "fo" || section === "agent" || section === "pharmacy")),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -69,6 +85,8 @@ export default function HeaderAgentProfile() {
         ? "Admin"
         : section === "agent"
           ? "Agent"
+          : section === "pharmacy"
+            ? "Pharmacy"
           : "User";
 
   const handleLogout = async () => {

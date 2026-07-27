@@ -108,3 +108,34 @@ html.dark {
     width: 100%;
   }
 }
+
+/* V2 Custom Micro-Animations */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-slide {
+  animation: fadeInSlide 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.025);
+    text-shadow: 0 0 8px rgba(20, 184, 166, 0.25);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulseSubtle 350ms ease-out;
+}
+

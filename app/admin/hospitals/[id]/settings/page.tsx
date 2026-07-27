@@ -11,6 +11,7 @@ import {
   getAdminHospitalDepartments,
   getAdminHospitalIncomeHeads,
   getAdminHospitalOverview,
+  getAdminHospital,
   updateAdminHospital,
 } from "@/libs/admin-auth";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
@@ -28,6 +29,11 @@ type FormState = {
   address: string;
   revenueType: "manual" | "automatic";
   status: AdminHospitalStatus;
+  hasPharmacyModule: boolean;
+  allowPharmacySelfPay: boolean;
+  allowAgentPharmacyPay: boolean;
+  allowPharmacyWalkIn: boolean;
+  pharmacyBatchStrategy: "single_row" | "multi_batch";
 };
 
 function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): FormState {
@@ -38,18 +44,22 @@ function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): F
     address: data?.address ?? "",
     revenueType: data?.revenueType ?? "automatic",
     status: data?.status ?? "active",
+    hasPharmacyModule: data?.hasPharmacyModule ?? false,
+    allowPharmacySelfPay: data?.allowPharmacySelfPay ?? false,
+    allowAgentPharmacyPay: data?.allowAgentPharmacyPay ?? true,
+    allowPharmacyWalkIn: data?.allowPharmacyWalkIn ?? true,
+    pharmacyBatchStrategy: data?.pharmacyBatchStrategy ?? "multi_batch",
   };
 }
 
+function readBoolean(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value.toLowerCase() === "true";
+  return undefined;
+}
+
 function getHospitalFormDefaults(
-  hospital?: {
-    hospital_name: string;
-    hospital_email: string;
-    hospital_phone: string;
-    address: string;
-    revenue_type: "manual" | "automatic";
-    status: AdminHospitalStatus;
-  },
+  hospital?: any,
 ) {
   if (!hospital) {
     return undefined;
@@ -62,6 +72,26 @@ function getHospitalFormDefaults(
     address: hospital.address,
     revenueType: hospital.revenue_type,
     status: hospital.status,
+    hasPharmacyModule:
+      readBoolean(hospital.has_pharmacy_module) ??
+      readBoolean(hospital.hasPharmacyModule) ??
+      false,
+    allowPharmacySelfPay:
+      readBoolean(hospital.allow_pharmacy_self_pay) ??
+      readBoolean(hospital.allowPharmacySelfPay) ??
+      false,
+    allowAgentPharmacyPay:
+      readBoolean(hospital.allow_agent_pharmacy_pay) ??
+      readBoolean(hospital.allowAgentPharmacyPay) ??
+      true,
+    allowPharmacyWalkIn:
+      readBoolean(hospital.allow_pharmacy_walk_in) ??
+      readBoolean(hospital.allowPharmacyWalkIn) ??
+      true,
+    pharmacyBatchStrategy:
+      (hospital as any).pharmacy_batch_strategy ??
+      (hospital as any).pharmacyBatchStrategy ??
+      "multi_batch",
   };
 }
 
@@ -111,6 +141,24 @@ function HospitalSettingsForm({
 
     if (form.status !== defaults.status) {
       payload.status = form.status;
+    }
+
+    if (form.hasPharmacyModule !== defaults.hasPharmacyModule) {
+      payload.has_pharmacy_module = form.hasPharmacyModule;
+    }
+
+    if (form.allowPharmacySelfPay !== defaults.allowPharmacySelfPay) {
+      payload.allow_pharmacy_self_pay = form.allowPharmacySelfPay;
+    }
+
+    if (form.allowAgentPharmacyPay !== defaults.allowAgentPharmacyPay) {
+      payload.allow_agent_pharmacy_pay = form.allowAgentPharmacyPay;
+    }
+    if (form.allowPharmacyWalkIn !== defaults.allowPharmacyWalkIn) {
+      payload.allow_pharmacy_walk_in = form.allowPharmacyWalkIn;
+    }
+    if (form.pharmacyBatchStrategy !== defaults.pharmacyBatchStrategy) {
+      (payload as any).pharmacy_batch_strategy = form.pharmacyBatchStrategy;
     }
 
     if (!Object.keys(payload).length) {
@@ -227,6 +275,109 @@ function HospitalSettingsForm({
             required
           />
         </label>
+
+        {/* Pharmacy Module Configuration */}
+        <div className="md:col-span-2 border border-line-subtle rounded-xl p-5 space-y-4 bg-canvas-alt/25">
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Pharmacy Configurations</h4>
+          
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.hasPharmacyModule}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  hasPharmacyModule: event.target.checked,
+                }))
+              }
+              className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+            />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Enable Pharmacy Module</span>
+              <span className="text-xs text-gray-500 font-normal">Enable stock management, prescriptions, and cashier dispensing.</span>
+            </div>
+          </label>
+
+          {form.hasPharmacyModule && (
+            <div className="pl-7 space-y-4 pt-3 border-t border-line-subtle/50 animate-fade-in-slide">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPharmacySelfPay}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPharmacySelfPay: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Self-Pay</span>
+                  <span className="text-xs text-gray-500 font-normal">Allow pharmacists to directly collect cash/pos payments and clear bills.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowAgentPharmacyPay}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowAgentPharmacyPay: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Agent Pharmacy Pay</span>
+                  <span className="text-xs text-gray-500 font-normal">Allows agents and cashiers at terminal to clear pharmacy bills.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPharmacyWalkIn}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPharmacyWalkIn: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Allow Walk-In Patients</span>
+                  <span className="text-xs text-gray-500 font-normal">Allow billing requests to be created without registering a patient ID.</span>
+                </div>
+              </label>
+
+              <label className="block space-y-2 pt-2 border-t border-line-subtle/30">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  Stock Restocking Strategy
+                </span>
+                <select
+                  value={form.pharmacyBatchStrategy}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      pharmacyBatchStrategy: event.target.value as "single_row" | "multi_batch",
+                    }))
+                  }
+                  className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm dark:text-slate-100"
+                >
+                  <option value="multi_batch">Multi-batch Tracking (Option B - Creates separate batches for different batch/expiry)</option>
+                  <option value="single_row">Single Row per Drug (Option A - Overwrites batch number & expiry date)</option>
+                </select>
+                <span className="block text-xs text-gray-500 font-normal">
+                  Define how restocking items with new batch numbers/expiry dates updates the inventory.
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex justify-end border-t border-line-subtle pt-5">
@@ -317,6 +468,12 @@ export default function HospitalSettingsPage() {
     enabled: Boolean(accessToken && hospitalId),
   });
 
+  const hospitalQuery = useQuery({
+    queryKey: ["admin-hospital-detail", hospitalId],
+    queryFn: () => getAdminHospital(hospitalId),
+    enabled: Boolean(accessToken && hospitalId),
+  });
+
   const catalogDepartmentsQuery = useQuery({
     queryKey: ["admin-hospital-settings-departments", hospitalId],
     queryFn: () => getAdminHospitalDepartments(hospitalId),
@@ -361,10 +518,24 @@ export default function HospitalSettingsPage() {
     [billItemIncomeHeadsQuery.data?.data.income_heads],
   );
 
-  const defaults = useMemo(
-    () => getHospitalFormDefaults(overviewQuery.data?.data.hospital),
-    [overviewQuery.data?.data.hospital],
-  );
+  const defaults = useMemo(() => {
+    const rawHospital = hospitalQuery.data?.data;
+    if (!rawHospital) return undefined;
+
+    return getHospitalFormDefaults({
+      hospital_name: rawHospital.name,
+      hospital_email: rawHospital.contact_email,
+      hospital_phone: rawHospital.contact_phone,
+      address: rawHospital.address,
+      revenue_type: rawHospital.revenue_type,
+      status: rawHospital.is_active ? "active" : "suspended",
+      has_pharmacy_module: rawHospital.has_pharmacy_module,
+      allow_pharmacy_self_pay: rawHospital.allow_pharmacy_self_pay,
+      allow_agent_pharmacy_pay: rawHospital.allow_agent_pharmacy_pay,
+      allow_pharmacy_walk_in: rawHospital.allow_pharmacy_walk_in,
+      pharmacy_batch_strategy: (rawHospital as any).pharmacy_batch_strategy,
+    });
+  }, [hospitalQuery.data]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -399,6 +570,9 @@ export default function HospitalSettingsPage() {
       updateAdminHospital(hospitalId, payload),
     onSuccess: (response) => {
       toast.success(response.message);
+      queryClient.invalidateQueries({
+        queryKey: ["admin-hospital-detail", hospitalId],
+      });
       queryClient.invalidateQueries({
         queryKey: ["admin-hospital-overview", hospitalId],
       });

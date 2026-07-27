@@ -25,6 +25,7 @@ type FormState = {
   phone: string;
   password: string;
   status: AdminHospitalAgentStatus;
+  modules: string[];
 };
 
 function splitAgentName(name?: string) {
@@ -49,6 +50,7 @@ function buildInitialState(agent?: AdminHospitalAgentListItem | null): FormState
     phone: "",
     password: "",
     status: agent?.status ?? "active",
+    modules: agent?.modules ?? ["dashboard", "transactions", "receipts", "reports", "topup-history"],
   };
 }
 
@@ -78,6 +80,16 @@ function AdminHospitalAgentFormModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const handleModuleToggle = (moduleKey: string) => {
+    setForm((current) => {
+      const exists = current.modules.includes(moduleKey);
+      const updated = exists
+        ? current.modules.filter((m) => m !== moduleKey)
+        : [...current.modules, moduleKey];
+      return { ...current, modules: updated };
+    });
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -94,6 +106,7 @@ function AdminHospitalAgentFormModal({
         email,
         phone,
         password,
+        modules: form.modules,
       });
       return;
     }
@@ -123,6 +136,14 @@ function AdminHospitalAgentFormModal({
 
     if (form.status !== agent?.status) {
       payload.status = form.status;
+    }
+
+    const originalModules = agent?.modules ?? ["dashboard", "transactions", "receipts", "reports", "topup-history"];
+    const modulesChanged =
+      form.modules.length !== originalModules.length ||
+      !form.modules.every((m) => originalModules.includes(m));
+    if (modulesChanged) {
+      payload.modules = form.modules;
     }
 
     onSubmit(payload);
@@ -228,6 +249,31 @@ function AdminHospitalAgentFormModal({
               </button>
             </div>
           </label>
+
+          <div className="space-y-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+              Module Access Permissions
+            </span>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-line-subtle bg-canvas-alt p-3.5 sm:grid-cols-3">
+              {[
+                { key: "dashboard", label: "Dashboard" },
+                { key: "transactions", label: "Transactions" },
+                { key: "receipts", label: "Receipts" },
+                { key: "reports", label: "Reports" },
+                { key: "topup-history", label: "Top-Up History" },
+              ].map((mod) => (
+                <label key={mod.key} className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.modules.includes(mod.key)}
+                    onChange={() => handleModuleToggle(mod.key)}
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span>{mod.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
 
           {isEditMode ? (
             <label className="block space-y-2">
