@@ -54,6 +54,7 @@ export type PharmacyDrugPayload = {
   stock: number;
   reorder_level: number;
   unit_price: number;
+  status?: string;
 };
 
 export type PharmacyRequestUpdatePayload = Partial<{
