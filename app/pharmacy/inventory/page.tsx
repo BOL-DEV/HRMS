@@ -18,6 +18,7 @@ import {
   updatePharmacyDrug,
   deletePharmacyDrug,
   restockPharmacyItem,
+  getPharmacyProfile,
   BackendDrugItem,
   PharmacyCategory,
   PharmacyDrugPayload,
@@ -29,6 +30,16 @@ export default function PharmacyInventoryPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+
+  const { data: profileResponse } = useQuery({
+    queryKey: ["pharmacy-profile"],
+    queryFn: getPharmacyProfile,
+    enabled: Boolean(accessToken),
+  });
+
+  const profile = profileResponse?.data;
+  const isPlatformAdmin = (profile?.role as string) === "PLATFORM_ADMIN";
+  const hasEditAccess = isPlatformAdmin || profile?.modules?.includes("inventory-edit");
 
   // Filters State
   const [search, setSearch] = useState("");
@@ -49,6 +60,7 @@ export default function PharmacyInventoryPage() {
   const [formStock, setFormStock] = useState("");
   const [formReorderLevel, setFormReorderLevel] = useState("50");
   const [formPrice, setFormPrice] = useState("");
+  const [formStatus, setFormStatus] = useState("active");
 
   // Restock states
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
@@ -237,6 +249,7 @@ export default function PharmacyInventoryPage() {
     setFormStock("");
     setFormReorderLevel("50");
     setFormPrice("");
+    setFormStatus("active");
     setIsAddingCategory(false);
     setIsModalOpen(true);
   };
@@ -252,6 +265,7 @@ export default function PharmacyInventoryPage() {
     setFormStock(String(drug.stock));
     setFormReorderLevel(String(drug.reorder_level || 50));
     setFormPrice(String(drug.unit_price));
+    setFormStatus(drug.is_active ? "active" : "inactive");
     setIsAddingCategory(false);
     setIsModalOpen(true);
   };
@@ -284,11 +298,11 @@ export default function PharmacyInventoryPage() {
       stock,
       reorder_level,
       unit_price,
+      status: formStatus,
     };
 
     if (editingDrug) {
-      const { stock: _, ...updatePayload } = payload;
-      updateDrugMutation.mutate({ id: editingDrug.id, payload: updatePayload as any });
+      updateDrugMutation.mutate({ id: editingDrug.id, payload });
     } else {
       addDrugMutation.mutate(payload);
     }
@@ -364,20 +378,26 @@ export default function PharmacyInventoryPage() {
             <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Inventory</h1>
             <p className="text-sm text-gray-500">{totalItems} items in catalog</p>
           </div>
-          <button
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
-          >
-            <FiPlus />
-            Add Drug
-          </button>
-          <button
-            onClick={() => setIsCategoryManagerOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            <FiFolderPlus />
-            Categories
-          </button>
+          <div className="flex gap-2">
+            {hasEditAccess && (
+              <button
+                onClick={handleOpenAddModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+              >
+                <FiPlus />
+                Add Drug
+              </button>
+            )}
+            {hasEditAccess && (
+              <button
+                onClick={() => setIsCategoryManagerOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <FiFolderPlus />
+                Categories
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search & Filters */}
@@ -486,27 +506,33 @@ export default function PharmacyInventoryPage() {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => handleOpenRestockModal(item)}
-                              className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-                              title="Restock Item"
-                            >
-                              <FiPlus className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditModal(item)}
-                              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
-                              title="Edit Drug"
-                            >
-                              <FiEdit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item.id, item.name)}
-                              className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
-                              title="Delete Drug"
-                            >
-                              <FiTrash2 className="h-4 w-4" />
-                            </button>
+                            {hasEditAccess && (
+                              <button
+                                onClick={() => handleOpenRestockModal(item)}
+                                className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                title="Restock Item"
+                              >
+                                <FiPlus className="h-4 w-4" />
+                              </button>
+                            )}
+                            {hasEditAccess && (
+                              <button
+                                onClick={() => handleOpenEditModal(item)}
+                                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                                title="Edit Drug"
+                              >
+                                <FiEdit2 className="h-4 w-4" />
+                              </button>
+                            )}
+                            {hasEditAccess && (
+                              <button
+                                onClick={() => handleDelete(item.id, item.name)}
+                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                                title="Delete Drug"
+                              >
+                                <FiTrash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -594,7 +620,7 @@ export default function PharmacyInventoryPage() {
                     Category
                   </span>
                   {!isAddingCategory ? (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-stretch">
                       <select
                         value={formCategory}
                         onChange={(e) => setFormCategory(e.target.value)}
@@ -611,14 +637,14 @@ export default function PharmacyInventoryPage() {
                       <button
                         type="button"
                         onClick={() => setIsAddingCategory(true)}
-                        className="p-3 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl dark:bg-slate-800 dark:text-slate-200 transition"
+                        className="flex items-center justify-center px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-slate-700 rounded-xl dark:bg-canvas dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition"
                         title="Add New Category"
                       >
                         <FiFolderPlus className="h-5 w-5" />
                       </button>
                     </div>
                   ) : (
-                    <div className="flex gap-2 animate-fade-in-slide">
+                    <div className="flex gap-2 items-stretch animate-fade-in-slide">
                       <input
                         type="text"
                         value={newCategoryName}
@@ -630,16 +656,16 @@ export default function PharmacyInventoryPage() {
                         type="button"
                         onClick={handleCreateCategory}
                         disabled={createCategoryMutation.isPending}
-                        className="bg-brand-700 hover:bg-brand-600 text-white rounded-xl px-3 py-2 text-xs font-semibold transition"
+                        className="bg-brand-700 hover:bg-brand-600 text-white rounded-xl px-4 text-xs font-semibold transition"
                       >
                         Create
                       </button>
                       <button
                         type="button"
                         onClick={() => setIsAddingCategory(false)}
-                        className="bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl p-3 dark:bg-slate-800 dark:text-slate-200 transition"
+                        className="flex items-center justify-center px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-slate-700 rounded-xl dark:bg-canvas dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition"
                       >
-                        <FiX />
+                        <FiX className="h-5 w-5" />
                       </button>
                     </div>
                   )}
@@ -671,22 +697,20 @@ export default function PharmacyInventoryPage() {
                   />
                 </label>
 
-                {!editingDrug && (
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Stock Count
-                    </span>
-                    <input
-                      type="number"
-                      value={formStock}
-                      onChange={(e) => setFormStock(e.target.value)}
-                      placeholder="e.g. 500"
-                      min="0"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                      required
-                    />
-                  </label>
-                )}
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                    Stock Count
+                  </span>
+                  <input
+                    type="number"
+                    value={formStock}
+                    onChange={(e) => setFormStock(e.target.value)}
+                    placeholder="e.g. 500"
+                    min="0"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                    required
+                  />
+                </label>
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -703,7 +727,7 @@ export default function PharmacyInventoryPage() {
                   />
                 </label>
 
-                <label className="block sm:col-span-2">
+                <label className={editingDrug ? "block" : "block sm:col-span-2"}>
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                     Unit Price (₦)
                   </span>
@@ -718,6 +742,23 @@ export default function PharmacyInventoryPage() {
                     required
                   />
                 </label>
+
+                {editingDrug && (
+                  <label className="block animate-fade-in">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Status
+                    </span>
+                    <select
+                      value={formStatus}
+                      onChange={(e) => setFormStatus(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      required
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </label>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 border-t border-gray-100 pt-4 mt-6 dark:border-slate-800">
