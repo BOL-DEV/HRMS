@@ -282,9 +282,18 @@ export default function PharmacyDispensePage() {
 
   // Drug Select State
   const [selectedDrugId, setSelectedDrugId] = useState("");
+  const [selectedDrug, setSelectedDrug] = useState<BackendDrugItem | null>(null);
   const [drugSearch, setDrugSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showDrugSuggestions, setShowDrugSuggestions] = useState(false);
   const [dispenseQty, setDispenseQty] = useState("1");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(drugSearch);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [drugSearch]);
 
   // Selected Items List
   const [billItems, setBillItems] = useState<PharmacyBillItem[]>([]);
@@ -311,8 +320,8 @@ export default function PharmacyDispensePage() {
 
   // Fetch Inventory for selection (active, in stock, unexpired)
   const { data: inventoryData } = useQuery({
-    queryKey: ["pharmacy-inventory-all"],
-    queryFn: () => getPharmacyInventory({ limit: 100 }),
+    queryKey: ["pharmacy-inventory-all", debouncedSearch],
+    queryFn: () => getPharmacyInventory({ search: debouncedSearch, limit: 100 }),
     enabled: Boolean(accessToken),
   });
 
@@ -422,10 +431,6 @@ export default function PharmacyDispensePage() {
     },
   });
 
-  const selectedDrug = useMemo(() => {
-    return inventory.find((d: BackendDrugItem) => d.id === selectedDrugId) ?? null;
-  }, [selectedDrugId, inventory]);
-
   const filteredInventory = useMemo(() => {
     const query = drugSearch.trim().toLowerCase();
     if (!query) {
@@ -481,6 +486,7 @@ export default function PharmacyDispensePage() {
 
     setBillItems((current) => [...current, newItem]);
     setSelectedDrugId("");
+    setSelectedDrug(null);
     setDrugSearch("");
     setShowDrugSuggestions(false);
     setDispenseQty("1");
@@ -504,6 +510,7 @@ export default function PharmacyDispensePage() {
     setPatientExists(false);
     setBillItems([]);
     setSelectedDrugId("");
+    setSelectedDrug(null);
     setDrugSearch("");
     setShowDrugSuggestions(false);
     setDispenseQty("1");
@@ -656,6 +663,7 @@ export default function PharmacyDispensePage() {
                     onChange={(e) => {
                       setDrugSearch(e.target.value);
                       setSelectedDrugId("");
+                      setSelectedDrug(null);
                       setShowDrugSuggestions(true);
                     }}
                     placeholder="Search drug name, generic name, category, or batch..."
@@ -675,6 +683,7 @@ export default function PharmacyDispensePage() {
                             type="button"
                             onClick={() => {
                               setSelectedDrugId(drug.id);
+                              setSelectedDrug(drug);
                               setDrugSearch(drug.name);
                               setShowDrugSuggestions(false);
                             }}
