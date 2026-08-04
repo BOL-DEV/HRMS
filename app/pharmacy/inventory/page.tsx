@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Header from "@/components/shared/Header";
 import { formatCurrency } from "@/libs/helper";
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus } from "react-icons/fi";
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus, FiActivity } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAgentAccessToken } from "@/libs/auth";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   deletePharmacyDrug,
   restockPharmacyItem,
   getPharmacyProfile,
+  getPharmacyDrugHistory,
   BackendDrugItem,
   PharmacyCategory,
   PharmacyDrugPayload,
@@ -40,6 +41,7 @@ export default function PharmacyInventoryPage() {
   const profile = profileResponse?.data;
   const isPlatformAdmin = (profile?.role as string) === "PLATFORM_ADMIN";
   const hasEditAccess = isPlatformAdmin || profile?.modules?.includes("inventory-edit");
+  const hasHistoryAccess = isPlatformAdmin || profile?.modules?.includes("inventory-history");
 
   // Filters State
   const [search, setSearch] = useState("");
@@ -50,6 +52,17 @@ export default function PharmacyInventoryPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDrug, setEditingDrug] = useState<BackendDrugItem | null>(null);
+
+  // History Drawer State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyItemId, setHistoryItemId] = useState("");
+  const [historyItemName, setHistoryItemName] = useState("");
+
+  const { data: historyQueryData, isLoading: isHistoryLoading } = useQuery({
+    queryKey: ["pharmacy-drug-history", historyItemId],
+    queryFn: () => getPharmacyDrugHistory(historyItemId),
+    enabled: Boolean(accessToken) && isHistoryOpen && Boolean(historyItemId),
+  });
 
   // Form Fields State
   const [formName, setFormName] = useState("");
@@ -268,6 +281,12 @@ export default function PharmacyInventoryPage() {
     setFormStatus(drug.is_active ? "active" : "inactive");
     setIsAddingCategory(false);
     setIsModalOpen(true);
+  };
+
+  const handleOpenHistory = (item: BackendDrugItem) => {
+    setHistoryItemId(item.id);
+    setHistoryItemName(item.name);
+    setIsHistoryOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -506,6 +525,15 @@ export default function PharmacyInventoryPage() {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-2">
+                            {hasHistoryAccess && (
+                              <button
+                                onClick={() => handleOpenHistory(item)}
+                                className="rounded-lg p-2 text-blue-500 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
+                                title="Audit History"
+                              >
+                                <FiActivity className="h-4 w-4" />
+                              </button>
+                            )}
                             {hasEditAccess && (
                               <button
                                 onClick={() => handleOpenRestockModal(item)}
@@ -975,6 +1003,190 @@ export default function PharmacyInventoryPage() {
                     </div>
                   );
                 })
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Audit History Drawer */}
+      {isHistoryOpen ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/55 backdrop-blur-xs">
+          <div className="w-full max-w-2xl h-screen bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl flex flex-col animate-fade-in-slide">
+            {/* Drawer Header */}
+            <div className="p-6 border-b border-gray-150 dark:border-slate-800 flex items-start justify-between">
+              <div>
+                <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-widest">
+                  Audit Logs
+                </span>
+                <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mt-1">
+                  {historyItemName}
+                </h3>
+                {historyQueryData?.data?.item && (
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {historyQueryData.data.item.generic_name || "No generic name"} | {historyQueryData.data.item.category_name}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setIsHistoryOpen(false);
+                  setHistoryItemId("");
+                  setHistoryItemName("");
+                }}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Current Item Overview Grid */}
+            {historyQueryData?.data?.item && (
+              <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-800/20 border-b border-gray-150 dark:border-slate-800 grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Current Stock
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    {historyQueryData.data.item.stock}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Unit Price
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    {formatCurrency(historyQueryData.data.item.unit_price)}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Batch
+                  </span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100 font-mono">
+                    {historyQueryData.data.item.batch_number || "--"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Drawer Body / Timeline */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isHistoryLoading ? (
+                <div className="flex h-64 items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-700 border-t-transparent"></div>
+                </div>
+              ) : !historyQueryData?.data?.history || historyQueryData.data.history.length === 0 ? (
+                <div className="flex h-64 flex-col items-center justify-center text-center">
+                  <p className="text-sm text-gray-500">No activity history recorded for this formulation.</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Vertical Timeline Guide Line */}
+                  <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-gray-250 dark:bg-slate-800" />
+
+                  <div className="space-y-6">
+                    {historyQueryData.data.history.map((event, index) => {
+                      const eventDateStr = new Date(event.date).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+
+                      return (
+                        <div key={index} className="relative flex gap-4 pl-10">
+                          {/* Timeline Node Badge */}
+                          <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center shadow-xs border border-white dark:border-slate-900 ${
+                            event.type === "sale"
+                              ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
+                              : event.type === "restock"
+                              ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400"
+                              : "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400"
+                          }`}>
+                            {event.type === "sale" ? (
+                              <span className="text-sm font-bold">-</span>
+                            ) : event.type === "restock" ? (
+                              <span className="text-sm font-bold">+</span>
+                            ) : (
+                              <span className="text-xs font-bold">N</span>
+                            )}
+                          </div>
+
+                          {/* Event Content Card */}
+                          <div className="flex-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-xs hover:border-gray-300 dark:hover:border-slate-700 transition">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                                event.type === "sale"
+                                  ? "bg-amber-100/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                                  : event.type === "restock"
+                                  ? "bg-emerald-100/60 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                  : "bg-indigo-100/60 text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300"
+                              }`}>
+                                {event.type}
+                              </span>
+                              <span className="text-xs text-gray-500">{eventDateStr}</span>
+                            </div>
+
+                            <p className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                              {event.type === "sale" ? (
+                                <>
+                                  Dispensed <span className="text-amber-600 font-bold">{Math.abs(event.quantity_changed)}</span> unit(s)
+                                </>
+                              ) : event.type === "restock" ? (
+                                <>
+                                  Restocked <span className="text-emerald-600 font-bold">+{event.quantity_changed}</span> unit(s)
+                                </>
+                              ) : (
+                                <>
+                                  Initial Load of <span className="text-indigo-600 font-bold">+{event.quantity_changed}</span> unit(s)
+                                </>
+                              )}
+                              <span className="text-xs text-gray-400 font-normal ml-2">
+                                (Remaining: {event.remaining_stock} units)
+                              </span>
+                            </p>
+
+                            {/* Details Summary Table */}
+                            <div className="mt-3.5 pt-3.5 border-t border-gray-100 dark:border-slate-800/80 text-xs text-gray-500 dark:text-slate-400 space-y-2">
+                              {event.type === "sale" && (
+                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+                                  <div><span className="font-semibold text-gray-400">Billing Code:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.billing_code}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Receipt No:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.receipt_no || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Patient:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.patient_name || "--"} ({event.details.patient_id || "--"})</span></div>
+                                  <div><span className="font-semibold text-gray-400">Phone:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.phone_number || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Price Sold:</span> <span className="text-slate-800 dark:text-slate-200">{formatCurrency(event.details.unit_price_sold ?? 0)}/unit</span></div>
+                                  <div><span className="font-semibold text-gray-400">Total Price:</span> <span className="text-slate-800 dark:text-slate-200 font-bold">{formatCurrency(event.details.total_price_sold ?? 0)}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Pharmacist:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Cleared By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.bill_clearer_name || "--"} ({event.details.payment_type || "--"})</span></div>
+                                </div>
+                              )}
+
+                              {event.type === "restock" && (
+                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+                                  <div><span className="font-semibold text-gray-400">Restocked By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Stock Shift:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.old_stock} &rarr; {event.details.new_stock}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Batch Shift:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{event.details.old_batch || "--"} &rarr; {event.details.new_batch || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Expiry Shift:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.old_expiry || "--"} &rarr; {event.details.new_expiry || "--"}</span></div>
+                                </div>
+                              )}
+
+                              {event.type === "create" && (
+                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+                                  <div><span className="font-semibold text-gray-400">Created By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Initial Stock:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.initial_stock} units</span></div>
+                                  <div><span className="font-semibold text-gray-400">Batch Code:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{event.details.batch_number || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Expiry Date:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.expiry_date || "--"}</span></div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>

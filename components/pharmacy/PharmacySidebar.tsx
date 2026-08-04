@@ -67,21 +67,28 @@ const PharmacySidebar = () => {
     return sidebarData.links
       .filter((link) => {
         if (!activeModules) return true; // fallback if profile not loaded
-        const keyMap: Record<string, string> = {
+        const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
+        if (isPlatformAdmin) return true;
+
+        const keyMap: Record<string, string | string[]> = {
           "/pharmacy/dashboard": "dashboard",
           "/pharmacy/dispense": "dispense",
           "/pharmacy/prescriptions": "prescriptions",
-          "/pharmacy/inventory": "inventory",
+          "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
           "/pharmacy/reports": "reports",
         };
-        const key = keyMap[link.link];
-        return !key || activeModules.includes(key);
+        const val = keyMap[link.link];
+        if (!val) return true;
+        if (Array.isArray(val)) {
+          return val.some((k) => activeModules.includes(k));
+        }
+        return activeModules.includes(val);
       })
       .map((link) => ({
         ...link,
         active: pathname === link.link,
       }));
-  }, [pathname, activeModules]);
+  }, [pathname, activeModules, profileResponse]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);

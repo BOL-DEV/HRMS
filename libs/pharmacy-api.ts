@@ -711,3 +711,55 @@ export async function getPharmacyInventoryItemById(itemId: string) {
     })
   );
 }
+
+export interface PharmacyDrugHistoryDetail {
+  type: "create" | "restock" | "sale";
+  date: string;
+  quantity_changed: number;
+  remaining_stock: number;
+  details: {
+    // sale
+    request_id?: string;
+    billing_code?: string;
+    unit_price_sold?: number;
+    total_price_sold?: number;
+    patient_id?: string;
+    patient_name?: string;
+    phone_number?: string;
+    pharmacist_name?: string;
+    bill_clearer_name?: string;
+    receipt_no?: string;
+    payment_type?: string;
+
+    // restock
+    id?: string;
+    old_stock?: number;
+    new_stock?: number;
+    old_batch?: string;
+    new_batch?: string;
+    old_expiry?: string | null;
+    new_expiry?: string | null;
+
+    // create
+    initial_stock?: number;
+    batch_number?: string;
+    expiry_date?: string | null;
+  };
+}
+
+export interface PharmacyDrugHistoryResponse {
+  status: number;
+  message: string;
+  data: {
+    item: BackendDrugItem;
+    history: PharmacyDrugHistoryDetail[];
+  };
+}
+
+export async function getPharmacyDrugHistory(itemId: string) {
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyDrugHistoryResponse>(`/api/pharmacy/inventory/${itemId}/history`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
