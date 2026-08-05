@@ -1,0 +1,65 @@
+"use client";
+
+import AppPre from "@/components/shared/AppPre";
+import ChangePassword from "@/components/shared/ChangePassword";
+import Header from "@/components/shared/Header";
+import ProfileInfo from "@/components/shared/ProfileInfo";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { getPharmacyProfile } from "@/libs/pharmacy-api";
+import { ApiError } from "@/libs/api";
+import { clearAgentTokens, getAgentAccessToken } from "@/libs/auth";
+
+function Page() {
+  const router = useRouter();
+  const accessToken = getAgentAccessToken();
+
+  const profileQuery = useQuery({
+    queryKey: ["pharmacy-profile"],
+    queryFn: getPharmacyProfile,
+    enabled: Boolean(accessToken),
+  });
+
+  useEffect(() => {
+    if (!accessToken) {
+      router.replace("/login");
+    }
+  }, [accessToken, router]);
+
+  useEffect(() => {
+    if (!(profileQuery.error instanceof ApiError)) {
+      return;
+    }
+
+    if (profileQuery.error.status === 401) {
+      clearAgentTokens();
+      router.replace("/login");
+    }
+  }, [profileQuery.error, router]);
+
+  return (
+    <div className="min-h-screen w-full overflow-y-auto bg-canvas">
+      <Header title="Profile" Subtitle="View your pharmacy account and hospital details" />
+
+      <div className="p-6 space-y-6">
+        {profileQuery.error instanceof Error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {profileQuery.error.message}
+          </div>
+        ) : null}
+
+        {profileQuery.isLoading ? (
+          <div className="h-52 animate-pulse rounded-2xl border border-gray-200 bg-white dark:border-line-subtle dark:bg-panel" />
+        ) : profileQuery.data?.data ? (
+          <ProfileInfo profile={profileQuery.data.data} />
+        ) : null}
+
+        <ChangePassword workspaceLabel="pharmacy workspace" />
+        <AppPre />
+      </div>
+    </div>
+  );
+}
+
+export default Page;

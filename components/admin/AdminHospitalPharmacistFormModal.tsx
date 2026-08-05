@@ -264,6 +264,7 @@ function AdminHospitalPharmacistFormModal({
                 { key: "prescriptions", label: "Prescriptions" },
                 { key: "inventory", label: "Inventory Setup" },
                 { key: "inventory-edit", label: "Inventory Edit" },
+                { key: "inventory-history", label: "Inventory History" },
                 { key: "reports", label: "Reports Logs" },
               ].map((mod) => (
                 <label key={mod.key} className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 cursor-pointer">

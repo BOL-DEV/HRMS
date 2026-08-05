@@ -294,7 +294,7 @@ export default function PharmacyPrescriptionsPage() {
     setEditItems(
       (bill.items || []).map((it) => ({
         drugId: it.pharmacy_item_id || it.id || "",
-        name: it.name || "Medication",
+        name: it.item_name || it.name || "Medication",
         quantity: it.quantity,
         unitPrice: it.unit_price,
         amount: it.amount || it.unit_price * it.quantity,
@@ -653,7 +653,7 @@ export default function PharmacyPrescriptionsPage() {
                             <div className="flex flex-col gap-1 max-w-[250px]">
                               {bill.items.map((item, idx) => (
                                 <span key={idx} className="text-xs font-medium truncate">
-                                  • {item.name || "Unknown Drug"} (x{item.quantity})
+                                  • {item.item_name || item.name || "Unknown Drug"} (x{item.quantity})
                                 </span>
                               ))}
                             </div>
@@ -836,7 +836,7 @@ export default function PharmacyPrescriptionsPage() {
                     {viewingBill.items?.map((it) => (
                       <div key={it.id} className="flex justify-between text-slate-700 dark:text-slate-300">
                         <span>
-                          {it.name || "Medication"} (x{it.quantity})
+                          {it.item_name || it.name || "Medication"} (x{it.quantity})
                         </span>
                         <span className="font-medium">{formatCurrency(it.amount || it.unit_price * it.quantity)}</span>
                       </div>
