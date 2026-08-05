@@ -91,6 +91,7 @@ export interface PharmacyBillingRequest {
     id: string;
     pharmacy_item_id: string;
     name: string;
+    item_name?: string;
     quantity: number;
     unit_price: number;
     amount: number;

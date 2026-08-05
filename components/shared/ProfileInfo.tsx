@@ -1,7 +1,21 @@
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
 
-type ProfileData = AgentProfileResponse["data"] | FoProfileResponse["data"];
+type ProfileData =
+  | AgentProfileResponse["data"]
+  | FoProfileResponse["data"]
+  | {
+      id: string;
+      first_name: string;
+      last_name: string;
+      email: string;
+      phone: string;
+      role: string;
+      is_active: boolean;
+      created_at: string;
+      hospital_name: string;
+      hospital_code: string;
+    };
 
 type Props = {
   profile: ProfileData;
@@ -13,7 +27,12 @@ function ProfileInfo({ profile }: Props) {
     `${profile.first_name[0] ?? ""}${profile.last_name[0] ?? ""}`.toUpperCase() ||
     "AG";
   const isAgentProfile = "balance" in profile;
-  const roleLabel = profile.role === "FO" ? "financial office" : "agent";
+  const roleLabel =
+    profile.role === "FO"
+      ? "financial office"
+      : profile.role === "PHARMACY"
+        ? "pharmacy"
+        : "agent";
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
@@ -103,7 +122,9 @@ function ProfileInfo({ profile }: Props) {
                 Last Activity
               </p>
               <p className="mt-1 font-semibold text-gray-900 dark:text-slate-100">
-                {formatDateTime(profile.last_activity)}
+                {"last_activity" in profile && profile.last_activity
+                  ? formatDateTime(profile.last_activity as string)
+                  : "N/A"}
               </p>
               <p className="mt-1 text-sm text-gray-600 dark:text-slate-400">
                 Joined: {formatDateTime(profile.created_at)}

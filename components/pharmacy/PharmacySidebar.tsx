@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { FaRegChartBar } from "react-icons/fa";
-import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp } from "react-icons/fi";
+import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings } from "react-icons/fi";
 import Sidebar from "@/components/shared/Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { useMemo, useState } from "react";
@@ -39,6 +39,12 @@ const sidebarData = {
       name: "Reports",
       link: "/pharmacy/reports",
       label: <FiTrendingUp className="inline" />,
+      active: false,
+    },
+    {
+      name: "Settings",
+      link: "/pharmacy/settings",
+      label: <FiSettings className="inline" />,
       active: false,
     },
   ],
