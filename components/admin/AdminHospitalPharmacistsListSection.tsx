@@ -63,6 +63,7 @@ function AdminHospitalPharmacistsListSection({
           <thead>
             <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Name</th>
+              <th className="p-3 font-semibold">Role</th>
               <th className="p-3 font-semibold">Email</th>
               <th className="p-3 font-semibold">Phone</th>
               <th className="p-3 font-semibold">Status</th>
@@ -76,7 +77,7 @@ function AdminHospitalPharmacistsListSection({
                     key={index}
                     className="border-b border-line-subtle"
                   >
-                    <td colSpan={5} className="p-3">
+                    <td colSpan={6} className="p-3">
                       <div className="h-10 animate-pulse rounded-lg bg-panel-muted" />
                     </td>
                   </tr>
@@ -85,7 +86,7 @@ function AdminHospitalPharmacistsListSection({
                 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
                       >
                         No pharmacists found for this hospital.
@@ -99,6 +100,9 @@ function AdminHospitalPharmacistsListSection({
                     >
                       <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                         {pharmacist.pharmacist_name}
+                      </td>
+                      <td className="p-3 text-gray-700 dark:text-slate-300">
+                        {pharmacist.role === "PHARMACY_STORE" ? "Store Manager" : "Point Pharmacist"}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
                         {pharmacist.email}

@@ -41,6 +41,23 @@ export async function loginAgent(payload: AgentLoginPayload) {
   return postJson<AgentLoginResponse>("/api/auth/login", payload);
 }
 
+export async function selectPharmacyUnit(tempToken: string, pharmacyUnitId: string) {
+  return postJson<{
+    status: number;
+    message: string;
+    data: {
+      accessToken: string;
+      refreshToken: string;
+    };
+  }>("/api/auth/select-unit", {
+    pharmacy_unit_id: pharmacyUnitId,
+  }, {
+    headers: {
+      Authorization: `Bearer ${tempToken}`,
+    },
+  });
+}
+
 function getAgentAuthHeaders(accessToken?: string) {
   const token = accessToken ?? getAgentAccessToken();
 

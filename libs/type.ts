@@ -167,7 +167,11 @@ export type AgentLoginPayload = {
 export type AgentLoginResponse = {
   status: number;
   message: string;
-  data?: AgentTokens;
+  data?: AgentTokens & {
+    requires_unit_selection?: boolean;
+    tempToken?: string;
+    units?: Array<{ id: string; name: string; type: "point" | "store" }>;
+  };
 };
 
 export type AuthRefreshResponse = {
@@ -1073,6 +1077,7 @@ export type AdminHospitalPharmacistListItem = {
   phone: string;
   hospital_id: string;
   status: AdminHospitalPharmacistStatus;
+  role?: "PHARMACY" | "PHARMACY_STORE";
   created_at: string;
   updated_at: string;
   modules?: string[];
@@ -1084,6 +1089,7 @@ export type CreateAdminHospitalPharmacistPayload = {
   email: string;
   phone: string;
   password?: string;
+  role?: "PHARMACY" | "PHARMACY_STORE";
   modules?: string[];
 };
 

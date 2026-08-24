@@ -25,8 +25,11 @@ type FormState = {
   phone: string;
   password: string;
   status: AdminHospitalPharmacistStatus;
+  role: "PHARMACY" | "PHARMACY_STORE";
   modules: string[];
 };
+
+type FormStateKeys = keyof FormState;
 
 function splitPharmacistName(name?: string) {
   if (!name) {
@@ -50,6 +53,7 @@ function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null):
     phone: pharmacist?.phone ?? "",
     password: "",
     status: pharmacist?.status ?? "active",
+    role: pharmacist?.role ?? "PHARMACY",
     modules: pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"],
   };
 }
@@ -106,6 +110,7 @@ function AdminHospitalPharmacistFormModal({
         email,
         phone,
         password,
+        role: form.role,
         modules: form.modules,
       });
       return;
@@ -138,6 +143,10 @@ function AdminHospitalPharmacistFormModal({
 
     if (form.status !== pharmacist?.status) {
       payload.status = form.status;
+    }
+
+    if (form.role !== pharmacist?.role) {
+      payload.role = form.role;
     }
 
     const originalModules = pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"];
@@ -280,23 +289,41 @@ function AdminHospitalPharmacistFormModal({
             </div>
           </div>
 
-          {isEditMode ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="block space-y-2">
               <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Status
+                Workspace Role
               </span>
               <select
-                value={form.status}
+                value={form.role}
                 onChange={(event) =>
-                  updateField("status", event.target.value as AdminHospitalPharmacistStatus)
+                  updateField("role", event.target.value as "PHARMACY" | "PHARMACY_STORE")
                 }
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
               >
-                <option value="active">Active</option>
-                <option value="suspended">Suspended</option>
+                <option value="PHARMACY">Point Pharmacist (Bills patients, requests stock)</option>
+                <option value="PHARMACY_STORE">Store Manager (Manages central inventory, dispatches stock)</option>
               </select>
             </label>
-          ) : null}
+
+            {isEditMode ? (
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  Status
+                </span>
+                <select
+                  value={form.status}
+                  onChange={(event) =>
+                    updateField("status", event.target.value as AdminHospitalPharmacistStatus)
+                  }
+                  className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
+                >
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </label>
+            ) : null}
+          </div>
 
           <div className="flex items-center justify-end gap-3 border-t border-line-subtle pt-5">
             <button

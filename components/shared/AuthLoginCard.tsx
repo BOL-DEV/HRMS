@@ -8,7 +8,7 @@ import { FiArrowRight, FiEye, FiEyeOff } from "react-icons/fi";
 import { getAdminDashboard } from "@/libs/admin-auth";
 import { ApiError } from "@/libs/api";
 import { clearAuthTokens, storeAgentTokens, decodeJwt } from "@/libs/auth";
-import { getAgentProfile, loginAgent } from "@/libs/agent-auth";
+import { getAgentProfile, loginAgent, selectPharmacyUnit } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
 import { getPharmacyProfile } from "@/libs/pharmacy-api";
 
@@ -30,131 +30,25 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const loginMutation = useMutation({
-    mutationFn: loginAgent,
-    onSuccess: async (response, variables) => {
-      const accessToken = response.data?.accessToken;
-      const refreshToken = response.data?.refreshToken;
+  // Pharmacy unit selection states
+  const [requiresUnitSelection, setRequiresUnitSelection] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [units, setUnits] = useState<Array<{ id: string; name: string; type: "point" | "store" }>>([]);
+  const [selectedUnitId, setSelectedUnitId] = useState("");
 
-      if (!accessToken || !refreshToken) {
-        toast.error("Login succeeded but no token was returned.");
-        return;
-      }
+  const handleSuccessLogin = async (accessToken: string, refreshToken: string, message?: string) => {
+    storeAgentTokens({ accessToken, refreshToken });
 
-      storeAgentTokens({ accessToken, refreshToken });
+    const decoded = decodeJwt(accessToken);
+    const decodedRole = String(decoded?.role || decoded?.user?.role || decoded?.identity?.role || decoded?.data?.role || "").toUpperCase();
 
-      const decoded = decodeJwt(accessToken);
-      const decodedRole = String(decoded?.role || decoded?.user?.role || decoded?.identity?.role || decoded?.data?.role || "").toUpperCase();
+    if (decodedRole === "PLATFORM_ADMIN") {
+      toast.success(message || "Login successful.");
+      router.push("/admin/dashboard");
+      return;
+    }
 
-      if (decodedRole === "PLATFORM_ADMIN") {
-        toast.success(response.message || "Login successful.");
-        router.push("/admin/dashboard");
-        return;
-      }
-
-      if (decodedRole === "FO") {
-        try {
-          const profile = await getFoProfile();
-          const activeModules = profile?.data?.modules ?? [];
-          let targetPath = "/fo/settings";
-          const priority = [
-            { key: "dashboard", path: "/fo/dashboard" },
-            { key: "agents", path: "/fo/agents" },
-            { key: "transactions", path: "/fo/transactions" },
-            { key: "departments", path: "/fo/departments" },
-            { key: "income-heads", path: "/fo/income-heads" },
-            { key: "bill-items", path: "/fo/bill-items" },
-            { key: "receipts", path: "/fo/receipts" },
-            { key: "reports-general", path: "/fo/reports" },
-            { key: "reports-patient", path: "/fo/reports/patient" },
-            { key: "reports-department", path: "/fo/reports/department" },
-            { key: "reports-agent", path: "/fo/reports/agent" },
-          ];
-          for (const item of priority) {
-            if (activeModules.includes(item.key)) {
-              targetPath = item.path;
-              break;
-            }
-          }
-          toast.success(response.message || "Login successful.");
-          router.push(targetPath);
-          return;
-        } catch (err) {
-          toast.success(response.message || "Login successful.");
-          router.push("/fo/dashboard");
-          return;
-        }
-      }
-
-      if (decodedRole === "PHARMACY") {
-        try {
-          const profile = await getPharmacyProfile();
-          const activeModules = profile?.data?.modules ?? [];
-          let targetPath = "/pharmacy/dashboard";
-          const priority = [
-            { key: "dashboard", path: "/pharmacy/dashboard" },
-            { key: "dispense", path: "/pharmacy/dispense" },
-            { key: "prescriptions", path: "/pharmacy/prescriptions" },
-            { key: "inventory", path: "/pharmacy/inventory" },
-            { key: "reports", path: "/pharmacy/reports" },
-          ];
-          for (const item of priority) {
-            if (activeModules.includes(item.key)) {
-              targetPath = item.path;
-              break;
-            }
-          }
-          toast.success(response.message || "Login successful.");
-          router.push(targetPath);
-          return;
-        } catch (err) {
-          toast.success(response.message || "Login successful.");
-          router.push("/pharmacy/dashboard");
-          return;
-        }
-      }
-
-      if (decodedRole === "AGENT") {
-        try {
-          const profile = await getAgentProfile();
-          const activeModules = profile?.data?.modules ?? [];
-          let targetPath = "/agents/settings";
-          const priority = [
-            { key: "dashboard", path: "/agents/dashboard" },
-            { key: "transactions", path: "/agents/transactions" },
-            { key: "receipts", path: "/agents/receipts" },
-            { key: "topup-history", path: "/agents/topup-history" },
-            { key: "reports", path: "/agents/reports" },
-          ];
-          for (const item of priority) {
-            if (activeModules.includes(item.key)) {
-              targetPath = item.path;
-              break;
-            }
-          }
-          toast.success(response.message || "Login successful.");
-          router.push(targetPath);
-          return;
-        } catch (err) {
-          toast.success(response.message || "Login successful.");
-          router.push("/agents/dashboard");
-          return;
-        }
-      }
-
-      try {
-        await getAdminDashboard();
-        toast.success(response.message || "Login successful.");
-        router.push("/admin/dashboard");
-        return;
-      } catch (error) {
-        if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
-          clearAuthTokens();
-          toast.error(getErrorMessage(error));
-          return;
-        }
-      }
-
+    if (decodedRole === "FO") {
       try {
         const profile = await getFoProfile();
         const activeModules = profile?.data?.modules ?? [];
@@ -178,41 +72,48 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
             break;
           }
         }
-        toast.success(response.message || "Login successful.");
+        toast.success(message || "Login successful.");
         router.push(targetPath);
         return;
-      } catch (error) {
-        if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
-          clearAuthTokens();
-          toast.error(getErrorMessage(error));
-          return;
-        }
+      } catch (err) {
+        toast.success(message || "Login successful.");
+        router.push("/fo/dashboard");
+        return;
       }
+    }
 
+    if (decodedRole === "PHARMACY" || decodedRole === "PHARMACY_STORE") {
+      try {
+        const profile = await getPharmacyProfile();
+        const activeModules = profile?.data?.modules ?? [];
+        let targetPath = "/pharmacy/dashboard";
+        const priority = [
+          { key: "dashboard", path: "/pharmacy/dashboard" },
+          { key: "dispense", path: "/pharmacy/dispense" },
+          { key: "prescriptions", path: "/pharmacy/prescriptions" },
+          { key: "inventory", path: "/pharmacy/inventory" },
+          { key: "reports", path: "/pharmacy/reports" },
+        ];
+        for (const item of priority) {
+          if (activeModules.includes(item.key)) {
+            targetPath = item.path;
+            break;
+          }
+        }
+        toast.success(message || "Login successful.");
+        router.push(targetPath);
+        return;
+      } catch (err) {
+        toast.success(message || "Login successful.");
+        router.push("/pharmacy/dashboard");
+        return;
+      }
+    }
+
+    if (decodedRole === "AGENT") {
       try {
         const profile = await getAgentProfile();
-        const role = String(profile.data.role).toUpperCase();
         const activeModules = profile?.data?.modules ?? [];
-        if (role === "PHARMACY") {
-          let targetPath = "/pharmacy/dashboard";
-          const priority = [
-            { key: "dashboard", path: "/pharmacy/dashboard" },
-            { key: "dispense", path: "/pharmacy/dispense" },
-            { key: "prescriptions", path: "/pharmacy/prescriptions" },
-            { key: "inventory", path: "/pharmacy/inventory" },
-            { key: "reports", path: "/pharmacy/reports" },
-          ];
-          for (const item of priority) {
-            if (activeModules.includes(item.key)) {
-              targetPath = item.path;
-              break;
-            }
-          }
-          toast.success(response.message || "Login successful.");
-          router.push(targetPath);
-          return;
-        }
-
         let targetPath = "/agents/settings";
         const priority = [
           { key: "dashboard", path: "/agents/dashboard" },
@@ -227,21 +128,123 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
             break;
           }
         }
-        toast.success(response.message || "Login successful.");
+        toast.success(message || "Login successful.");
         router.push(targetPath);
         return;
-      } catch (error) {
+      } catch (err) {
+        toast.success(message || "Login successful.");
+        router.push("/agents/dashboard");
+        return;
+      }
+    }
+
+    try {
+      await getAdminDashboard();
+      toast.success(message || "Login successful.");
+      router.push("/admin/dashboard");
+      return;
+    } catch (error) {
+      if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) {
         clearAuthTokens();
-        if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
-          toast.error("Your account does not have a valid role assigned.");
-        } else {
-          toast.error(getErrorMessage(error));
+        toast.error(getErrorMessage(error));
+        return;
+      }
+    }
+
+    try {
+      const profile = await getFoProfile();
+      const role = String(profile.data.role).toUpperCase();
+      const activeModules = profile?.data?.modules ?? [];
+      if (role === "PHARMACY" || role === "PHARMACY_STORE") {
+        let targetPath = "/pharmacy/dashboard";
+        const priority = [
+          { key: "dashboard", path: "/pharmacy/dashboard" },
+          { key: "dispense", path: "/pharmacy/dispense" },
+          { key: "prescriptions", path: "/pharmacy/prescriptions" },
+          { key: "inventory", path: "/pharmacy/inventory" },
+          { key: "reports", path: "/pharmacy/reports" },
+        ];
+        for (const item of priority) {
+          if (activeModules.includes(item.key)) {
+            targetPath = item.path;
+            break;
+          }
         }
+        toast.success(message || "Login successful.");
+        router.push(targetPath);
+        return;
       }
 
+      let targetPath = "/agents/settings";
+      const priority = [
+        { key: "dashboard", path: "/agents/dashboard" },
+        { key: "transactions", path: "/agents/transactions" },
+        { key: "receipts", path: "/agents/receipts" },
+        { key: "topup-history", path: "/agents/topup-history" },
+        { key: "reports", path: "/agents/reports" },
+      ];
+      for (const item of priority) {
+        if (activeModules.includes(item.key)) {
+          targetPath = item.path;
+          break;
+        }
+      }
+      toast.success(message || "Login successful.");
+      router.push(targetPath);
+      return;
+    } catch (error) {
+      clearAuthTokens();
+      if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
+        toast.error("Your account does not have a valid role assigned.");
+      } else {
+        toast.error(getErrorMessage(error));
+      }
+    }
+  };
+
+  const loginMutation = useMutation({
+    mutationFn: loginAgent,
+    onSuccess: async (response) => {
+      if (response.data?.requires_unit_selection) {
+        setTempToken(response.data.tempToken || "");
+        setUnits(response.data.units || []);
+        if (response.data.units && response.data.units.length > 0) {
+          setSelectedUnitId(response.data.units[0].id);
+        }
+        setRequiresUnitSelection(true);
+        return;
+      }
+
+      const accessToken = response.data?.accessToken;
+      const refreshToken = response.data?.refreshToken;
+
+      if (!accessToken || !refreshToken) {
+        toast.error("Login succeeded but no token was returned.");
+        return;
+      }
+
+      await handleSuccessLogin(accessToken, refreshToken, response.message);
     },
     onError: (error) => {
       clearAuthTokens();
+      toast.error(getErrorMessage(error));
+    },
+  });
+
+  const selectUnitMutation = useMutation({
+    mutationFn: () => selectPharmacyUnit(tempToken, selectedUnitId),
+    onSuccess: async (response) => {
+      const accessToken = response.data?.accessToken;
+      const refreshToken = response.data?.refreshToken;
+
+      if (!accessToken || !refreshToken) {
+        toast.error("Selection succeeded but no token was returned.");
+        return;
+      }
+
+      await handleSuccessLogin(accessToken, refreshToken, response.message);
+    },
+    onError: (error) => {
       toast.error(getErrorMessage(error));
     },
   });
@@ -256,6 +259,90 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
   };
 
   const isEmbedded = mode === "embedded";
+
+  if (requiresUnitSelection) {
+    return (
+      <div
+        className={
+          isEmbedded
+            ? "w-full rounded-[2rem] border border-white/70 bg-white/88 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.14)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/70 dark:shadow-[0_28px_90px_rgba(2,6,23,0.45)] sm:p-8"
+            : "w-full max-w-xl rounded-4xl border border-line-subtle bg-panel p-6 shadow-[0_30px_80px_rgba(15,118,110,0.12)] dark:border-line-subtle dark:bg-panel sm:p-8"
+        }
+      >
+        <div className="text-center">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            Assigned Units
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold text-slate-950 dark:text-white">
+            Select Pharmacy Unit
+          </h2>
+          <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+            Please choose a pharmacy point to log in and start billing.
+          </p>
+        </div>
+
+        <div className="mt-8 space-y-4">
+          <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+            {units.map((unit) => {
+              const isSelected = selectedUnitId === unit.id;
+              return (
+                <button
+                  key={unit.id}
+                  type="button"
+                  onClick={() => setSelectedUnitId(unit.id)}
+                  className={`flex w-full items-center justify-between rounded-2xl border px-5 py-4 text-left transition ${
+                    isSelected
+                      ? "border-brand-500 bg-brand-500/5 text-brand-900 dark:border-brand-400 dark:text-brand-300"
+                      : "border-slate-200 hover:bg-slate-50/50 text-slate-700 dark:border-slate-800 dark:hover:bg-slate-800/40 dark:text-slate-300"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold text-slate-900 dark:text-white truncate block">
+                      {unit.name}
+                    </span>
+                    <span className="text-xs uppercase tracking-widest text-slate-400 font-medium">
+                      {unit.type}
+                    </span>
+                  </div>
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
+                    isSelected ? "border-brand-500 dark:border-brand-400" : "border-slate-300 dark:border-slate-700"
+                  }`}>
+                    {isSelected && (
+                      <div className="h-2.5 w-2.5 rounded-full bg-brand-500 dark:bg-brand-400" />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setRequiresUnitSelection(false);
+                setTempToken("");
+                setUnits([]);
+                setSelectedUnitId("");
+              }}
+              className="flex-1 rounded-2xl border border-slate-200 px-5 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => selectUnitMutation.mutate()}
+              disabled={selectUnitMutation.isPending || !selectedUnitId}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-brand-600 dark:hover:bg-brand-700"
+            >
+              {selectUnitMutation.isPending ? "Please wait..." : "Proceed"}
+              <FiArrowRight />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

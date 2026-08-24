@@ -764,3 +764,39 @@ export async function getPharmacyDrugHistory(itemId: string) {
     })
   );
 }
+
+export async function getPharmacyUnits(hospitalId?: string) {
+  const query = hospitalId ? `?hospital_id=${hospitalId}` : "";
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: number;
+      message: string;
+      data: Array<{
+        id: string;
+        name: string;
+        type: "store" | "point";
+        is_active: boolean;
+        created_at: string;
+      }>;
+    }>(`/api/pharmacy/units${query}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function createPharmacyUnit(payload: { name: string; type: "store" | "point"; hospital_id?: string }) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: number;
+      message: string;
+      data: {
+        id: string;
+        name: string;
+        type: "store" | "point";
+        is_active: boolean;
+      };
+    }>("/api/pharmacy/units", payload, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
