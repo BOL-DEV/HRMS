@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
   FiExternalLink,
@@ -20,6 +20,7 @@ import {
 import {
   printApprovedAgentReceipt,
   requestAgentReceiptReprint,
+  getAgentPaymentConfig,
 } from "@/libs/agent-auth";
 import type { AgentReceiptItem } from "@/libs/type";
 
@@ -30,8 +31,8 @@ type Props = {
   emptyMessage?: string;
 };
 
-function printReceiptHtml(receiptHTML: string) {
-  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML);
+function printReceiptHtml(receiptHTML: string, receiptCount?: number) {
+  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML, receiptCount);
 
   if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");
@@ -67,6 +68,12 @@ function ReceiptLists({
   const [requesting, setRequesting] = useState<AgentReceiptItem | null>(null);
   const [reason, setReason] = useState("");
 
+  const paymentConfigQuery = useQuery({
+    queryKey: ["agent-payment-config"],
+    queryFn: getAgentPaymentConfig,
+  });
+  const receiptCount = paymentConfigQuery.data?.data.receipt_count ?? 2;
+
   const requestMutation = useMutation({
     mutationFn: requestAgentReceiptReprint,
     onSuccess: (response) => {
@@ -86,7 +93,7 @@ function ReceiptLists({
     mutationFn: printApprovedAgentReceipt,
     onSuccess: (response) => {
       toast.success(response.message || "Receipt ready for printing.");
-      printReceiptHtml(response.data.receipt.receiptHTML);
+      printReceiptHtml(response.data.receipt.receiptHTML, receiptCount);
       queryClient.invalidateQueries({ queryKey: ["agent-receipts"] });
     },
     onError: (error) => {

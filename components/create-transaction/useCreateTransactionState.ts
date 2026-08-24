@@ -97,8 +97,8 @@ function getInitialExpressForm(): ExpressPaymentForm {
   };
 }
 
-function printReceiptHtml(receiptHTML: string) {
-  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML);
+function printReceiptHtml(receiptHTML: string, receiptCount?: number) {
+  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML, receiptCount);
 
   if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");
@@ -438,6 +438,45 @@ export function useCreateTransactionState({
     return selectedManualItems.reduce((sum, item) => sum + item.amount, 0);
   }, [paymentMode, selectedBillItems, selectedManualItems]);
 
+  // Synchronize default payment method based on hospital configuration
+  useEffect(() => {
+    const config = paymentConfigQuery.data?.data;
+    if (!config) return;
+
+    const isCashAllowed = config.allow_payment_cash !== false && (config as any).allowPaymentCash !== false;
+    const isPosAllowed = config.allow_payment_pos !== false && (config as any).allowPaymentPos !== false;
+    const isTransferAllowed = config.allow_payment_transfer !== false && (config as any).allowPaymentTransfer !== false;
+
+    // Check if the currently selected payment method is disallowed
+    const currentPaymentType = form.paymentType;
+    let allowedDefault: "cash" | "pos" | "transfer" | null = null;
+    if (isCashAllowed) allowedDefault = "cash";
+    else if (isTransferAllowed) allowedDefault = "transfer";
+    else if (isPosAllowed) allowedDefault = "pos";
+
+    if (allowedDefault) {
+      if (
+        (currentPaymentType === "cash" && !isCashAllowed) ||
+        (currentPaymentType === "pos" && !isPosAllowed) ||
+        (currentPaymentType === "transfer" && !isTransferAllowed)
+      ) {
+        setForm((curr) => ({ ...curr, paymentType: allowedDefault! }));
+      }
+    }
+
+    // Similarly for express form
+    const currentExpressPaymentType = expressForm.paymentType;
+    if (allowedDefault) {
+      if (
+        (currentExpressPaymentType === "cash" && !isCashAllowed) ||
+        (currentExpressPaymentType === "pos" && !isPosAllowed) ||
+        (currentExpressPaymentType === "transfer" && !isTransferAllowed)
+      ) {
+        setExpressForm((curr) => ({ ...curr, paymentType: allowedDefault! }));
+      }
+    }
+  }, [paymentConfigQuery.data, form.paymentType, expressForm.paymentType]);
+
   const patientLookupMutation = useMutation({
     mutationFn: lookupAgentPatient,
     onSuccess: (response) => {
@@ -505,7 +544,8 @@ export function useCreateTransactionState({
     });
     await onSuccess?.();
     if (response.data.receipt?.receiptHTML) {
-      printReceiptHtml(response.data.receipt.receiptHTML);
+      const receiptCount = paymentConfigQuery.data?.data.receipt_count ?? 2;
+      printReceiptHtml(response.data.receipt.receiptHTML, receiptCount);
     }
   };
 
@@ -635,9 +675,22 @@ export function useCreateTransactionState({
 
         toast.success(`Prescription bill loaded for ${mappedBill.patientName}.`);
         setPharmacyBill(mappedBill);
+
+        // Select first allowed payment method as default instead of hardcoding "cash"
+        const config = paymentConfigQuery.data?.data;
+        let allowedDefault: "cash" | "pos" | "transfer" = "cash";
+        if (config) {
+          const isCashAllowed = config.allow_payment_cash !== false && (config as any).allowPaymentCash !== false;
+          const isTransferAllowed = config.allow_payment_transfer !== false && (config as any).allowPaymentTransfer !== false;
+          const isPosAllowed = config.allow_payment_pos !== false && (config as any).allowPaymentPos !== false;
+          if (isCashAllowed) allowedDefault = "cash";
+          else if (isTransferAllowed) allowedDefault = "transfer";
+          else if (isPosAllowed) allowedDefault = "pos";
+        }
+
         setForm((current) => ({
           ...current,
-          paymentType: "cash",
+          paymentType: allowedDefault,
         }));
       } else {
         toast.error(`No pending pharmacy requests found for code "${code}".`);

@@ -90,6 +90,16 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     showPharmacyOption,
   } = useCreateTransactionState({ open, onClose, onSuccess });
 
+  const config = paymentConfigQuery.data?.data;
+  const isCashAllowed = config?.allow_payment_cash !== false && (config as any)?.allowPaymentCash !== false;
+  const isPosAllowed = config?.allow_payment_pos !== false && (config as any)?.allowPaymentPos !== false;
+  const isTransferAllowed = config?.allow_payment_transfer !== false && (config as any)?.allowPaymentTransfer !== false;
+  const allowedPaymentMethods = {
+    cash: isCashAllowed,
+    pos: isPosAllowed,
+    transfer: isTransferAllowed,
+  };
+
   if (!open) {
     return null;
   }
@@ -237,9 +247,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                           }
                           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                         >
-                          <option value="cash">Cash</option>
-                          <option value="transfer">Transfer</option>
-                          <option value="pos">POS</option>
+                          {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
+                          {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
+                          {allowedPaymentMethods.pos && <option value="pos">POS</option>}
                         </select>
                       </label>
 
@@ -284,6 +294,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
               isSubmitting={expressPaymentMutation.isPending}
               onSubmit={handleSubmit}
               onCancel={closeModal}
+              allowedPaymentMethods={allowedPaymentMethods}
             />
           ) : (
           <div className="grid gap-6 p-6 xl:grid-cols-[1.4fr_0.9fr]">
@@ -515,9 +526,9 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                       }
                       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
                     >
-                      <option value="cash">Cash</option>
-                      <option value="transfer">Transfer</option>
-                      <option value="pos">POS</option>
+                      {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
+                      {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
+                      {allowedPaymentMethods.pos && <option value="pos">POS</option>}
                     </select>
                   </label>
                 </div>

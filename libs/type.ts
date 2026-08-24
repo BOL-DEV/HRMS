@@ -239,6 +239,10 @@ export type AgentPaymentConfigResponse = {
     has_pharmacy_module?: boolean;
     allow_agent_pharmacy_pay?: boolean;
     allow_pharmacy_walk_in?: boolean;
+    allow_payment_cash?: boolean;
+    allow_payment_pos?: boolean;
+    allow_payment_transfer?: boolean;
+    receipt_count?: number;
   };
 };
 
@@ -795,6 +799,10 @@ export type AdminHospitalListItem = {
   allow_agent_pharmacy_pay?: boolean;
   allow_pharmacy_walk_in?: boolean;
   pharmacy_batch_strategy?: "single_row" | "multi_batch";
+  allow_payment_cash?: boolean;
+  allow_payment_pos?: boolean;
+  allow_payment_transfer?: boolean;
+  receipt_count?: number;
 };
 
 export type AdminHospitalsResponse = {
@@ -1702,6 +1710,10 @@ export type CreateAdminHospitalPayload = {
   allow_pharmacy_self_pay?: boolean;
   allow_agent_pharmacy_pay?: boolean;
   allow_pharmacy_walk_in?: boolean;
+  allow_payment_cash?: boolean;
+  allow_payment_pos?: boolean;
+  allow_payment_transfer?: boolean;
+  receipt_count?: number;
 };
 
 export type CreateAdminHospitalResponse = {

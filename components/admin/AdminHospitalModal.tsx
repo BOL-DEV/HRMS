@@ -8,6 +8,7 @@ import type {
 } from "@/libs/type";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FiX } from "react-icons/fi";
+import { toast } from "react-hot-toast";
 
 type CreateProps = {
   mode: "create";
@@ -39,6 +40,10 @@ type FormState = {
   allow_pharmacy_self_pay: boolean;
   allow_agent_pharmacy_pay: boolean;
   allow_pharmacy_walk_in: boolean;
+  allow_payment_cash: boolean;
+  allow_payment_pos: boolean;
+  allow_payment_transfer: boolean;
+  receipt_count: number;
 };
 
 function buildInitialForm(hospital?: AdminHospitalListItem | null): FormState {
@@ -54,6 +59,10 @@ function buildInitialForm(hospital?: AdminHospitalListItem | null): FormState {
     allow_pharmacy_self_pay: hospital?.allow_pharmacy_self_pay ?? false,
     allow_agent_pharmacy_pay: hospital?.allow_agent_pharmacy_pay ?? true,
     allow_pharmacy_walk_in: hospital?.allow_pharmacy_walk_in ?? true,
+    allow_payment_cash: hospital ? (hospital.allow_payment_cash !== false) : true,
+    allow_payment_pos: hospital ? (hospital.allow_payment_pos !== false) : true,
+    allow_payment_transfer: hospital ? (hospital.allow_payment_transfer !== false) : true,
+    receipt_count: hospital?.receipt_count ?? 2,
   };
 }
 
@@ -89,6 +98,11 @@ function AdminHospitalModal({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!form.allow_payment_cash && !form.allow_payment_pos && !form.allow_payment_transfer) {
+      toast.error("At least one payment method must be allowed for the hospital");
+      return;
+    }
+
     const trimmedName = form.name.trim();
     const trimmedLogoUrl = form.logo_url.trim();
     const trimmedAddress = form.address.trim();
@@ -107,6 +121,10 @@ function AdminHospitalModal({
         allow_pharmacy_self_pay: form.allow_pharmacy_self_pay,
         allow_agent_pharmacy_pay: form.allow_agent_pharmacy_pay,
         allow_pharmacy_walk_in: form.allow_pharmacy_walk_in,
+        allow_payment_cash: form.allow_payment_cash,
+        allow_payment_pos: form.allow_payment_pos,
+        allow_payment_transfer: form.allow_payment_transfer,
+        receipt_count: form.receipt_count,
       });
       return;
     }
@@ -154,6 +172,19 @@ function AdminHospitalModal({
     }
     if (form.allow_pharmacy_walk_in !== hospital?.allow_pharmacy_walk_in) {
       payload.allow_pharmacy_walk_in = form.allow_pharmacy_walk_in;
+    }
+
+    if (form.allow_payment_cash !== hospital?.allow_payment_cash) {
+      payload.allow_payment_cash = form.allow_payment_cash;
+    }
+    if (form.allow_payment_pos !== hospital?.allow_payment_pos) {
+      payload.allow_payment_pos = form.allow_payment_pos;
+    }
+    if (form.allow_payment_transfer !== hospital?.allow_payment_transfer) {
+      payload.allow_payment_transfer = form.allow_payment_transfer;
+    }
+    if (form.receipt_count !== hospital?.receipt_count) {
+      payload.receipt_count = form.receipt_count;
     }
 
     onSubmit(payload);
@@ -315,6 +346,62 @@ function AdminHospitalModal({
                   </label>
                 </div>
               )}
+            </div>
+
+            {/* Payment & Receipt Configuration */}
+            <div className="sm:col-span-2 border border-line-subtle rounded-xl p-4 space-y-4 bg-canvas-alt/50">
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Payment & Print Configuration</h4>
+                <p className="text-xs text-gray-500 mt-0.5">Define hospital-wide billing payment methods and print limits.</p>
+              </div>
+
+              <div className="space-y-2.5 pt-2 border-t border-line-subtle/50">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300 block">Accepted Payment Methods</span>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.allow_payment_cash}
+                      onChange={(event) => updateField("allow_payment_cash", event.target.checked)}
+                      className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-slate-300">Cash Payments</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.allow_payment_pos}
+                      onChange={(event) => updateField("allow_payment_pos", event.target.checked)}
+                      className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-slate-300">POS Payments</span>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.allow_payment_transfer}
+                      onChange={(event) => updateField("allow_payment_transfer", event.target.checked)}
+                      className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-slate-300">Transfer Payments</span>
+                  </label>
+                </div>
+              </div>
+
+              <label className="block space-y-2 pt-2 border-t border-line-subtle/50">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Receipt Print Copy Count</span>
+                <select
+                  value={form.receipt_count}
+                  onChange={(event) => updateField("receipt_count", Number(event.target.value))}
+                  className="w-full rounded-lg border border-line-subtle bg-canvas px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
+                >
+                  <option value={1}>1 Copy (Customer copy only)</option>
+                  <option value={2}>2 Copies (Customer & Audit copies)</option>
+                  <option value={3}>3 Copies (Customer, Audit & Department copies)</option>
+                </select>
+              </label>
             </div>
 
             <label className="space-y-2 sm:col-span-2">

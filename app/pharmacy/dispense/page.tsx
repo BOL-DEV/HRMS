@@ -20,6 +20,7 @@ import {
   getPharmacyProfile,
   getPharmacyWalkInPatient,
 } from "@/libs/pharmacy-api";
+import { getAgentPaymentConfig } from "@/libs/agent-auth";
 
 interface PharmacyBillItem {
   drugId: string;
@@ -172,6 +173,17 @@ export default function PharmacyDispensePage() {
     queryFn: getPharmacyProfile,
     enabled: Boolean(accessToken),
   });
+
+  const paymentConfigQuery = useQuery({
+    queryKey: ["agent-payment-config"],
+    queryFn: getAgentPaymentConfig,
+    enabled: Boolean(accessToken),
+  });
+
+  const paymentConfig = paymentConfigQuery.data?.data;
+  const isCashAllowed = paymentConfig?.allow_payment_cash !== false && (paymentConfig as any)?.allowPaymentCash !== false;
+  const isPosAllowed = paymentConfig?.allow_payment_pos !== false && (paymentConfig as any)?.allowPaymentPos !== false;
+  const isTransferAllowed = paymentConfig?.allow_payment_transfer !== false && (paymentConfig as any)?.allowPaymentTransfer !== false;
 
   const allowPharmacyWalkIn = useMemo(() => {
     const tokenClaim = getAllowPharmacyWalkIn(accessToken);
@@ -932,33 +944,39 @@ export default function PharmacyDispensePage() {
               Select the payment type to clear and dispense this prescription.
             </p>
             <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "cash" });
-                  setPaymentSelectionBillId(null);
-                }}
-                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                💵 Cash
-              </button>
-              <button
-                onClick={() => {
-                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "pos" });
-                  setPaymentSelectionBillId(null);
-                }}
-                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                💳 POS Card
-              </button>
-              <button
-                onClick={() => {
-                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "transfer" });
-                  setPaymentSelectionBillId(null);
-                }}
-                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                📲 Bank Transfer
-              </button>
+              {isCashAllowed && (
+                <button
+                  onClick={() => {
+                    selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "cash" });
+                    setPaymentSelectionBillId(null);
+                  }}
+                  className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  💵 Cash
+                </button>
+              )}
+              {isPosAllowed && (
+                <button
+                  onClick={() => {
+                    selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "pos" });
+                    setPaymentSelectionBillId(null);
+                  }}
+                  className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  💳 POS Card
+                </button>
+              )}
+              {isTransferAllowed && (
+                <button
+                  onClick={() => {
+                    selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "transfer" });
+                    setPaymentSelectionBillId(null);
+                  }}
+                  className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  📲 Bank Transfer
+                </button>
+              )}
               <button
                 onClick={() => setPaymentSelectionBillId(null)}
                 className="w-full rounded-xl border border-gray-200 text-gray-700 dark:border-slate-700 dark:text-slate-300 py-3 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-800 transition cursor-pointer"
