@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from "react";
 import Header from "@/components/shared/Header";
 import { formatCurrency } from "@/libs/helper";
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus, FiActivity } from "react-icons/fi";
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus, FiActivity, FiSend } from "react-icons/fi";
 import { toast } from "react-hot-toast";
-import { getAgentAccessToken } from "@/libs/auth";
+import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,6 +20,8 @@ import {
   restockPharmacyItem,
   getPharmacyProfile,
   getPharmacyDrugHistory,
+  createPharmacyTransfer,
+  getPharmacyUnits,
   BackendDrugItem,
   PharmacyCategory,
   PharmacyDrugPayload,
@@ -40,8 +42,50 @@ export default function PharmacyInventoryPage() {
 
   const profile = profileResponse?.data;
   const isPlatformAdmin = (profile?.role as string) === "PLATFORM_ADMIN";
-  const hasEditAccess = isPlatformAdmin || profile?.modules?.includes("inventory-edit");
+  const isStoreManager = (profile?.role as string) === "PHARMACY_STORE";
+  const hasEditAccess = isPlatformAdmin || isStoreManager;
   const hasHistoryAccess = isPlatformAdmin || profile?.modules?.includes("inventory-history");
+
+  // Request Restock States (Point -> Store)
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestItem, setRequestItem] = useState<BackendDrugItem | null>(null);
+  const [requestQty, setRequestQty] = useState("");
+  const [requestRemarks, setRequestRemarks] = useState("");
+
+  const unitsQuery = useQuery({
+    queryKey: ["pharmacy-units"],
+    queryFn: () => getPharmacyUnits(),
+    enabled: Boolean(accessToken),
+  });
+
+  const mainStoreUnit = React.useMemo(() => {
+    const rawUnits = unitsQuery.data?.data || [];
+    return rawUnits.find((u) => u.type === "store");
+  }, [unitsQuery.data]);
+
+  const activeUnitId = React.useMemo(() => {
+    if (!accessToken) return "";
+    const decoded = decodeJwt(accessToken);
+    const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
+    return (
+      decoded?.pharmacy_unit_id ||
+      decoded?.pharmacyUnitId ||
+      user?.pharmacy_unit_id ||
+      user?.pharmacyUnitId ||
+      ""
+    );
+  }, [accessToken]);
+
+  const requestRestockMutation = useMutation({
+    mutationFn: createPharmacyTransfer,
+    onSuccess: () => {
+      toast.success("Restock request submitted to central store.");
+      setIsRequestModalOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to submit restock request.");
+    },
+  });
 
   // Filters State
   const [search, setSearch] = useState("");
@@ -118,6 +162,43 @@ export default function PharmacyInventoryPage() {
       quantity: qty,
       batch_number: restockBatch.trim() || undefined,
       expiry_date: expiry_date || undefined,
+    });
+  };
+
+  const handleOpenRequestModal = (item: BackendDrugItem) => {
+    setRequestItem(item);
+    setRequestQty("");
+    setRequestRemarks("");
+    setIsRequestModalOpen(true);
+  };
+
+  const handleRequestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!requestItem) return;
+    const qty = Number(requestQty);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid positive quantity.");
+      return;
+    }
+    if (!mainStoreUnit) {
+      toast.error("Central Store unit not found. Cannot request restock.");
+      return;
+    }
+    if (!activeUnitId) {
+      toast.error("Active pharmacy point not resolved. Please re-login.");
+      return;
+    }
+
+    requestRestockMutation.mutate({
+      from_unit_id: mainStoreUnit.id,
+      to_unit_id: activeUnitId,
+      remarks: requestRemarks.trim() || undefined,
+      items: [
+        {
+          source_pharmacy_item_id: requestItem.id,
+          quantity: qty,
+        },
+      ],
     });
   };
 
@@ -534,31 +615,37 @@ export default function PharmacyInventoryPage() {
                                 <FiActivity className="h-4 w-4" />
                               </button>
                             )}
-                            {hasEditAccess && (
+                             {hasEditAccess ? (
+                              <>
+                                <button
+                                  onClick={() => handleOpenRestockModal(item)}
+                                  className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                  title="Restock Item"
+                                >
+                                  <FiPlus className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditModal(item)}
+                                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
+                                  title="Edit Drug"
+                                >
+                                  <FiEdit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(item.id, item.name)}
+                                  className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                                  title="Delete Drug"
+                                >
+                                  <FiTrash2 className="h-4 w-4" />
+                                </button>
+                              </>
+                            ) : (
                               <button
-                                onClick={() => handleOpenRestockModal(item)}
-                                className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-                                title="Restock Item"
+                                onClick={() => handleOpenRequestModal(item)}
+                                className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                                title="Request Restock"
                               >
-                                <FiPlus className="h-4 w-4" />
-                              </button>
-                            )}
-                            {hasEditAccess && (
-                              <button
-                                onClick={() => handleOpenEditModal(item)}
-                                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
-                                title="Edit Drug"
-                              >
-                                <FiEdit2 className="h-4 w-4" />
-                              </button>
-                            )}
-                            {hasEditAccess && (
-                              <button
-                                onClick={() => handleDelete(item.id, item.name)}
-                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
-                                title="Delete Drug"
-                              >
-                                <FiTrash2 className="h-4 w-4" />
+                                <FiSend className="h-4 w-4" />
                               </button>
                             )}
                           </div>
@@ -1192,6 +1279,83 @@ export default function PharmacyInventoryPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Request Restock Modal */}
+      {isRequestModalOpen && requestItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                Request Restock from Store
+              </h3>
+              <button
+                onClick={() => setIsRequestModalOpen(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRequestSubmit} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Formulation
+                </label>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-800 dark:bg-slate-950">
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">{requestItem.name}</p>
+                  <p className="text-xs text-gray-500">{requestItem.generic_name || "No generic name"}</p>
+                  <p className="text-xs text-brand-600 mt-1">Current Stock: {requestItem.stock} units</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Quantity to Request *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={requestQty}
+                  onChange={(e) => setRequestQty(e.target.value)}
+                  placeholder="e.g. 100"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Remarks / Notes
+                </label>
+                <textarea
+                  value={requestRemarks}
+                  onChange={(e) => setRequestRemarks(e.target.value)}
+                  placeholder="Reason for restock request..."
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsRequestModalOpen(false)}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={requestRestockMutation.isPending}
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm disabled:opacity-50"
+                >
+                  {requestRestockMutation.isPending ? "Submitting..." : "Submit Request"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

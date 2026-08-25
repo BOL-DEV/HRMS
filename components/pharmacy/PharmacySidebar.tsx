@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { FaRegChartBar } from "react-icons/fa";
-import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings } from "react-icons/fi";
+import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw } from "react-icons/fi";
 import Sidebar from "@/components/shared/Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { useMemo, useState } from "react";
@@ -33,6 +33,12 @@ const sidebarData = {
       name: "Inventory",
       link: "/pharmacy/inventory",
       label: <FiPackage className="inline" />,
+      active: false,
+    },
+    {
+      name: "Transfers",
+      link: "/pharmacy/transfers",
+      label: <FiRefreshCw className="inline" />,
       active: false,
     },
     {

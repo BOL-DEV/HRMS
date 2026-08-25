@@ -800,3 +800,77 @@ export async function createPharmacyUnit(payload: { name: string; type: "store" 
     })
   );
 }
+
+export interface CreateTransferPayload {
+  from_unit_id: string;
+  to_unit_id: string;
+  remarks?: string;
+  items: Array<{
+    source_pharmacy_item_id: string;
+    quantity: number;
+  }>;
+}
+
+export interface PharmacyTransferItem {
+  id: string;
+  from_unit_name: string;
+  to_unit_name: string;
+  status: "pending" | "completed" | "rejected";
+  remarks: string;
+  created_at: string;
+  items_count: number;
+  items?: Array<{
+    id: string;
+    item_name: string;
+    generic_name?: string;
+    quantity: number;
+  }>;
+}
+
+export async function createPharmacyTransfer(payload: CreateTransferPayload) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: number;
+      message: string;
+      data: any;
+    }>("/api/pharmacy/transfers", payload as any, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyTransfers(params?: { status?: string; unit_id?: string }) {
+  let query = "";
+  if (params) {
+    const parts = [];
+    if (params.status) parts.push(`status=${encodeURIComponent(params.status)}`);
+    if (params.unit_id) parts.push(`unit_id=${encodeURIComponent(params.unit_id)}`);
+    if (parts.length > 0) {
+      query = "?" + parts.join("&");
+    }
+  }
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: number;
+      message: string;
+      data: PharmacyTransferItem[];
+    }>(`/api/pharmacy/transfers${query}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function updatePharmacyTransferStatus(transferId: string, action: "approve" | "reject") {
+  return withPharmacySessionRetry((accessToken) =>
+    patchJson<{
+      status: number;
+      message: string;
+      data: {
+        id: string;
+        status: "completed" | "rejected";
+      };
+    }>(`/api/pharmacy/transfers/${transferId}`, { action }, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
