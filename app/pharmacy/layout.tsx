@@ -40,6 +40,9 @@ export default function PharmacyLayout({ children }: Props) {
     if (pathname.startsWith("/pharmacy/inventory")) {
       return { key: "inventory", name: "Inventory" };
     }
+    if (pathname.startsWith("/pharmacy/transfers")) {
+      return { key: "transfers", name: "Transfers" };
+    }
     if (pathname.startsWith("/pharmacy/reports")) {
       return { key: "reports", name: "Reports" };
     }
@@ -65,6 +68,9 @@ export default function PharmacyLayout({ children }: Props) {
         activeModules.includes("inventory-edit") ||
         activeModules.includes("inventory-history")
       );
+    }
+    if (moduleInfo.key === "transfers") {
+      return activeModules.includes("transfers") || activeModules.includes("transfer-history");
     }
     return activeModules.includes(moduleInfo.key);
   }, [moduleInfo, activeModules, profileResponse, pathname]);

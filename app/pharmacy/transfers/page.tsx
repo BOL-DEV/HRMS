@@ -141,7 +141,20 @@ export default function PharmacyTransfersPage() {
 
   // Mutation: Create transfer
   const createTransferMutation = useMutation({
-    mutationFn: createPharmacyTransfer,
+    mutationFn: async (payload: Parameters<typeof createPharmacyTransfer>[0]) => {
+      const response = await createPharmacyTransfer(payload);
+
+      if (isStoreManager) {
+        const transfer = response?.data;
+        const transferId = transfer?.id ?? transfer?.data?.id;
+        if (!transferId) {
+          throw new Error("Transfer was created but no transfer ID was returned for approval.");
+        }
+        await updatePharmacyTransferStatus(transferId, "approve");
+      }
+
+      return response;
+    },
     onSuccess: () => {
       toast.success(
         isStoreManager

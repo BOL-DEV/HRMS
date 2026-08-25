@@ -179,13 +179,22 @@ export default function PharmacyDashboardPage() {
                 Stock Transfers
               </button>
             ) : (
-              <Link
-                href="/pharmacy/dispense"
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
-              >
-                <FiPlusCircle />
-                Dispense Drugs
-              </Link>
+              <>
+                <Link
+                  href="/pharmacy/dispense"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+                >
+                  <FiPlusCircle />
+                  Dispense Drugs
+                </Link>
+                <Link
+                  href="/pharmacy/transfers"
+                  className="inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm font-semibold text-brand-700 hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/5 dark:text-brand-300 dark:hover:bg-brand-500/10"
+                >
+                  <FiPlusCircle />
+                  Request Transfer
+                </Link>
+              </>
             )}
             <Link
               href="/pharmacy/inventory"

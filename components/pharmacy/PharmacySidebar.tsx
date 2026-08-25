@@ -99,7 +99,7 @@ const PharmacySidebar = () => {
 
   const activeModules = profileResponse?.data?.modules;
 
-  const userRole = decoded?.role as string;
+  const userRole = (profileResponse?.data?.role as string) || (decoded?.role as string);
 
   const links = useMemo(() => {
     return sidebarData.links
@@ -120,6 +120,7 @@ const PharmacySidebar = () => {
           "/pharmacy/dispense": "dispense",
           "/pharmacy/prescriptions": "prescriptions",
           "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
+          "/pharmacy/transfers": ["transfers", "transfer-history"],
           "/pharmacy/reports": "reports",
         };
         const val = keyMap[link.link];
@@ -131,6 +132,9 @@ const PharmacySidebar = () => {
       })
       .map((link) => ({
         ...link,
+        name: userRole === "PHARMACY" && link.link === "/pharmacy/transfers"
+          ? "Transfer History"
+          : link.name,
         active: pathname === link.link,
       }));
   }, [pathname, activeModules, profileResponse, userRole]);

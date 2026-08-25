@@ -395,34 +395,67 @@ export async function getPharmacyDashboardStats() {
 }
 
 export async function getPharmacyProfile() {
-  return withPharmacySessionRetry((accessToken) =>
-    getJson<{
-      status: number;
-      message: string;
-      data: {
-        id: string;
-        first_name: string;
-        last_name: string;
-        email: string;
-        phone: string;
-        role: "PHARMACY";
-        is_active: boolean;
-        created_at: string;
-        hospital_id: string;
-        hospital_name: string;
-        hospital_code: string;
-        hospital_modules: {
-          has_pharmacy_module: boolean;
-          allow_pharmacy_self_pay: boolean;
-          allow_agent_pharmacy_pay: boolean;
-          allow_pharmacy_walk_in: boolean;
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<{
+        status: number;
+        message: string;
+        data: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          phone: string;
+          role: "PHARMACY" | "PHARMACY_STORE" | "PLATFORM_ADMIN";
+          is_active: boolean;
+          created_at: string;
+          hospital_id: string;
+          hospital_name: string;
+          hospital_code: string;
+          hospital_modules: {
+            has_pharmacy_module: boolean;
+            allow_pharmacy_self_pay: boolean;
+            allow_agent_pharmacy_pay: boolean;
+            allow_pharmacy_walk_in: boolean;
+          };
+          modules?: string[];
         };
-        modules?: string[];
-      };
-    }>("/api/pharmacy/profile", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-  );
+      }>("/api/pharmacy-store/profile", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return await getJson<{
+          status: number;
+          message: string;
+          data: {
+            id: string;
+            first_name: string;
+            last_name: string;
+            email: string;
+            phone: string;
+            role: "PHARMACY" | "PHARMACY_STORE" | "PLATFORM_ADMIN";
+            is_active: boolean;
+            created_at: string;
+            hospital_id: string;
+            hospital_name: string;
+            hospital_code: string;
+            hospital_modules: {
+              has_pharmacy_module: boolean;
+              allow_pharmacy_self_pay: boolean;
+              allow_agent_pharmacy_pay: boolean;
+              allow_pharmacy_walk_in: boolean;
+            };
+            modules?: string[];
+          };
+        }>("/api/pharmacy/profile", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      }
+
+      throw error;
+    }
+  });
 }
 
 export async function lookupPatientForPharmacy(patientId: string) {

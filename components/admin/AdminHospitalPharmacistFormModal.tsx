@@ -33,6 +33,45 @@ type FormState = {
 
 type FormStateKeys = keyof FormState;
 
+const STORE_ROLE_MODULES = [
+  "dashboard",
+  "inventory",
+  "reports",
+  "transfers",
+  "transfer-history",
+];
+
+const POINT_ROLE_MODULES = [
+  "dashboard",
+  "dispense",
+  "prescriptions",
+  "inventory",
+  "inventory-edit",
+  "inventory-history",
+  "reports",
+  "transfers",
+];
+
+const MODULE_OPTIONS: Array<{
+  key: string;
+  label: string;
+  roles: readonly ("PHARMACY" | "PHARMACY_STORE")[];
+}> = [
+  { key: "dashboard", label: "Dashboard", roles: ["PHARMACY", "PHARMACY_STORE"] },
+  { key: "dispense", label: "Dispense Control", roles: ["PHARMACY"] },
+  { key: "prescriptions", label: "Prescriptions", roles: ["PHARMACY"] },
+  { key: "inventory", label: "Inventory Setup", roles: ["PHARMACY", "PHARMACY_STORE"] },
+  { key: "inventory-edit", label: "Inventory Edit", roles: ["PHARMACY_STORE"] },
+  { key: "inventory-history", label: "Inventory History", roles: ["PHARMACY_STORE"] },
+  { key: "reports", label: "Reports Logs", roles: ["PHARMACY", "PHARMACY_STORE"] },
+  { key: "transfers", label: "Transfers", roles: ["PHARMACY_STORE"] },
+  { key: "transfer-history", label: "Transfer History", roles: ["PHARMACY"] },
+];
+
+function getDefaultModulesForRole(role: "PHARMACY" | "PHARMACY_STORE") {
+  return role === "PHARMACY_STORE" ? [...STORE_ROLE_MODULES] : [...POINT_ROLE_MODULES];
+}
+
 function splitPharmacistName(name?: string) {
   if (!name) {
     return { first_name: "", last_name: "" };
@@ -47,6 +86,7 @@ function splitPharmacistName(name?: string) {
 
 function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null): FormState {
   const name = splitPharmacistName(pharmacist?.pharmacist_name);
+  const role = pharmacist?.role ?? "PHARMACY";
 
   return {
     first_name: pharmacist?.first_name ?? name.first_name,
@@ -55,8 +95,8 @@ function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null):
     phone: pharmacist?.phone ?? "",
     password: "",
     status: pharmacist?.status ?? "active",
-    role: pharmacist?.role ?? "PHARMACY",
-    modules: pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"],
+    role,
+    modules: pharmacist?.modules?.length ? pharmacist.modules : getDefaultModulesForRole(role),
   };
 }
 
@@ -74,16 +114,29 @@ function AdminHospitalPharmacistFormModal({
     setForm(buildInitialState(pharmacist));
   }, [pharmacist]);
 
+  const roleOptions = [
+    { value: "PHARMACY_STORE", label: "Store User" },
+    { value: "PHARMACY", label: "Point User" },
+  ] as const;
+
   const submitLabel = useMemo(() => {
     if (isSubmitting) {
       return isEditMode ? "Saving..." : "Creating...";
     }
 
-    return isEditMode ? "Save Changes" : "Create Pharmacist";
-  }, [isEditMode, isSubmitting]);
+    return isEditMode ? "Save Changes" : `Create ${form.role === "PHARMACY_STORE" ? "Store" : "Point"} User`;
+  }, [form.role, isEditMode, isSubmitting]);
 
   const updateField = (key: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleRoleChange = (nextRole: "PHARMACY" | "PHARMACY_STORE") => {
+    setForm((current) => ({
+      ...current,
+      role: nextRole,
+      modules: getDefaultModulesForRole(nextRole),
+    }));
   };
 
   const handleModuleToggle = (moduleKey: string) => {
@@ -269,20 +322,41 @@ function AdminHospitalPharmacistFormModal({
             </div>
           </label>
 
+          {!isEditMode ? (
+            <div className="space-y-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                User Type
+              </span>
+              <div className="flex rounded-lg border border-line-subtle bg-canvas-alt p-1">
+                {roleOptions.map((option) => {
+                  const isActive = form.role === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleRoleChange(option.value)}
+                      className={[
+                        "flex-1 rounded-md px-3 py-2 text-sm font-medium transition",
+                        isActive
+                          ? "bg-brand-600 text-white shadow-sm"
+                          : "text-gray-700 hover:bg-panel-muted dark:text-slate-300 dark:hover:bg-panel-muted",
+                      ].join(" ")}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
               Module Access Permissions
             </span>
             <div className="grid grid-cols-2 gap-3 rounded-lg border border-line-subtle bg-canvas-alt p-3.5 sm:grid-cols-3">
-              {[
-                { key: "dashboard", label: "Dashboard" },
-                { key: "dispense", label: "Dispense Control" },
-                { key: "prescriptions", label: "Prescriptions" },
-                { key: "inventory", label: "Inventory Setup" },
-                { key: "inventory-edit", label: "Inventory Edit" },
-                { key: "inventory-history", label: "Inventory History" },
-                { key: "reports", label: "Reports Logs" },
-              ].map((mod) => (
+              {MODULE_OPTIONS.filter((mod) => mod.roles.includes(form.role)).map((mod) => (
                 <label key={mod.key} className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 cursor-pointer">
                   <input
                     type="checkbox"
@@ -290,28 +364,30 @@ function AdminHospitalPharmacistFormModal({
                     onChange={() => handleModuleToggle(mod.key)}
                     className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
-                  <span>{mod.label}</span>
+                  <span>{form.role === "PHARMACY" && mod.key === "inventory" ? "Inventory" : mod.label}</span>
                 </label>
               ))}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Workspace Role
-              </span>
-              <select
-                value={form.role}
-                onChange={(event) =>
-                  updateField("role", event.target.value as "PHARMACY" | "PHARMACY_STORE")
-                }
-                className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
-              >
-                <option value="PHARMACY">Point Pharmacist (Bills patients, requests stock)</option>
-                <option value="PHARMACY_STORE">Store Manager (Manages central inventory, dispatches stock)</option>
-              </select>
-            </label>
+            {isEditMode ? (
+              <label className="block space-y-2">
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  Workspace Role
+                </span>
+                <select
+                  value={form.role}
+                  onChange={(event) =>
+                    updateField("role", event.target.value as "PHARMACY" | "PHARMACY_STORE")
+                  }
+                  className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
+                >
+                  <option value="PHARMACY">Point Pharmacist (Bills patients, requests stock)</option>
+                  <option value="PHARMACY_STORE">Store Manager (Manages central inventory, dispatches stock)</option>
+                </select>
+              </label>
+            ) : null}
 
             {isEditMode ? (
               <label className="block space-y-2">

@@ -44,8 +44,9 @@ export default function PharmacyInventoryPage() {
   const profile = profileResponse?.data;
   const isPlatformAdmin = decoded?.role === "PLATFORM_ADMIN" || (profile?.role as string) === "PLATFORM_ADMIN";
   const isStoreManager = decoded?.role === "PHARMACY_STORE" || (profile?.role as string) === "PHARMACY_STORE";
-  const hasEditAccess = isPlatformAdmin || isStoreManager;
-  const hasHistoryAccess = isPlatformAdmin || decoded?.modules?.includes("inventory-history") || profile?.modules?.includes("inventory-history");
+  const activeModules = profile?.modules ?? decoded?.modules ?? [];
+  const hasEditAccess = isPlatformAdmin || activeModules.includes("inventory-edit");
+  const hasHistoryAccess = isPlatformAdmin || activeModules.includes("inventory") || activeModules.includes("inventory-history");
 
   // Request Restock States (Point -> Store)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -155,7 +156,7 @@ export default function PharmacyInventoryPage() {
     setRestockItem(item);
     setRestockQty("");
     setRestockBatch(item.batch_number || "");
-    setRestockExpiry(item.expiry_date ? item.expiry_date.substring(0, 7) : "");
+    setRestockExpiry(item.expiry_date || "");
     setIsRestockModalOpen(true);
   };
 
@@ -168,13 +169,12 @@ export default function PharmacyInventoryPage() {
       return;
     }
     const expiryRaw = restockExpiry.trim();
-    const expiry_date = expiryRaw.length === 7 ? `${expiryRaw}-01` : expiryRaw;
 
     restockMutation.mutate({
       pharmacy_item_id: restockItem.id,
       quantity: qty,
       batch_number: restockBatch.trim() || undefined,
-      expiry_date: expiry_date || undefined,
+      expiry_date: expiryRaw || undefined,
     });
   };
 
@@ -368,8 +368,7 @@ export default function PharmacyInventoryPage() {
     setFormGeneric(drug.generic_name || "");
     setFormCategory(drug.category_id);
     setFormBatch(drug.batch_number || "");
-    // YYYY-MM-DD -> YYYY-MM
-    setFormExpiry(drug.expiry_date ? drug.expiry_date.substring(0, 7) : "");
+    setFormExpiry(drug.expiry_date || "");
     setFormStock(String(drug.stock));
     setFormReorderLevel(String(drug.reorder_level || 50));
     setFormPrice(String(drug.unit_price));
@@ -400,15 +399,12 @@ export default function PharmacyInventoryPage() {
       return;
     }
 
-    // backend expects YYYY-MM-DD
-    const expiry_date = expiryRaw.length === 7 ? `${expiryRaw}-01` : expiryRaw;
-
     const payload: PharmacyDrugPayload = {
       name,
       generic_name: generic_name || undefined,
       category_id: formCategory,
       batch_number: batch_number || undefined,
-      expiry_date,
+      expiry_date: expiryRaw,
       stock,
       reorder_level,
       unit_price,
@@ -650,15 +646,17 @@ export default function PharmacyInventoryPage() {
                                 <FiActivity className="h-4 w-4" />
                               </button>
                             )}
-                             {hasEditAccess ? (
+                            {isStoreManager && (
+                              <button
+                                onClick={() => handleOpenRestockModal(item)}
+                                className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                title="Restock Item"
+                              >
+                                <FiPlus className="h-4 w-4" />
+                              </button>
+                            )}
+                            {hasEditAccess && (
                               <>
-                                <button
-                                  onClick={() => handleOpenRestockModal(item)}
-                                  className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-                                  title="Restock Item"
-                                >
-                                  <FiPlus className="h-4 w-4" />
-                                </button>
                                 <button
                                   onClick={() => handleOpenEditModal(item)}
                                   className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
@@ -674,7 +672,8 @@ export default function PharmacyInventoryPage() {
                                   <FiTrash2 className="h-4 w-4" />
                                 </button>
                               </>
-                            ) : (
+                            )}
+                            {!isStoreManager && (
                               <button
                                 onClick={() => handleOpenRequestModal(item)}
                                 className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
@@ -836,10 +835,10 @@ export default function PharmacyInventoryPage() {
 
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Expiry Month/Year
+                    Expiry Date
                   </span>
                   <input
-                    type="month"
+                    type="date"
                     value={formExpiry}
                     onChange={(e) => setFormExpiry(e.target.value)}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
@@ -984,10 +983,10 @@ export default function PharmacyInventoryPage() {
 
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                  Expiry Month/Year (Optional)
+                  Expiry Date (Optional)
                 </span>
                 <input
-                  type="month"
+                  type="date"
                   value={restockExpiry}
                   onChange={(e) => setRestockExpiry(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
