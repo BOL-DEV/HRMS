@@ -1,5 +1,8 @@
 export function sanitizePhoneNumber(value: string) {
-  return value.replace(/\D/g, "").slice(0, 11);
+  const hasPlus = value.startsWith("+");
+  const digits = value.replace(/\D/g, "");
+  const base = hasPlus ? "+" + digits : digits;
+  return base.slice(0, 14);
 }
 
 export function sanitizeAmountInput(value: string) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { FaUser } from "react-icons/fa";
@@ -60,7 +60,36 @@ export default function HeaderAgentProfile() {
     queryKey: [section, "header-profile"],
     queryFn: async (): Promise<HeaderProfileResponse> => {
       if (section === "pharmacy") {
-        return getPharmacyProfile();
+        try {
+          return await getPharmacyProfile();
+        } catch (err) {
+          console.warn("[HeaderAgentProfile] Pharmacy profile query failed, trying agent profile fallback:", err);
+          const agentProfile = await getAgentProfile();
+          return {
+            status: agentProfile.status,
+            message: agentProfile.message,
+            data: {
+              id: agentProfile.data.id,
+              first_name: agentProfile.data.first_name,
+              last_name: agentProfile.data.last_name,
+              email: agentProfile.data.email,
+              phone: agentProfile.data.phone,
+              role: (decoded?.role as any) || "PHARMACY_STORE",
+              is_active: agentProfile.data.is_active,
+              created_at: agentProfile.data.created_at,
+              hospital_id: agentProfile.data.hospital_id,
+              hospital_name: agentProfile.data.hospital_name,
+              hospital_code: agentProfile.data.hospital_code,
+              hospital_modules: {
+                has_pharmacy_module: true,
+                allow_pharmacy_self_pay: true,
+                allow_agent_pharmacy_pay: true,
+                allow_pharmacy_walk_in: true,
+              },
+              modules: agentProfile.data.modules,
+            },
+          } as any;
+        }
       }
       return section === "fo" ? getFoProfile() : getAgentProfile();
     },
@@ -68,15 +97,31 @@ export default function HeaderAgentProfile() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
+  const tokenUser = decoded?.user ?? decoded?.data ?? decoded ?? {};
+
+  useEffect(() => {
+    if (accessToken) {
+      console.log("[HeaderAgentProfile] profileQuery data:", profileQuery.data);
+      console.log("[HeaderAgentProfile] profileQuery error:", profileQuery.error);
+      console.log("[HeaderAgentProfile] decoded JWT claims:", decoded);
+    }
+  }, [accessToken, profileQuery.data, profileQuery.error, decoded]);
+
   const displayName = useMemo(() => {
     const profile = profileQuery.data?.data;
-    if (!profile) {
-      return null;
+    if (profile) {
+      const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+      return fullName || profile.email || "User";
     }
 
-    const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
-    return fullName || profile.email || "User";
-  }, [profileQuery.data]);
+    // Fallback to token claims
+    const tokenFirstName = decoded?.first_name || decoded?.firstName || tokenUser?.first_name || tokenUser?.firstName || "";
+    const tokenLastName = decoded?.last_name || decoded?.lastName || tokenUser?.last_name || tokenUser?.lastName || "";
+    const tokenEmail = decoded?.email || tokenUser?.email || "";
+    const fullName = `${tokenFirstName} ${tokenLastName}`.trim();
+    return fullName || tokenEmail || null;
+  }, [profileQuery.data, decoded, tokenUser]);
 
   const fallbackLabel =
     section === "fo"

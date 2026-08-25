@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { FiActivity } from "react-icons/fi";
 import { getAgentHospitalImageUrl, getAgentProfile } from "@/libs/agent-auth";
 import { getPharmacyProfile } from "@/libs/pharmacy-api";
-import { getAccessToken } from "@/libs/auth";
+import { getAccessToken, decodeJwt } from "@/libs/auth";
 import { getFoHospitalImageUrl, getFoProfile } from "@/libs/fo-auth";
 import { PLATFORM_LOGO_SRC } from "@/libs/brand";
 
@@ -43,7 +43,37 @@ export default function HeaderHospitalBrand() {
     queryKey: [section, "header-profile"],
     queryFn: async () => {
       if (section === "pharmacy") {
-        return getPharmacyProfile();
+        try {
+          return await getPharmacyProfile();
+        } catch (err) {
+          console.warn("[HeaderHospitalBrand] Pharmacy profile query failed, trying agent profile fallback:", err);
+          const agentProfile = await getAgentProfile();
+          const decoded = accessToken ? decodeJwt(accessToken) : null;
+          return {
+            status: agentProfile.status,
+            message: agentProfile.message,
+            data: {
+              id: agentProfile.data.id,
+              first_name: agentProfile.data.first_name,
+              last_name: agentProfile.data.last_name,
+              email: agentProfile.data.email,
+              phone: agentProfile.data.phone,
+              role: (decoded?.role as any) || "PHARMACY_STORE",
+              is_active: agentProfile.data.is_active,
+              created_at: agentProfile.data.created_at,
+              hospital_id: agentProfile.data.hospital_id,
+              hospital_name: agentProfile.data.hospital_name,
+              hospital_code: agentProfile.data.hospital_code,
+              hospital_modules: {
+                has_pharmacy_module: true,
+                allow_pharmacy_self_pay: true,
+                allow_agent_pharmacy_pay: true,
+                allow_pharmacy_walk_in: true,
+              },
+              modules: agentProfile.data.modules,
+            },
+          } as any;
+        }
       }
       return section === "fo" ? getFoProfile() : getAgentProfile();
     },
@@ -67,6 +97,15 @@ export default function HeaderHospitalBrand() {
     staleTime: 1000 * 60 * 10,
   });
 
+  useEffect(() => {
+    if (accessToken) {
+      const decoded = decodeJwt(accessToken);
+      console.log("[HeaderHospitalBrand] profileQuery data:", profileQuery.data);
+      console.log("[HeaderHospitalBrand] hospitalImageQuery data:", hospitalImageQuery.data);
+      console.log("[HeaderHospitalBrand] decoded JWT claims:", decoded);
+    }
+  }, [accessToken, profileQuery.data, hospitalImageQuery.data]);
+
   const brand = useMemo(() => {
     if (section === "admin") {
       return {
@@ -78,8 +117,14 @@ export default function HeaderHospitalBrand() {
       };
     }
 
+    const decoded = accessToken ? decodeJwt(accessToken) : null;
+    const tokenUser = decoded?.user ?? decoded?.data ?? decoded ?? {};
+
     const profile = profileQuery.data?.data;
     const imageData = hospitalImageQuery.data?.data;
+
+    const hospitalName = imageData?.hospital_name || profile?.hospital_name || decoded?.hospital_name || decoded?.hospitalName || tokenUser?.hospital_name || tokenUser?.hospitalName || "Hospital";
+    const hospitalCode = profile?.hospital_code || decoded?.hospital_code || decoded?.hospitalCode || tokenUser?.hospital_code || tokenUser?.hospitalCode || "Connected workspace";
 
     if (!profile) {
       return {
@@ -90,8 +135,8 @@ export default function HeaderHospitalBrand() {
             : section === "pharmacy"
               ? "Pharmacy"
               : "Agent",
-        title: hospitalImageQuery.isLoading ? "Loading hospital..." : "Hospital",
-        subtitle: "Connected workspace",
+        title: hospitalName === "Hospital" && hospitalImageQuery.isLoading ? "Loading hospital..." : hospitalName,
+        subtitle: hospitalCode,
         imageUrl: "",
       };
     }
@@ -104,11 +149,11 @@ export default function HeaderHospitalBrand() {
           : section === "pharmacy"
             ? "Pharmacy Workspace"
             : "Agent Workspace",
-      title: imageData?.hospital_name || profile.hospital_name || "Hospital",
-      subtitle: profile.hospital_code || "Connected workspace",
+      title: hospitalName,
+      subtitle: hospitalCode,
       imageUrl: imageData?.image_url ?? "",
     };
-  }, [hospitalImageQuery.data, hospitalImageQuery.isLoading, profileQuery.data, section]);
+  }, [hospitalImageQuery.data, hospitalImageQuery.isLoading, profileQuery.data, accessToken, section]);
 
   if (section === "default" || !hydrated || !accessToken) {
     return null;

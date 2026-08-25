@@ -8,6 +8,8 @@ import type {
 } from "@/libs/type";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FiEye, FiEyeOff, FiX } from "react-icons/fi";
+import { toast } from "react-hot-toast";
+import { isValidNigerianPhoneNumber } from "@/libs/helper";
 
 type Props = {
   pharmacist?: AdminHospitalPharmacistListItem | null;
@@ -102,6 +104,11 @@ function AdminHospitalPharmacistFormModal({
     const email = form.email.trim();
     const phone = form.phone.trim();
     const password = form.password;
+
+    if (phone && !isValidNigerianPhoneNumber(phone)) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
+      return;
+    }
 
     if (!isEditMode) {
       onSubmit({

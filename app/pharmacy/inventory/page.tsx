@@ -40,11 +40,12 @@ export default function PharmacyInventoryPage() {
     enabled: Boolean(accessToken),
   });
 
+  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const profile = profileResponse?.data;
-  const isPlatformAdmin = (profile?.role as string) === "PLATFORM_ADMIN";
-  const isStoreManager = (profile?.role as string) === "PHARMACY_STORE";
+  const isPlatformAdmin = decoded?.role === "PLATFORM_ADMIN" || (profile?.role as string) === "PLATFORM_ADMIN";
+  const isStoreManager = decoded?.role === "PHARMACY_STORE" || (profile?.role as string) === "PHARMACY_STORE";
   const hasEditAccess = isPlatformAdmin || isStoreManager;
-  const hasHistoryAccess = isPlatformAdmin || profile?.modules?.includes("inventory-history");
+  const hasHistoryAccess = isPlatformAdmin || decoded?.modules?.includes("inventory-history") || profile?.modules?.includes("inventory-history");
 
   // Request Restock States (Point -> Store)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -91,7 +92,19 @@ export default function PharmacyInventoryPage() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [selectedUnitFilter, setSelectedUnitFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const unitsList = React.useMemo(() => {
+    return unitsQuery.data?.data || [];
+  }, [unitsQuery.data]);
+
+  const targetUnitId = React.useMemo(() => {
+    if (isStoreManager) {
+      return selectedUnitFilter || mainStoreUnit?.id || "";
+    }
+    return activeUnitId;
+  }, [isStoreManager, selectedUnitFilter, mainStoreUnit, activeUnitId]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -227,16 +240,17 @@ export default function PharmacyInventoryPage() {
   }, [categoriesQuery.data]);
 
   const { data: inventoryData, isLoading, error } = useQuery({
-    queryKey: ["pharmacy-inventory", search, filterCategory, filterStatus, currentPage],
+    queryKey: ["pharmacy-inventory", search, filterCategory, filterStatus, currentPage, targetUnitId],
     queryFn: () =>
       getPharmacyInventory({
         search: search || undefined,
         category_id: filterCategory || undefined,
         status: filterStatus || undefined,
+        pharmacy_unit_id: targetUnitId || undefined,
         page: currentPage,
         limit: 15,
       }),
-    enabled: Boolean(accessToken),
+    enabled: Boolean(accessToken && (!isStoreManager || targetUnitId)),
   });
 
   // Mutations
@@ -501,7 +515,9 @@ export default function PharmacyInventoryPage() {
         </div>
 
         {/* Search & Filters */}
-        <div className="grid gap-4 sm:grid-cols-4 bg-white p-4 rounded-2xl border border-gray-200 dark:bg-slate-900 dark:border-slate-800">
+        <div className={`grid gap-4 bg-white p-4 rounded-2xl border border-gray-200 dark:bg-slate-900 dark:border-slate-800 ${
+          isStoreManager ? "sm:grid-cols-5" : "sm:grid-cols-4"
+        }`}>
           <div className="relative sm:col-span-2">
             <FiSearch className="absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
@@ -515,6 +531,25 @@ export default function PharmacyInventoryPage() {
               className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-4 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             />
           </div>
+          {isStoreManager && (
+            <div>
+              <select
+                value={selectedUnitFilter}
+                onChange={(e) => {
+                  setSelectedUnitFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              >
+                <option value="">Central Store Warehouse</option>
+                {unitsList.filter((u: any) => u.type === "point" && u.is_active).map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} (Point)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <select
               value={filterCategory}

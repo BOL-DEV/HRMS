@@ -30,7 +30,7 @@ import {
   getAgentPendingPharmacyRequests,
   processAgentPharmacyPayment,
 } from "@/libs/agent-auth";
-import { openReceiptPrintWindowFromHtml } from "@/libs/helper";
+import { openReceiptPrintWindowFromHtml, isValidNigerianPhoneNumber } from "@/libs/helper";
 import type {
   ExpressPaymentForm,
   SelectedAutomaticItem,
@@ -110,7 +110,7 @@ function isDigitsOnly(value: string) {
 }
 
 function isValidPhoneNumber(value: string) {
-  return /^\d{10,15}$/.test(value); // Standard phone check
+  return isValidNigerianPhoneNumber(value);
 }
 
 function readObjectValue(value: unknown): Record<string, unknown> {
@@ -722,7 +722,7 @@ export function useCreateTransactionState({
     }
 
     if (!isValidPhoneNumber(phoneNumber)) {
-      toast.error("Phone number must be 10 to 15 digits.");
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
       return;
     }
 
@@ -1073,7 +1073,7 @@ export function useCreateTransactionState({
       }
 
       if (!isValidPhoneNumber(phoneNumber)) {
-        toast.error("Phone number must be 10 to 15 digits.");
+        toast.error("Please enter a valid phone number (e.g. 08012345678).");
         return;
       }
     }

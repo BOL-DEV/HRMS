@@ -49,6 +49,14 @@ export default function PharmacyLayout({ children }: Props) {
   const hasAccess = React.useMemo(() => {
     const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
     if (isPlatformAdmin) return true;
+
+    const userRole = profileResponse?.data?.role as string;
+    if (userRole === "PHARMACY_STORE") {
+      if (pathname.startsWith("/pharmacy/dispense") || pathname.startsWith("/pharmacy/prescriptions")) {
+        return false;
+      }
+    }
+
     if (!moduleInfo) return true; // Settings/Profile or other general routes
     if (!activeModules) return true; // fallback if profile loading or not resolved
     if (moduleInfo.key === "inventory") {
@@ -59,7 +67,7 @@ export default function PharmacyLayout({ children }: Props) {
       );
     }
     return activeModules.includes(moduleInfo.key);
-  }, [moduleInfo, activeModules, profileResponse]);
+  }, [moduleInfo, activeModules, profileResponse, pathname]);
 
   return (
     <div className="min-h-screen bg-canvas text-slate-900 dark:text-slate-100">

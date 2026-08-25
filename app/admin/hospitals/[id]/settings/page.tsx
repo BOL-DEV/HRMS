@@ -21,6 +21,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "react-hot-toast";
 import { FiGrid, FiLayers, FiTag } from "react-icons/fi";
+import { isValidNigerianPhoneNumber } from "@/libs/helper";
 
 type FormState = {
   name: string;
@@ -147,6 +148,11 @@ function HospitalSettingsForm({
     const trimmedEmail = form.email.trim();
     const trimmedPhone = form.phone.trim();
     const trimmedAddress = form.address.trim();
+
+    if (trimmedPhone && !isValidNigerianPhoneNumber(trimmedPhone)) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
+      return;
+    }
 
     if (trimmedName && trimmedName !== defaults.name) {
       payload.name = trimmedName;

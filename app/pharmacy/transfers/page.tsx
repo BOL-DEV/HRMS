@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "@/components/shared/Header";
 import { formatCurrency } from "@/libs/helper";
 import { FiPlus, FiX, FiCheck, FiRefreshCw, FiSend, FiInbox, FiActivity } from "react-icons/fi";
@@ -42,10 +42,11 @@ export default function PharmacyTransfersPage() {
     enabled: Boolean(accessToken),
   });
 
+  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const profile = profileResponse?.data;
-  const isPlatformAdmin = (profile?.role as string) === "PLATFORM_ADMIN";
-  const isStoreManager = (profile?.role as string) === "PHARMACY_STORE";
-  const isPoint = (profile?.role as string) === "PHARMACY";
+  const isPlatformAdmin = decoded?.role === "PLATFORM_ADMIN" || (profile?.role as string) === "PLATFORM_ADMIN";
+  const isStoreManager = decoded?.role === "PHARMACY_STORE" || (profile?.role as string) === "PHARMACY_STORE";
+  const isPoint = decoded?.role === "PHARMACY" || (profile?.role as string) === "PHARMACY";
 
   // Get active unit ID
   const activeUnitId = React.useMemo(() => {
@@ -73,7 +74,31 @@ export default function PharmacyTransfersPage() {
   });
 
   const transfers = React.useMemo<PharmacyTransferItem[]>(() => {
-    return unwrapPharmacyData<PharmacyTransferItem[]>(transfersQuery.data, []);
+    const raw = transfersQuery.data;
+    if (!raw) return [];
+
+    if (Array.isArray(raw)) return raw;
+
+    if (raw && typeof raw === "object") {
+      const obj = raw as Record<string, unknown>;
+      if (Array.isArray(obj.data)) {
+        return obj.data as PharmacyTransferItem[];
+      }
+      if (obj.data && typeof obj.data === "object") {
+        const subObj = obj.data as Record<string, unknown>;
+        if (Array.isArray(subObj.data)) {
+          return subObj.data as PharmacyTransferItem[];
+        }
+        if (Array.isArray(subObj.transfers)) {
+          return subObj.transfers as PharmacyTransferItem[];
+        }
+      }
+      if (Array.isArray(obj.transfers)) {
+        return obj.transfers as PharmacyTransferItem[];
+      }
+    }
+
+    return [];
   }, [transfersQuery.data]);
 
   // Fetch Units for dropdown
@@ -154,6 +179,12 @@ export default function PharmacyTransfersPage() {
       toast.error(err instanceof Error ? err.message : "Failed to update transfer status.");
     },
   });
+
+  useEffect(() => {
+    if (isModalOpen && units.length > 0 && !selectedPointId) {
+      setSelectedPointId(units[0].id);
+    }
+  }, [units, isModalOpen, selectedPointId]);
 
   const handleOpenModal = () => {
     if (units.length > 0) {
@@ -359,24 +390,26 @@ export default function PharmacyTransfersPage() {
             </div>
 
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  {isStoreManager ? "Destination Branch Point *" : "Source Store Warehouse *"}
-                </label>
-                <select
-                  required
-                  value={selectedPointId}
-                  onChange={(e) => setSelectedPointId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
-                >
-                  <option value="">Select unit...</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isStoreManager && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                    Destination Branch Point *
+                  </label>
+                  <select
+                    required
+                    value={selectedPointId}
+                    onChange={(e) => setSelectedPointId(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                  >
+                    <option value="">Select unit...</option>
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">

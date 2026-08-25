@@ -9,6 +9,7 @@ import type {
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FiX } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { isValidNigerianPhoneNumber } from "@/libs/helper";
 
 type CreateProps = {
   mode: "create";
@@ -108,6 +109,11 @@ function AdminHospitalModal({
     const trimmedAddress = form.address.trim();
     const trimmedEmail = form.contact_email.trim();
     const trimmedPhone = form.contact_phone.trim();
+
+    if (trimmedPhone && !isValidNigerianPhoneNumber(trimmedPhone)) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
+      return;
+    }
 
     if (!isEditMode) {
       onSubmit({

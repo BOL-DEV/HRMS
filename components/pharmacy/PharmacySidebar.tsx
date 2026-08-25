@@ -57,17 +57,41 @@ const sidebarData = {
 };
 
 import { getPharmacyProfile } from "@/libs/pharmacy-api";
-import { getAgentAccessToken } from "@/libs/auth";
+import { getAgentProfile } from "@/libs/agent-auth";
+import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
 
 const PharmacySidebar = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
 
   const { data: profileResponse } = useQuery({
     queryKey: ["pharmacy-profile-sidebar"],
-    queryFn: getPharmacyProfile,
+    queryFn: async () => {
+      try {
+        return await getPharmacyProfile();
+      } catch (err) {
+        console.warn("[PharmacySidebar] getPharmacyProfile failed, fallback to getAgentProfile:", err);
+        const agentProfile = await getAgentProfile();
+        return {
+          status: agentProfile.status,
+          message: agentProfile.message,
+          data: {
+            ...agentProfile.data,
+            role: (decoded?.role as any) || "PHARMACY_STORE",
+            hospital_modules: {
+              has_pharmacy_module: true,
+              allow_pharmacy_self_pay: true,
+              allow_agent_pharmacy_pay: true,
+              allow_pharmacy_walk_in: true,
+            },
+            modules: agentProfile.data.modules,
+          },
+        } as any;
+      }
+    },
     enabled: Boolean(accessToken),
     retry: false,
     refetchOnWindowFocus: false,
@@ -75,9 +99,18 @@ const PharmacySidebar = () => {
 
   const activeModules = profileResponse?.data?.modules;
 
+  const userRole = decoded?.role as string;
+
   const links = useMemo(() => {
     return sidebarData.links
       .filter((link) => {
+        // Fast-path: Hide point-only modules for Store Managers instantly
+        if (userRole === "PHARMACY_STORE") {
+          if (link.link === "/pharmacy/dispense" || link.link === "/pharmacy/prescriptions") {
+            return false;
+          }
+        }
+
         if (!activeModules) return true; // fallback if profile not loaded
         const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
         if (isPlatformAdmin) return true;
@@ -100,7 +133,7 @@ const PharmacySidebar = () => {
         ...link,
         active: pathname === link.link,
       }));
-  }, [pathname, activeModules, profileResponse]);
+  }, [pathname, activeModules, profileResponse, userRole]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);

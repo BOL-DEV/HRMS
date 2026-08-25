@@ -1,3 +1,12 @@
+export function isValidNigerianPhoneNumber(phone: string): boolean {
+  if (!phone) return false;
+  // Strip spaces, hyphens, and parentheses
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+  // Matches local starting with 0 followed by 10 digits, or international 234/+234 followed by 10 digits
+  const regex = /^(?:\+234|234|0)[789]\d{9}$/;
+  return regex.test(cleanPhone);
+}
+
 export function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",

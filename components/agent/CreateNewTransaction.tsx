@@ -456,7 +456,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                           phoneNumber: sanitizePhoneNumber(event.target.value),
                         }))
                       }
-                      maxLength={11}
+                      maxLength={14}
                       disabled={form.patientExists}
                       className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-line-subtle dark:bg-canvas dark:text-slate-100 dark:disabled:bg-panel-strong"
                       placeholder="08012345678"

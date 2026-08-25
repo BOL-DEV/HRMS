@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
-import { formatCurrency, formatDateTime } from "@/libs/helper";
+import { formatCurrency, formatDateTime, isValidNigerianPhoneNumber } from "@/libs/helper";
 import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { decodeJwt, getAgentAccessToken } from "@/libs/auth";
@@ -535,6 +535,11 @@ export default function PharmacyDispensePage() {
 
     if ((!isWalkIn && !patientId.trim()) || !patientName.trim() || !patientPhone.trim()) {
       toast.error("Please fill in all patient details.");
+      return;
+    }
+
+    if (!isValidNigerianPhoneNumber(patientPhone.trim())) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
       return;
     }
 

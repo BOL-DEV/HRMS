@@ -8,13 +8,14 @@ import { formatCurrency, formatDateTime } from "@/libs/helper";
 import { FiPackage, FiAlertTriangle, FiDollarSign, FiPlusCircle, FiFileText, FiArrowRight } from "react-icons/fi";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getAgentAccessToken } from "@/libs/auth";
+import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPharmacyDashboardStats,
   getPharmacyProfile,
   getPharmacyRequests,
   getPharmacyInventory,
+  getPharmacyTransfers,
   PharmacyDashboardStats,
   unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
@@ -29,11 +30,14 @@ export default function PharmacyDashboardPage() {
     }
   }, [accessToken, router]);
 
-  // Fetch live dashboard stats using react-query
+  const decoded = accessToken ? decodeJwt(accessToken) : null;
+  const isStoreManager = decoded?.role === "PHARMACY_STORE";
+
+  // Fetch live dashboard stats using react-query (only for points)
   const { data: statsData, isLoading, error } = useQuery({
     queryKey: ["pharmacy-dashboard"],
     queryFn: getPharmacyDashboardStats,
-    enabled: Boolean(accessToken),
+    enabled: Boolean(accessToken && !isStoreManager),
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -41,7 +45,15 @@ export default function PharmacyDashboardPage() {
   const { data: requestsData, isLoading: isRequestsLoading } = useQuery({
     queryKey: ["pharmacy-dashboard-pending-requests"],
     queryFn: () => getPharmacyRequests({ status: "pending", limit: 5 }),
-    enabled: Boolean(accessToken),
+    enabled: Boolean(accessToken && !isStoreManager),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: transfersData, isLoading: isTransfersLoading } = useQuery({
+    queryKey: ["pharmacy-dashboard-transfers"],
+    queryFn: () => getPharmacyTransfers(),
+    enabled: Boolean(accessToken && isStoreManager),
     retry: false,
     refetchOnWindowFocus: false,
   });
@@ -84,8 +96,10 @@ export default function PharmacyDashboardPage() {
     return null;
   }
 
-  const userRole = profileData?.data?.role as string;
-  const isStoreManager = userRole === "PHARMACY_STORE";
+  const transfersList = React.useMemo(() => {
+    const unwrapped = unwrapPharmacyData<any>(transfersData, []);
+    return Array.isArray(unwrapped) ? unwrapped : [];
+  }, [transfersData]);
 
   const config = React.useMemo(() => {
     const raw = unwrapPharmacyData<any>(profileData, {});
@@ -363,32 +377,46 @@ export default function PharmacyDashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                      {[
-                        { id: "trf_1", code: "TRF-2026-003", dest: "A&E Pharmacy Point", reqBy: "Pharmacist John", count: 4, status: "Pending", date: "2026-08-24T09:30:00Z" },
-                        { id: "trf_2", code: "TRF-2026-002", dest: "Outpatient Pharmacy Outlet", reqBy: "Pharmacist Sarah", count: 12, status: "Completed", date: "2026-08-23T14:15:00Z" },
-                        { id: "trf_3", code: "TRF-2026-001", dest: "Inpatient Pharmacy Outlet", reqBy: "Pharmacist Emma", count: 8, status: "Completed", date: "2026-08-22T11:45:00Z" },
-                      ].map((trf: any) => (
-                        <tr key={trf.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
-                          <td className="p-4 font-mono font-bold text-brand-700 dark:text-brand-400">
-                            {trf.code}
-                          </td>
-                          <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
-                            {trf.dest}
-                          </td>
-                          <td className="p-4 text-slate-500 dark:text-slate-400">
-                            {trf.reqBy}
-                          </td>
-                          <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">
-                            {trf.count} items
-                          </td>
-                          <td className="p-4">
-                            <StatusPill status={trf.status} />
-                          </td>
-                          <td className="p-4 text-xs text-gray-400">
-                            {formatDateTime(trf.date)}
+                      {isTransfersLoading ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-700 border-t-transparent mx-auto"></div>
                           </td>
                         </tr>
-                      ))}
+                      ) : transfersList.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-gray-500">
+                            No stock transfers recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        transfersList.slice(0, 5).map((trf: any) => {
+                          const code = `TRF-${trf.id.slice(0, 6).toUpperCase()}`;
+                          const count = trf.items?.length ?? 0;
+                          return (
+                            <tr key={trf.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                              <td className="p-4 font-mono font-bold text-brand-700 dark:text-brand-400">
+                                {code}
+                              </td>
+                              <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
+                                {trf.to_unit_name}
+                              </td>
+                              <td className="p-4 text-slate-500 dark:text-slate-400 text-xs">
+                                {trf.remarks || "No remarks"}
+                              </td>
+                              <td className="p-4 font-semibold text-slate-900 dark:text-slate-100">
+                                {count} formulations
+                              </td>
+                              <td className="p-4">
+                                <StatusPill status={trf.status} />
+                              </td>
+                              <td className="p-4 text-xs text-gray-400">
+                                {formatDateTime(trf.created_at)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>

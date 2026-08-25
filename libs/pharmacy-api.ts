@@ -43,6 +43,7 @@ export interface GetPharmacyInventoryParams {
   search?: string;
   page?: number;
   limit?: number;
+  pharmacy_unit_id?: string;
 }
 
 export type PharmacyDrugPayload = {
