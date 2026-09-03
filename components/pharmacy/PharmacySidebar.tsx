@@ -56,7 +56,7 @@ const sidebarData = {
   ],
 };
 
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
 import { getAgentProfile } from "@/libs/agent-auth";
 import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
@@ -68,29 +68,12 @@ const PharmacySidebar = () => {
   const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
 
   const { data: profileResponse } = useQuery({
-    queryKey: ["pharmacy-profile-sidebar"],
+    queryKey: ["pharmacy-profile-sidebar", decoded?.role],
     queryFn: async () => {
-      try {
-        return await getPharmacyProfile();
-      } catch (err) {
-        console.warn("[PharmacySidebar] getPharmacyProfile failed, fallback to getAgentProfile:", err);
-        const agentProfile = await getAgentProfile();
-        return {
-          status: agentProfile.status,
-          message: agentProfile.message,
-          data: {
-            ...agentProfile.data,
-            role: (decoded?.role as any) || "PHARMACY_STORE",
-            hospital_modules: {
-              has_pharmacy_module: true,
-              allow_pharmacy_self_pay: true,
-              allow_agent_pharmacy_pay: true,
-              allow_pharmacy_walk_in: true,
-            },
-            modules: agentProfile.data.modules,
-          },
-        } as any;
+      if (decoded?.role === "PHARMACY_STORE") {
+        return (await getPharmacyStoreProfile()) as any;
       }
+      return (await getPharmacyProfile()) as any;
     },
     enabled: Boolean(accessToken),
     retry: false,
@@ -104,7 +87,12 @@ const PharmacySidebar = () => {
   const links = useMemo(() => {
     return sidebarData.links
       .filter((link) => {
-        // Fast-path: Hide point-only modules for Store Managers instantly
+        // Hide transfers completely for Point Pharmacists (Transfers is Central Store only)
+        if (userRole !== "PHARMACY_STORE" && userRole !== "PLATFORM_ADMIN" && link.link === "/pharmacy/transfers") {
+          return false;
+        }
+
+        // Hide retail dispensing and prescriptions for Central Store Managers
         if (userRole === "PHARMACY_STORE") {
           if (link.link === "/pharmacy/dispense" || link.link === "/pharmacy/prescriptions") {
             return false;
@@ -132,9 +120,6 @@ const PharmacySidebar = () => {
       })
       .map((link) => ({
         ...link,
-        name: userRole === "PHARMACY" && link.link === "/pharmacy/transfers"
-          ? "Transfer History"
-          : link.name,
         active: pathname === link.link,
       }));
   }, [pathname, activeModules, profileResponse, userRole]);

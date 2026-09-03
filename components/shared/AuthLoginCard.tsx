@@ -10,7 +10,7 @@ import { ApiError } from "@/libs/api";
 import { clearAuthTokens, storeAgentTokens, decodeJwt } from "@/libs/auth";
 import { getAgentProfile, loginAgent, selectPharmacyUnit } from "@/libs/agent-auth";
 import { getFoProfile } from "@/libs/fo-auth";
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
 
 type Props = {
   mode?: "embedded" | "page";
@@ -84,7 +84,9 @@ export default function AuthLoginCard({ mode = "page" }: Props) {
 
     if (decodedRole === "PHARMACY" || decodedRole === "PHARMACY_STORE") {
       try {
-        const profile = await getPharmacyProfile();
+        const profile = decodedRole === "PHARMACY_STORE" 
+          ? await getPharmacyStoreProfile() 
+          : await getPharmacyProfile();
         const activeModules = profile?.data?.modules ?? [];
         let targetPath = "/pharmacy/dashboard";
         const priority = [

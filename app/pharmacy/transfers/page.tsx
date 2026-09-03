@@ -10,10 +10,15 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getPharmacyProfile,
+  getPharmacyStoreProfile,
   getPharmacyUnits,
   getPharmacyInventory,
+  getPharmacyStoreInventory,
   createPharmacyTransfer,
   getPharmacyTransfers,
+  getPharmacyStoreTransfers,
+  dispatchPharmacyStoreTransfer,
+  updatePharmacyStoreTransferStatus,
   updatePharmacyTransferStatus,
   BackendDrugItem,
   PharmacyTransferItem,
@@ -36,40 +41,52 @@ export default function PharmacyTransfersPage() {
   const [dispatchQty, setDispatchQty] = useState("");
   const [remarks, setRemarks] = useState("");
 
+  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
+  const isStoreManager = decoded?.role === "PHARMACY_STORE";
+  const isPlatformAdmin = decoded?.role === "PLATFORM_ADMIN";
+
   const { data: profileResponse, isLoading: isProfileLoading } = useQuery({
-    queryKey: ["pharmacy-profile-transfers"],
-    queryFn: getPharmacyProfile,
+    queryKey: ["pharmacy-profile-transfers", decoded?.role],
+    queryFn: async () => {
+      if (decoded?.role === "PHARMACY_STORE") {
+        return (await getPharmacyStoreProfile()) as any;
+      }
+      return (await getPharmacyProfile()) as any;
+    },
     enabled: Boolean(accessToken),
   });
 
-  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const profile = profileResponse?.data;
-  const isPlatformAdmin = decoded?.role === "PLATFORM_ADMIN" || (profile?.role as string) === "PLATFORM_ADMIN";
-  const isStoreManager = decoded?.role === "PHARMACY_STORE" || (profile?.role as string) === "PHARMACY_STORE";
-  const isPoint = decoded?.role === "PHARMACY" || (profile?.role as string) === "PHARMACY";
+  const isPoint = !isStoreManager;
 
   // Get active unit ID
   const activeUnitId = React.useMemo(() => {
     if (!accessToken) return "";
-    const decoded = decodeJwt(accessToken);
     const user = decoded?.user ?? decoded?.data ?? decoded ?? {};
     return (
       decoded?.pharmacy_unit_id ||
       decoded?.pharmacyUnitId ||
       user?.pharmacy_unit_id ||
       user?.pharmacyUnitId ||
+      profile?.pharmacy_unit?.id ||
       ""
     );
-  }, [accessToken]);
+  }, [accessToken, decoded, profile]);
 
   // Fetch Transfers
   const transfersQuery = useQuery({
-    queryKey: ["pharmacy-transfers", activeTab],
-    queryFn: () =>
-      getPharmacyTransfers({
+    queryKey: ["pharmacy-transfers", activeTab, isStoreManager],
+    queryFn: async (): Promise<any> => {
+      if (isStoreManager) {
+        return await getPharmacyStoreTransfers({
+          status: activeTab === "all" ? undefined : activeTab,
+        });
+      }
+      return await getPharmacyTransfers({
         status: activeTab === "all" ? undefined : activeTab,
         unit_id: isPlatformAdmin ? undefined : activeUnitId || undefined,
-      }),
+      });
+    },
     enabled: Boolean(accessToken),
   });
 
@@ -121,11 +138,13 @@ export default function PharmacyTransfersPage() {
 
   // Fetch inventory for dropdown (we fetch source warehouse inventory)
   const inventoryQuery = useQuery({
-    queryKey: ["pharmacy-inventory-dropdown"],
-    queryFn: () =>
-      getPharmacyInventory({
-        limit: 100,
-      }),
+    queryKey: ["pharmacy-inventory-dropdown", isStoreManager],
+    queryFn: async () => {
+      if (isStoreManager) {
+        return (await getPharmacyStoreInventory({ limit: 100 })) as any;
+      }
+      return (await getPharmacyInventory({ limit: 100 })) as any;
+    },
     enabled: Boolean(accessToken) && isModalOpen,
   });
 
@@ -141,25 +160,21 @@ export default function PharmacyTransfersPage() {
 
   // Mutation: Create transfer
   const createTransferMutation = useMutation({
-    mutationFn: async (payload: Parameters<typeof createPharmacyTransfer>[0]) => {
-      const response = await createPharmacyTransfer(payload);
-
+    mutationFn: async (payload: any) => {
       if (isStoreManager) {
-        const transfer = response?.data;
-        const transferId = transfer?.id ?? transfer?.data?.id;
-        if (!transferId) {
-          throw new Error("Transfer was created but no transfer ID was returned for approval.");
-        }
-        await updatePharmacyTransferStatus(transferId, "approve");
+        return await dispatchPharmacyStoreTransfer({
+          to_unit_id: payload.to_unit_id,
+          remarks: payload.remarks,
+          items: payload.items,
+        });
       }
-
-      return response;
+      return await createPharmacyTransfer(payload);
     },
     onSuccess: () => {
       toast.success(
         isStoreManager
-          ? "Stock dispatched successfully."
-          : "Restock request submitted successfully."
+          ? "Stock dispatched to point unit successfully."
+          : "Restock request submitted to central store."
       );
       setIsModalOpen(false);
       setSelectedPointId("");
@@ -176,12 +191,16 @@ export default function PharmacyTransfersPage() {
 
   // Mutation: Action (approve/reject)
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: "approve" | "reject" }) =>
-      updatePharmacyTransferStatus(id, action),
+    mutationFn: async ({ id, action }: { id: string; action: "approve" | "reject" }): Promise<any> => {
+      if (isStoreManager) {
+        return await updatePharmacyStoreTransferStatus(id, action);
+      }
+      return await updatePharmacyTransferStatus(id, action);
+    },
     onSuccess: (_, variables) => {
       toast.success(
         variables.action === "approve"
-          ? "Transfer request approved and stock transferred."
+          ? "Transfer request approved and stock moved."
           : "Transfer request rejected."
       );
       queryClient.invalidateQueries({ queryKey: ["pharmacy-transfers"] });

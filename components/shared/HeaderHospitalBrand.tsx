@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { FiActivity } from "react-icons/fi";
 import { getAgentHospitalImageUrl, getAgentProfile } from "@/libs/agent-auth";
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
 import { getAccessToken, decodeJwt } from "@/libs/auth";
 import { getFoHospitalImageUrl, getFoProfile } from "@/libs/fo-auth";
 import { PLATFORM_LOGO_SRC } from "@/libs/brand";
@@ -43,37 +43,11 @@ export default function HeaderHospitalBrand() {
     queryKey: [section, "header-profile"],
     queryFn: async () => {
       if (section === "pharmacy") {
-        try {
-          return await getPharmacyProfile();
-        } catch (err) {
-          console.warn("[HeaderHospitalBrand] Pharmacy profile query failed, trying agent profile fallback:", err);
-          const agentProfile = await getAgentProfile();
-          const decoded = accessToken ? decodeJwt(accessToken) : null;
-          return {
-            status: agentProfile.status,
-            message: agentProfile.message,
-            data: {
-              id: agentProfile.data.id,
-              first_name: agentProfile.data.first_name,
-              last_name: agentProfile.data.last_name,
-              email: agentProfile.data.email,
-              phone: agentProfile.data.phone,
-              role: (decoded?.role as any) || "PHARMACY_STORE",
-              is_active: agentProfile.data.is_active,
-              created_at: agentProfile.data.created_at,
-              hospital_id: agentProfile.data.hospital_id,
-              hospital_name: agentProfile.data.hospital_name,
-              hospital_code: agentProfile.data.hospital_code,
-              hospital_modules: {
-                has_pharmacy_module: true,
-                allow_pharmacy_self_pay: true,
-                allow_agent_pharmacy_pay: true,
-                allow_pharmacy_walk_in: true,
-              },
-              modules: agentProfile.data.modules,
-            },
-          } as any;
+        const decoded = accessToken ? decodeJwt(accessToken) : null;
+        if (decoded?.role === "PHARMACY_STORE") {
+          return (await getPharmacyStoreProfile()) as any;
         }
+        return (await getPharmacyProfile()) as any;
       }
       return section === "fo" ? getFoProfile() : getAgentProfile();
     },

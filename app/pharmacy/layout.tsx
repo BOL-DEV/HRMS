@@ -4,8 +4,8 @@ import React from "react";
 import PharmacySidebar from "@/components/pharmacy/PharmacySidebar";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
-import { getAgentAccessToken } from "@/libs/auth";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
+import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import AccessDenied from "@/components/shared/AccessDenied";
 
 interface Props {
@@ -15,10 +15,16 @@ interface Props {
 export default function PharmacyLayout({ children }: Props) {
   const pathname = usePathname();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
 
   const { data: profileResponse, isLoading } = useQuery({
-    queryKey: ["pharmacy-profile-sidebar"],
-    queryFn: getPharmacyProfile,
+    queryKey: ["pharmacy-profile-sidebar", decoded?.role],
+    queryFn: async () => {
+      if (decoded?.role === "PHARMACY_STORE") {
+        return (await getPharmacyStoreProfile()) as any;
+      }
+      return (await getPharmacyProfile()) as any;
+    },
     enabled: Boolean(accessToken),
     retry: false,
     refetchOnWindowFocus: false,
@@ -50,10 +56,16 @@ export default function PharmacyLayout({ children }: Props) {
   }, [pathname]);
 
   const hasAccess = React.useMemo(() => {
-    const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
+    const userRole = (profileResponse?.data?.role as string) || (decoded?.role as string);
+    const isPlatformAdmin = userRole === "PLATFORM_ADMIN";
     if (isPlatformAdmin) return true;
 
-    const userRole = profileResponse?.data?.role as string;
+    // Transfers is Store Manager only - reject Point Pharmacists
+    if (pathname.startsWith("/pharmacy/transfers") && userRole !== "PHARMACY_STORE") {
+      return false;
+    }
+
+    // Dispense & Prescriptions are Point Pharmacist only - reject Store Managers
     if (userRole === "PHARMACY_STORE") {
       if (pathname.startsWith("/pharmacy/dispense") || pathname.startsWith("/pharmacy/prescriptions")) {
         return false;
@@ -73,7 +85,7 @@ export default function PharmacyLayout({ children }: Props) {
       return activeModules.includes("transfers") || activeModules.includes("transfer-history");
     }
     return activeModules.includes(moduleInfo.key);
-  }, [moduleInfo, activeModules, profileResponse, pathname]);
+  }, [moduleInfo, activeModules, profileResponse, decoded, pathname]);
 
   return (
     <div className="min-h-screen bg-canvas text-slate-900 dark:text-slate-100">

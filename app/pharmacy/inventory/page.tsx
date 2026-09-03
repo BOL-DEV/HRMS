@@ -19,7 +19,13 @@ import {
   deletePharmacyDrug,
   restockPharmacyItem,
   getPharmacyProfile,
+  getPharmacyStoreProfile,
   getPharmacyDrugHistory,
+  getPharmacyStoreDrugHistory,
+  getPharmacyStoreInventory,
+  createPharmacyStoreDrug,
+  addPharmacyStoreStock,
+  updatePharmacyPointItem,
   createPharmacyTransfer,
   getPharmacyUnits,
   BackendDrugItem,
@@ -33,20 +39,25 @@ export default function PharmacyInventoryPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
+  const isStoreManager = decoded?.role === "PHARMACY_STORE";
 
   const { data: profileResponse } = useQuery({
-    queryKey: ["pharmacy-profile"],
-    queryFn: getPharmacyProfile,
+    queryKey: ["pharmacy-profile", decoded?.role],
+    queryFn: async () => {
+      if (decoded?.role === "PHARMACY_STORE") {
+        return (await getPharmacyStoreProfile()) as any;
+      }
+      return (await getPharmacyProfile()) as any;
+    },
     enabled: Boolean(accessToken),
   });
 
-  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const profile = profileResponse?.data;
   const isPlatformAdmin = decoded?.role === "PLATFORM_ADMIN" || (profile?.role as string) === "PLATFORM_ADMIN";
-  const isStoreManager = decoded?.role === "PHARMACY_STORE" || (profile?.role as string) === "PHARMACY_STORE";
   const activeModules = profile?.modules ?? decoded?.modules ?? [];
-  const hasEditAccess = isPlatformAdmin || activeModules.includes("inventory-edit");
-  const hasHistoryAccess = isPlatformAdmin || activeModules.includes("inventory") || activeModules.includes("inventory-history");
+  const hasEditAccess = true; // Point can update retail price; Store can edit catalog details
+  const hasHistoryAccess = true; // Every authenticated pharmacist can inspect formulation audit history
 
   // Request Restock States (Point -> Store)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -117,10 +128,19 @@ export default function PharmacyInventoryPage() {
   const [historyItemName, setHistoryItemName] = useState("");
 
   const { data: historyQueryData, isLoading: isHistoryLoading } = useQuery({
-    queryKey: ["pharmacy-drug-history", historyItemId],
-    queryFn: () => getPharmacyDrugHistory(historyItemId),
+    queryKey: ["pharmacy-drug-history", historyItemId, isStoreManager],
+    queryFn: async (): Promise<any> => {
+      if (isStoreManager) {
+        return await getPharmacyStoreDrugHistory(historyItemId);
+      }
+      return await getPharmacyDrugHistory(historyItemId);
+    },
     enabled: Boolean(accessToken) && isHistoryOpen && Boolean(historyItemId),
   });
+
+  const histData = (historyQueryData as any)?.data;
+  const histItem = histData?.item;
+  const histEvents: any[] = histData?.history ?? [];
 
   // Form Fields State
   const [formName, setFormName] = useState("");
@@ -141,7 +161,12 @@ export default function PharmacyInventoryPage() {
   const [restockExpiry, setRestockExpiry] = useState("");
 
   const restockMutation = useMutation({
-    mutationFn: restockPharmacyItem,
+    mutationFn: async (params: { pharmacy_item_id: string; quantity: number; batch_number?: string; expiry_date?: string }): Promise<any> => {
+      if (isStoreManager) {
+        return await addPharmacyStoreStock(params);
+      }
+      return await restockPharmacyItem(params);
+    },
     onSuccess: () => {
       toast.success("Stock added/updated successfully.");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
@@ -193,18 +218,8 @@ export default function PharmacyInventoryPage() {
       toast.error("Please enter a valid positive quantity.");
       return;
     }
-    if (!mainStoreUnit) {
-      toast.error("Central Store unit not found. Cannot request restock.");
-      return;
-    }
-    if (!activeUnitId) {
-      toast.error("Active pharmacy point not resolved. Please re-login.");
-      return;
-    }
 
-    requestRestockMutation.mutate({
-      from_unit_id: mainStoreUnit.id,
-      to_unit_id: activeUnitId,
+    const payload: any = {
       remarks: requestRemarks.trim() || undefined,
       items: [
         {
@@ -212,7 +227,16 @@ export default function PharmacyInventoryPage() {
           quantity: qty,
         },
       ],
-    });
+    };
+
+    if (mainStoreUnit?.id) {
+      payload.from_unit_id = mainStoreUnit.id;
+    }
+    if (activeUnitId) {
+      payload.to_unit_id = activeUnitId;
+    }
+
+    requestRestockMutation.mutate(payload);
   };
 
   // Category Creation Inline State
@@ -240,17 +264,35 @@ export default function PharmacyInventoryPage() {
   }, [categoriesQuery.data]);
 
   const { data: inventoryData, isLoading, error } = useQuery({
-    queryKey: ["pharmacy-inventory", search, filterCategory, filterStatus, currentPage, targetUnitId],
-    queryFn: () =>
-      getPharmacyInventory({
+    queryKey: [
+      "pharmacy-inventory",
+      search,
+      filterCategory,
+      filterStatus,
+      currentPage,
+      selectedUnitFilter,
+      isStoreManager,
+    ],
+    queryFn: async (): Promise<any> => {
+      if (isStoreManager) {
+        return await getPharmacyStoreInventory({
+          search: search || undefined,
+          category_id: filterCategory || undefined,
+          status: filterStatus || undefined,
+          pharmacy_unit_id: selectedUnitFilter || undefined,
+          page: currentPage,
+          limit: 15,
+        });
+      }
+      return await getPharmacyInventory({
         search: search || undefined,
         category_id: filterCategory || undefined,
         status: filterStatus || undefined,
-        pharmacy_unit_id: targetUnitId || undefined,
         page: currentPage,
         limit: 15,
-      }),
-    enabled: Boolean(accessToken && (!isStoreManager || targetUnitId)),
+      });
+    },
+    enabled: Boolean(accessToken),
   });
 
   // Mutations
@@ -278,7 +320,12 @@ export default function PharmacyInventoryPage() {
   });
 
   const addDrugMutation = useMutation({
-    mutationFn: addPharmacyDrug,
+    mutationFn: async (payload: PharmacyDrugPayload): Promise<any> => {
+      if (isStoreManager) {
+        return await createPharmacyStoreDrug(payload as any);
+      }
+      return await addPharmacyDrug(payload);
+    },
     onSuccess: () => {
       toast.success("New formulation added to catalog.");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
@@ -290,7 +337,15 @@ export default function PharmacyInventoryPage() {
   });
 
   const updateDrugMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: PharmacyDrugPayload }) => updatePharmacyDrug(id, payload),
+    mutationFn: async ({ id, payload }: { id: string; payload: PharmacyDrugPayload }): Promise<any> => {
+      if (isStoreManager) {
+        return await updatePharmacyDrug(id, payload);
+      }
+      return await updatePharmacyPointItem(id, {
+        unit_price: payload.unit_price,
+        reorder_level: payload.reorder_level,
+      });
+    },
     onSuccess: () => {
       toast.success("Formulation updated successfully.");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
@@ -385,6 +440,20 @@ export default function PharmacyInventoryPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (editingDrug && !isStoreManager) {
+      const unit_price = Number(formPrice);
+      const reorder_level = Number(formReorderLevel);
+      if (isNaN(unit_price) || isNaN(reorder_level) || unit_price < 0 || reorder_level < 0) {
+        toast.error("Please enter a valid unit price and reorder threshold.");
+        return;
+      }
+      updateDrugMutation.mutate({
+        id: editingDrug.id,
+        payload: { unit_price, reorder_level } as any,
+      });
+      return;
+    }
 
     const name = formName.trim();
     const generic_name = formGeneric.trim();
@@ -489,23 +558,23 @@ export default function PharmacyInventoryPage() {
             <p className="text-sm text-gray-500">{totalItems} items in catalog</p>
           </div>
           <div className="flex gap-2">
-            {hasEditAccess && (
-              <button
-                onClick={handleOpenAddModal}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
-              >
-                <FiPlus />
-                Add Drug
-              </button>
-            )}
-            {hasEditAccess && (
-              <button
-                onClick={() => setIsCategoryManagerOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                <FiFolderPlus />
-                Categories
-              </button>
+            {isStoreManager && (
+              <>
+                <button
+                  onClick={handleOpenAddModal}
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+                >
+                  <FiPlus />
+                  Add Drug
+                </button>
+                <button
+                  onClick={() => setIsCategoryManagerOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <FiFolderPlus />
+                  Categories
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -636,50 +705,58 @@ export default function PharmacyInventoryPage() {
                           </span>
                         </td>
                         <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            {hasHistoryAccess && (
-                              <button
-                                onClick={() => handleOpenHistory(item)}
-                                className="rounded-lg p-2 text-blue-500 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
-                                title="Audit History"
-                              >
-                                <FiActivity className="h-4 w-4" />
-                              </button>
-                            )}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Audit History Button */}
+                            <button
+                              onClick={() => handleOpenHistory(item)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50/70 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 hover:text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50 transition"
+                              title="Inspect Audit History Logs"
+                            >
+                              <FiActivity className="h-3.5 w-3.5" />
+                              <span>Audit</span>
+                            </button>
+
+                            {/* Store Manager Restock Button */}
                             {isStoreManager && (
                               <button
                                 onClick={() => handleOpenRestockModal(item)}
-                                className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-                                title="Restock Item"
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50 transition"
+                                title="Supplier Stock Restock"
                               >
-                                <FiPlus className="h-4 w-4" />
+                                <FiPlus className="h-3.5 w-3.5" />
+                                <span>Restock</span>
                               </button>
                             )}
-                            {hasEditAccess && (
-                              <>
-                                <button
-                                  onClick={() => handleOpenEditModal(item)}
-                                  className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-slate-400 dark:hover:bg-slate-800"
-                                  title="Edit Drug"
-                                >
-                                  <FiEdit2 className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(item.id, item.name)}
-                                  className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
-                                  title="Delete Drug"
-                                >
-                                  <FiTrash2 className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
+
+                            {/* Point Pharmacist Restock Request */}
                             {!isStoreManager && (
                               <button
                                 onClick={() => handleOpenRequestModal(item)}
-                                className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
-                                title="Request Restock"
+                                className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/50 transition"
+                                title="Request Stock from Central Store"
                               >
-                                <FiSend className="h-4 w-4" />
+                                <FiSend className="h-3.5 w-3.5" />
+                                <span>Request</span>
+                              </button>
+                            )}
+
+                            {/* Edit Button */}
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="rounded-lg border border-gray-200 bg-gray-50/70 p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                              title={isStoreManager ? "Edit Drug Details" : "Edit Retail Price & Threshold"}
+                            >
+                              <FiEdit2 className="h-3.5 w-3.5" />
+                            </button>
+
+                            {/* Delete Button (Store Only) */}
+                            {isStoreManager && (
+                              <button
+                                onClick={() => handleDelete(item.id, item.name)}
+                                className="rounded-lg border border-red-200 bg-red-50/70 p-1.5 text-red-600 hover:bg-red-100 hover:text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/50 transition"
+                                title="Delete Formulation"
+                              >
+                                <FiTrash2 className="h-3.5 w-3.5" />
                               </button>
                             )}
                           </div>
@@ -736,179 +813,225 @@ export default function PharmacyInventoryPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block sm:col-span-2">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Drug Name
-                  </span>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="e.g. Paracetamol 500mg"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Generic Chemical Name
-                  </span>
-                  <input
-                    type="text"
-                    value={formGeneric}
-                    onChange={(e) => setFormGeneric(e.target.value)}
-                    placeholder="e.g. Acetaminophen"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                  />
-                </label>
-
-                <div className="block space-y-2">
-                  <span className="block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Category
-                  </span>
-                  {!isAddingCategory ? (
-                    <div className="flex gap-2 items-stretch">
-                      <select
-                        value={formCategory}
-                        onChange={(e) => setFormCategory(e.target.value)}
-                        className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                        required
-                      >
-                        <option value="">Select Category</option>
-                        {categories.map((c: PharmacyCategory) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingCategory(true)}
-                        className="flex items-center justify-center px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-slate-700 rounded-xl dark:bg-canvas dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition"
-                        title="Add New Category"
-                      >
-                        <FiFolderPlus className="h-5 w-5" />
-                      </button>
+              {editingDrug && !isStoreManager ? (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="rounded-2xl border border-gray-100 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                    <p className="text-base font-bold text-slate-900 dark:text-slate-100">{editingDrug.name}</p>
+                    <p className="text-xs text-gray-500">{editingDrug.generic_name || "No generic name"}</p>
+                    <div className="mt-2 flex gap-4 text-xs text-gray-600 dark:text-slate-300">
+                      <span>Category: <strong>{editingDrug.category_name}</strong></span>
+                      <span>Current Stock: <strong>{editingDrug.stock}</strong></span>
                     </div>
-                  ) : (
-                    <div className="flex gap-2 items-stretch animate-fade-in-slide">
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                        Point Selling Price (₦)
+                      </span>
                       <input
-                        type="text"
-                        value={newCategoryName}
-                        onChange={(e) => setNewCategoryName(e.target.value)}
-                        placeholder="New category..."
-                        className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        type="number"
+                        value={formPrice}
+                        onChange={(e) => setFormPrice(e.target.value)}
+                        placeholder="e.g. 150"
+                        min="0"
+                        step="any"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        required
                       />
-                      <button
-                        type="button"
-                        onClick={handleCreateCategory}
-                        disabled={createCategoryMutation.isPending}
-                        className="bg-brand-700 hover:bg-brand-600 text-white rounded-xl px-4 text-xs font-semibold transition"
-                      >
-                        Create
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingCategory(false)}
-                        className="flex items-center justify-center px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-slate-700 rounded-xl dark:bg-canvas dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition"
-                      >
-                        <FiX className="h-5 w-5" />
-                      </button>
-                    </div>
-                  )}
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                        Reorder Stock Threshold
+                      </span>
+                      <input
+                        type="number"
+                        value={formReorderLevel}
+                        onChange={(e) => setFormReorderLevel(e.target.value)}
+                        placeholder="e.g. 50"
+                        min="1"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        required
+                      />
+                    </label>
+                  </div>
                 </div>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Batch Number
-                  </span>
-                  <input
-                    type="text"
-                    value={formBatch}
-                    onChange={(e) => setFormBatch(e.target.value)}
-                    placeholder="e.g. PCM2025-001"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Expiry Date
-                  </span>
-                  <input
-                    type="date"
-                    value={formExpiry}
-                    onChange={(e) => setFormExpiry(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Stock Count
-                  </span>
-                  <input
-                    type="number"
-                    value={formStock}
-                    onChange={(e) => setFormStock(e.target.value)}
-                    placeholder="e.g. 500"
-                    min="0"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Reorder Stock Threshold
-                  </span>
-                  <input
-                    type="number"
-                    value={formReorderLevel}
-                    onChange={(e) => setFormReorderLevel(e.target.value)}
-                    placeholder="e.g. 50"
-                    min="1"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
-                  />
-                </label>
-
-                <label className={editingDrug ? "block" : "block sm:col-span-2"}>
-                  <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                    Unit Price (₦)
-                  </span>
-                  <input
-                    type="number"
-                    value={formPrice}
-                    onChange={(e) => setFormPrice(e.target.value)}
-                    placeholder="e.g. 150"
-                    min="0"
-                    step="any"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    required
-                  />
-                </label>
-
-                {editingDrug && (
-                  <label className="block animate-fade-in">
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block sm:col-span-2">
                     <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Status
+                      Drug Name
                     </span>
-                    <select
-                      value={formStatus}
-                      onChange={(e) => setFormStatus(e.target.value)}
+                    <input
+                      type="text"
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
+                      placeholder="e.g. Paracetamol 500mg"
                       className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                       required
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
+                    />
                   </label>
-                )}
-              </div>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Generic Chemical Name
+                    </span>
+                    <input
+                      type="text"
+                      value={formGeneric}
+                      onChange={(e) => setFormGeneric(e.target.value)}
+                      placeholder="e.g. Acetaminophen"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                    />
+                  </label>
+
+                  <div className="block space-y-2">
+                    <span className="block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Category
+                    </span>
+                    {!isAddingCategory ? (
+                      <div className="flex gap-2 items-stretch">
+                        <select
+                          value={formCategory}
+                          onChange={(e) => setFormCategory(e.target.value)}
+                          className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                          required
+                        >
+                          <option value="">Select Category</option>
+                          {categories.map((c: PharmacyCategory) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingCategory(true)}
+                          className="flex items-center justify-center px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-slate-700 rounded-xl dark:bg-canvas dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition"
+                          title="Add New Category"
+                        >
+                          <FiFolderPlus className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 items-stretch animate-fade-in-slide">
+                        <input
+                          type="text"
+                          value={newCategoryName}
+                          onChange={(e) => setNewCategoryName(e.target.value)}
+                          placeholder="New category..."
+                          className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateCategory}
+                          disabled={createCategoryMutation.isPending}
+                          className="bg-brand-700 hover:bg-brand-600 text-white rounded-xl px-4 text-xs font-semibold transition"
+                        >
+                          Create
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingCategory(false)}
+                          className="flex items-center justify-center px-3.5 border border-gray-200 bg-white hover:bg-gray-50 text-slate-700 rounded-xl dark:bg-canvas dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 transition"
+                        >
+                          <FiX className="h-5 w-5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Batch Number
+                    </span>
+                    <input
+                      type="text"
+                      value={formBatch}
+                      onChange={(e) => setFormBatch(e.target.value)}
+                      placeholder="e.g. PCM2025-001"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Expiry Date
+                    </span>
+                    <input
+                      type="date"
+                      value={formExpiry}
+                      onChange={(e) => setFormExpiry(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      required
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Stock Count
+                    </span>
+                    <input
+                      type="number"
+                      value={formStock}
+                      onChange={(e) => setFormStock(e.target.value)}
+                      placeholder="e.g. 500"
+                      min="0"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      required
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Reorder Stock Threshold
+                    </span>
+                    <input
+                      type="number"
+                      value={formReorderLevel}
+                      onChange={(e) => setFormReorderLevel(e.target.value)}
+                      placeholder="e.g. 50"
+                      min="1"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      required
+                    />
+                  </label>
+
+                  <label className={editingDrug ? "block" : "block sm:col-span-2"}>
+                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                      Unit Price (₦)
+                    </span>
+                    <input
+                      type="number"
+                      value={formPrice}
+                      onChange={(e) => setFormPrice(e.target.value)}
+                      placeholder="e.g. 150"
+                      min="0"
+                      step="any"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                      required
+                    />
+                  </label>
+
+                  {editingDrug && (
+                    <label className="block animate-fade-in">
+                      <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                        Status
+                      </span>
+                      <select
+                        value={formStatus}
+                        onChange={(e) => setFormStatus(e.target.value)}
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        required
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </label>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 border-t border-gray-100 pt-4 mt-6 dark:border-slate-800">
                 <button
@@ -1131,85 +1254,85 @@ export default function PharmacyInventoryPage() {
       ) : null}
 
       {/* Audit History Drawer */}
-      {isHistoryOpen ? (
+      {isHistoryOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/55 backdrop-blur-xs">
           <div className="w-full max-w-2xl h-screen bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl flex flex-col animate-fade-in-slide">
-            {/* Drawer Header */}
-            <div className="p-6 border-b border-gray-150 dark:border-slate-800 flex items-start justify-between">
-              <div>
-                <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-widest">
-                  Audit Logs
-                </span>
-                <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mt-1">
-                  {historyItemName}
-                </h3>
-                {historyQueryData?.data?.item && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {historyQueryData.data.item.generic_name || "No generic name"} | {historyQueryData.data.item.category_name}
-                  </p>
+                {/* Drawer Header */}
+                <div className="p-6 border-b border-gray-150 dark:border-slate-800 flex items-start justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-widest">
+                      Audit Logs
+                    </span>
+                    <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mt-1">
+                      {historyItemName}
+                    </h3>
+                    {histItem && (
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {histItem.generic_name || "No generic name"} | {histItem.category_name || "Formulation"}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsHistoryOpen(false);
+                      setHistoryItemId("");
+                      setHistoryItemName("");
+                    }}
+                    className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    <FiX className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Current Item Overview Grid */}
+                {histItem && (
+                  <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-800/20 border-b border-gray-150 dark:border-slate-800 grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Current Stock
+                      </span>
+                      <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                        {histItem.stock}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Unit Price
+                      </span>
+                      <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                        {formatCurrency(histItem.unit_price || 0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Batch
+                      </span>
+                      <span className="text-lg font-bold text-slate-900 dark:text-slate-100 font-mono">
+                        {histItem.batch_number || "--"}
+                      </span>
+                    </div>
+                  </div>
                 )}
-              </div>
-              <button
-                onClick={() => {
-                  setIsHistoryOpen(false);
-                  setHistoryItemId("");
-                  setHistoryItemName("");
-                }}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
-              >
-                <FiX className="h-5 w-5" />
-              </button>
-            </div>
 
-            {/* Current Item Overview Grid */}
-            {historyQueryData?.data?.item && (
-              <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-800/20 border-b border-gray-150 dark:border-slate-800 grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Current Stock
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    {historyQueryData.data.item.stock}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Unit Price
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                    {formatCurrency(historyQueryData.data.item.unit_price)}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
-                    Batch
-                  </span>
-                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100 font-mono">
-                    {historyQueryData.data.item.batch_number || "--"}
-                  </span>
-                </div>
-              </div>
-            )}
+                {/* Drawer Body / Timeline */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {isHistoryLoading ? (
+                    <div className="flex h-64 items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-700 border-t-transparent"></div>
+                    </div>
+                  ) : histEvents.length === 0 ? (
+                    <div className="flex h-64 flex-col items-center justify-center text-center">
+                      <p className="text-sm text-gray-500">No activity history recorded for this formulation.</p>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      {/* Vertical Timeline Guide Line */}
+                      <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-gray-250 dark:bg-slate-800" />
 
-            {/* Drawer Body / Timeline */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {isHistoryLoading ? (
-                <div className="flex h-64 items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-700 border-t-transparent"></div>
-                </div>
-              ) : !historyQueryData?.data?.history || historyQueryData.data.history.length === 0 ? (
-                <div className="flex h-64 flex-col items-center justify-center text-center">
-                  <p className="text-sm text-gray-500">No activity history recorded for this formulation.</p>
-                </div>
-              ) : (
-                <div className="relative">
-                  {/* Vertical Timeline Guide Line */}
-                  <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-gray-250 dark:bg-slate-800" />
-
-                  <div className="space-y-6">
-                    {historyQueryData.data.history.map((event, index) => {
-                      const eventDateStr = new Date(event.date).toLocaleDateString(undefined, {
-                        month: "short",
+                      <div className="space-y-6">
+                        {histEvents.map((event: any, index: number) => {
+                          const eventDateStr = new Date(event.date).toLocaleDateString(undefined, {
+                            month: "short",
                         day: "numeric",
                         year: "numeric",
                         hour: "2-digit",
@@ -1239,9 +1362,9 @@ export default function PharmacyInventoryPage() {
                           <div className="flex-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-xs hover:border-gray-300 dark:hover:border-slate-700 transition">
                             <div className="flex items-center justify-between gap-4">
                               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
-                                event.type === "sale"
+                                event.type === "sale" || event.type === "dispensed"
                                   ? "bg-amber-100/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                                  : event.type === "restock"
+                                  : event.type === "restock" || event.type === "transfer_in"
                                   ? "bg-emerald-100/60 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
                                   : "bg-indigo-100/60 text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300"
                               }`}>
@@ -1251,17 +1374,25 @@ export default function PharmacyInventoryPage() {
                             </div>
 
                             <p className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                              {event.type === "sale" ? (
+                              {event.type === "sale" || event.type === "dispensed" ? (
                                 <>
-                                  Dispensed <span className="text-amber-600 font-bold">{Math.abs(event.quantity_changed)}</span> unit(s)
+                                  Dispensed <span className="text-amber-600 font-bold">{Math.abs(Number(event.quantity_changed || 0))}</span> unit(s)
                                 </>
-                              ) : event.type === "restock" ? (
+                              ) : event.type === "restock" || event.type === "transfer_in" ? (
                                 <>
-                                  Restocked <span className="text-emerald-600 font-bold">+{event.quantity_changed}</span> unit(s)
+                                  {Number(event.quantity_changed) >= 0 ? "Restocked" : "Adjusted"}{" "}
+                                  <span className={`font-bold ${Number(event.quantity_changed) >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                                    {Number(event.quantity_changed) >= 0 ? `+${event.quantity_changed}` : event.quantity_changed}
+                                  </span>{" "}
+                                  unit(s)
                                 </>
                               ) : (
                                 <>
-                                  Initial Load of <span className="text-indigo-600 font-bold">+{event.quantity_changed}</span> unit(s)
+                                  Initial Load of{" "}
+                                  <span className="text-indigo-600 font-bold">
+                                    {Number(event.quantity_changed) >= 0 ? `+${event.quantity_changed}` : event.quantity_changed}
+                                  </span>{" "}
+                                  unit(s)
                                 </>
                               )}
                               <span className="text-xs text-gray-400 font-normal ml-2">
@@ -1271,34 +1402,45 @@ export default function PharmacyInventoryPage() {
 
                             {/* Details Summary Table */}
                             <div className="mt-3.5 pt-3.5 border-t border-gray-100 dark:border-slate-800/80 text-xs text-gray-500 dark:text-slate-400 space-y-2">
-                              {event.type === "sale" && (
+                              {(event.type === "sale" || event.type === "dispensed") && (
                                 <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
-                                  <div><span className="font-semibold text-gray-400">Billing Code:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.billing_code}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Billing Code:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.billing_code || "--"}</span></div>
                                   <div><span className="font-semibold text-gray-400">Receipt No:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.receipt_no || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Patient:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.patient_name || "--"} ({event.details.patient_id || "--"})</span></div>
+                                  <div><span className="font-semibold text-gray-400">Patient:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.patient_name || "--"} {event.details.patient_id ? `(${event.details.patient_id})` : ""}</span></div>
                                   <div><span className="font-semibold text-gray-400">Phone:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.phone_number || "--"}</span></div>
                                   <div><span className="font-semibold text-gray-400">Price Sold:</span> <span className="text-slate-800 dark:text-slate-200">{formatCurrency(event.details.unit_price_sold ?? 0)}/unit</span></div>
                                   <div><span className="font-semibold text-gray-400">Total Price:</span> <span className="text-slate-800 dark:text-slate-200 font-bold">{formatCurrency(event.details.total_price_sold ?? 0)}</span></div>
                                   <div><span className="font-semibold text-gray-400">Pharmacist:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Cleared By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.bill_clearer_name || "--"} ({event.details.payment_type || "--"})</span></div>
+                                  <div><span className="font-semibold text-gray-400">Cleared By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.bill_clearer_name || "--"} {event.details.payment_type ? `(${event.details.payment_type})` : ""}</span></div>
                                 </div>
                               )}
 
-                              {event.type === "restock" && (
+                              {(event.type === "restock" || event.type === "transfer_in" || event.type === "transfer_out") && (
                                 <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
-                                  <div><span className="font-semibold text-gray-400">Restocked By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Stock Shift:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.old_stock} &rarr; {event.details.new_stock}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Handled By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
+                                  <div><span className="font-semibold text-gray-400">Stock Shift:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.old_stock ?? "--"} &rarr; {event.details.new_stock ?? "--"}</span></div>
                                   <div><span className="font-semibold text-gray-400">Batch Shift:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{event.details.old_batch || "--"} &rarr; {event.details.new_batch || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Expiry Shift:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.old_expiry || "--"} &rarr; {event.details.new_expiry || "--"}</span></div>
+                                  <div>
+                                    <span className="font-semibold text-gray-400">Expiry Shift:</span>{" "}
+                                    <span className="text-slate-800 dark:text-slate-200">
+                                      {event.details.old_expiry ? new Date(event.details.old_expiry).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "--"} &rarr;{" "}
+                                      {event.details.new_expiry ? new Date(event.details.new_expiry).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "--"}
+                                    </span>
+                                  </div>
                                 </div>
                               )}
 
-                              {event.type === "create" && (
+                              {(event.type === "create" || event.type === "initial") && (
                                 <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
                                   <div><span className="font-semibold text-gray-400">Created By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Initial Stock:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.initial_stock} units</span></div>
+                                  <div><span className="font-semibold text-gray-400">Initial Stock:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.initial_stock ?? event.remaining_stock} units</span></div>
                                   <div><span className="font-semibold text-gray-400">Batch Code:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{event.details.batch_number || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Expiry Date:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.expiry_date || "--"}</span></div>
+                                  <div>
+                                    <span className="font-semibold text-gray-400">Expiry Date:</span>{" "}
+                                    <span className="text-slate-800 dark:text-slate-200">
+                                      {event.details.expiry_date ? new Date(event.details.expiry_date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "--"}
+                                    </span>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1312,7 +1454,7 @@ export default function PharmacyInventoryPage() {
             </div>
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Request Restock Modal */}
       {isRequestModalOpen && requestItem && (

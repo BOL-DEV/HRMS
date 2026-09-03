@@ -38,7 +38,6 @@ const STORE_ROLE_MODULES = [
   "inventory",
   "reports",
   "transfers",
-  "transfer-history",
 ];
 
 const POINT_ROLE_MODULES = [
@@ -46,8 +45,6 @@ const POINT_ROLE_MODULES = [
   "dispense",
   "prescriptions",
   "inventory",
-  "inventory-edit",
-  "inventory-history",
   "reports",
   "transfers",
 ];
@@ -60,12 +57,9 @@ const MODULE_OPTIONS: Array<{
   { key: "dashboard", label: "Dashboard", roles: ["PHARMACY", "PHARMACY_STORE"] },
   { key: "dispense", label: "Dispense Control", roles: ["PHARMACY"] },
   { key: "prescriptions", label: "Prescriptions", roles: ["PHARMACY"] },
-  { key: "inventory", label: "Inventory Setup", roles: ["PHARMACY", "PHARMACY_STORE"] },
-  { key: "inventory-edit", label: "Inventory Edit", roles: ["PHARMACY_STORE"] },
-  { key: "inventory-history", label: "Inventory History", roles: ["PHARMACY_STORE"] },
+  { key: "inventory", label: "Inventory", roles: ["PHARMACY", "PHARMACY_STORE"] },
   { key: "reports", label: "Reports Logs", roles: ["PHARMACY", "PHARMACY_STORE"] },
-  { key: "transfers", label: "Transfers", roles: ["PHARMACY_STORE"] },
-  { key: "transfer-history", label: "Transfer History", roles: ["PHARMACY"] },
+  { key: "transfers", label: "Request Restock", roles: ["PHARMACY", "PHARMACY_STORE"] },
 ];
 
 function getDefaultModulesForRole(role: "PHARMACY" | "PHARMACY_STORE") {
@@ -87,6 +81,10 @@ function splitPharmacistName(name?: string) {
 function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null): FormState {
   const name = splitPharmacistName(pharmacist?.pharmacist_name);
   const role = pharmacist?.role ?? "PHARMACY";
+  const validAllowed = getDefaultModulesForRole(role);
+
+  const rawModules = pharmacist?.modules?.length ? pharmacist.modules : validAllowed;
+  const sanitizedModules = rawModules.filter((m) => validAllowed.includes(m));
 
   return {
     first_name: pharmacist?.first_name ?? name.first_name,
@@ -96,7 +94,7 @@ function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null):
     password: "",
     status: pharmacist?.status ?? "active",
     role,
-    modules: pharmacist?.modules?.length ? pharmacist.modules : getDefaultModulesForRole(role),
+    modules: sanitizedModules.length > 0 ? sanitizedModules : validAllowed,
   };
 }
 
@@ -163,6 +161,9 @@ function AdminHospitalPharmacistFormModal({
       return;
     }
 
+    const allowed = getDefaultModulesForRole(form.role);
+    const cleanModules = form.modules.filter((m) => allowed.includes(m));
+
     if (!isEditMode) {
       onSubmit({
         first_name,
@@ -171,7 +172,7 @@ function AdminHospitalPharmacistFormModal({
         phone,
         password,
         role: form.role,
-        modules: form.modules,
+        modules: cleanModules,
       });
       return;
     }
@@ -209,13 +210,8 @@ function AdminHospitalPharmacistFormModal({
       payload.role = form.role;
     }
 
-    const originalModules = pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"];
-    const modulesChanged =
-      form.modules.length !== originalModules.length ||
-      !form.modules.every((m) => originalModules.includes(m));
-    if (modulesChanged) {
-      payload.modules = form.modules;
-    }
+    // Always send sanitized modules selection so disallowed modules like transfer-history are never sent
+    payload.modules = cleanModules;
 
     onSubmit(payload);
   };
@@ -364,7 +360,13 @@ function AdminHospitalPharmacistFormModal({
                     onChange={() => handleModuleToggle(mod.key)}
                     className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                   />
-                  <span>{form.role === "PHARMACY" && mod.key === "inventory" ? "Inventory" : mod.label}</span>
+                  <span>
+                    {form.role === "PHARMACY" && mod.key === "transfers"
+                      ? "Request Restock"
+                      : form.role === "PHARMACY_STORE" && mod.key === "transfers"
+                      ? "Transfers"
+                      : mod.label}
+                  </span>
                 </label>
               ))}
             </div>
