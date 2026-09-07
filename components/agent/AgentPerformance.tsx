@@ -1,6 +1,6 @@
 import StatusPill from "@/components/shared/StatusPill";
 import { FiMoreVertical } from "react-icons/fi";
-import { formatNaira as usd } from "@/libs/helper";
+import { formatNaira as usd, formatDateTime } from "@/libs/helper";
 import { AgentPerformanceRow } from "@/libs/type";
 
 type Props = {
@@ -67,7 +67,7 @@ function AgentPerformance({
                     {row.refunds}
                   </td>
                   <td className="p-3 text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                    {row.lastActive}
+                    {formatDateTime(row.lastActive)}
                   </td>
                   <td className="p-3">
                     <StatusPill status={row.status} />

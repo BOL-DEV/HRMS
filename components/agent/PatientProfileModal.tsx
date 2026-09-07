@@ -1,7 +1,7 @@
 "use client";
 
 import ChartWatermark from "@/components/shared/ChartWatermark";
-import { formatNaira } from "@/libs/helper";
+import { formatDate, formatDateTime, formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/shared/StatusPill";
 import {
   Line,
@@ -84,12 +84,12 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-500">Last Visit</p>
-              <p className="text-base font-semibold text-gray-900">{patient.lastVisit}</p>
+              <p className="text-base font-semibold text-gray-900">{formatDate(patient.lastVisit)}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[{ label: "Total Amount Paid", value: formatNaira(patient.totalPaid) }, { label: "Total Visits", value: patient.totalVisits }, { label: "Last Visit", value: patient.lastVisit }].map((card) => (
+            {[{ label: "Total Amount Paid", value: formatNaira(patient.totalPaid) }, { label: "Total Visits", value: patient.totalVisits }, { label: "Last Visit", value: formatDate(patient.lastVisit) }].map((card) => (
               <div key={card.label} className="border border-gray-200 rounded-xl p-4">
                 <p className="text-sm text-gray-600">{card.label}</p>
                 <p className="text-2xl font-bold mt-1">{card.value}</p>
@@ -122,7 +122,7 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
                   <div key={t.invoice} className="py-3 flex items-center justify-between">
                     <div>
                       <p className="font-medium text-gray-900">{t.name}</p>
-                      <p className="text-sm text-gray-500">{t.invoice} • {t.date}</p>
+                      <p className="text-sm text-gray-500">{t.invoice} • {formatDateTime(t.date)}</p>
                     </div>
                     <p className="font-semibold text-brand-700">{formatNaira(t.amount)}</p>
                   </div>

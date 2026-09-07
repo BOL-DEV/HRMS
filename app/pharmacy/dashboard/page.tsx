@@ -305,7 +305,7 @@ export default function PharmacyDashboardPage() {
                           recentStockAdditions.slice(0, 5).map((log: any) => (
                             <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
                               <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
-                                {log.item_name}
+                                {log.item_name || log.drug_name || log.name || log.pharmacy_item?.name || log.item?.name || log.pharmacy_item_name || "—"}
                               </td>
                               <td className="p-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                                 +{log.quantity_changed}

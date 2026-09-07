@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Header from "@/components/shared/Header";
-import { formatCurrency } from "@/libs/helper";
+import { formatCurrency, formatDateTime } from "@/libs/helper";
 import { FiPlus, FiX, FiCheck, FiRefreshCw, FiSend, FiInbox, FiActivity } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
@@ -335,7 +335,7 @@ export default function PharmacyTransfersPage() {
                     <th className="p-4 font-semibold">From (Source)</th>
                     <th className="p-4 font-semibold">To (Target)</th>
                     <th className="p-4 font-semibold">Remarks</th>
-                    <th className="p-4 font-semibold text-center">Items Count</th>
+                    <th className="p-4 font-semibold">Transferred Drugs</th>
                     <th className="p-4 font-semibold text-center">Status</th>
                     <th className="p-4 font-semibold">Created At</th>
                     {(isStoreManager || isPlatformAdmin) && <th className="p-4 font-semibold text-right">Actions</th>}
@@ -353,8 +353,31 @@ export default function PharmacyTransfersPage() {
                       <td className="p-4 text-slate-500 dark:text-slate-400 italic">
                         {trf.remarks || "--"}
                       </td>
-                      <td className="p-4 text-center font-semibold text-slate-800 dark:text-slate-200">
-                        {trf.items_count} Formulation(s)
+                      <td className="p-4">
+                        {trf.items && trf.items.length > 0 ? (
+                          <div className="flex flex-col gap-1.5">
+                            {trf.items.map((item: any, idx: number) => {
+                              const name = item.item_name || item.drug_name || item.name || "Drug Item";
+                              const qty = item.quantity ?? item.qty ?? item.quantity_transferred;
+                              return (
+                                <div key={item.id || idx} className="flex items-center gap-2">
+                                  <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                                    {name}
+                                  </span>
+                                  {qty !== undefined && (
+                                    <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                                      Qty: {qty}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {trf.items_count || 0} item(s)
+                          </span>
+                        )}
                       </td>
                       <td className="p-4 text-center">
                         <span
@@ -370,7 +393,7 @@ export default function PharmacyTransfersPage() {
                         </span>
                       </td>
                       <td className="p-4 text-xs text-gray-500">
-                        {new Date(trf.created_at).toLocaleString()}
+                        {formatDateTime(trf.created_at)}
                       </td>
                       {(isStoreManager || isPlatformAdmin) && (
                         <td className="p-4 text-right">

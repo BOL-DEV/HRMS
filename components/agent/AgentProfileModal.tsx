@@ -2,7 +2,7 @@
 
 import ChartWatermark from "@/components/shared/ChartWatermark";
 import { BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
-import { formatNaira } from "@/libs/helper";
+import { formatDateTime, formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/shared/StatusPill";
 import {
   CartesianGrid,
@@ -90,7 +90,7 @@ function AgentProfileModal({
                 Last Active
               </p>
               <p className="text-base font-semibold text-gray-900 dark:text-slate-100">
-                {agent.lastActive}
+                {formatDateTime(agent.lastActive)}
               </p>
             </div>
           </div>

@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { FiPlus, FiX } from "react-icons/fi";
 import StatusPill from "@/components/shared/StatusPill";
+import { formatDate } from "@/libs/helper";
 
 export default function HospitalPharmacyUnitsPage() {
   const params = useParams<{ id: string }>();
@@ -156,9 +157,7 @@ export default function HospitalPharmacyUnitsPage() {
                         <StatusPill status={unit.is_active ? "Active" : "Inactive"} />
                       </td>
                       <td className="p-3 text-gray-500 dark:text-slate-400">
-                        {new Date(unit.created_at).toLocaleDateString(undefined, {
-                          dateStyle: "medium"
-                        })}
+                        {formatDate(unit.created_at)}
                       </td>
                     </tr>
                   ))}

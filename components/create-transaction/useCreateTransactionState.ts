@@ -30,7 +30,7 @@ import {
   getAgentPendingPharmacyRequests,
   processAgentPharmacyPayment,
 } from "@/libs/agent-auth";
-import { openReceiptPrintWindowFromHtml, isValidNigerianPhoneNumber } from "@/libs/helper";
+import { openReceiptPrintWindowFromHtml, isValidNigerianPhoneNumber, formatDateTime } from "@/libs/helper";
 import type {
   ExpressPaymentForm,
   SelectedAutomaticItem,
@@ -288,7 +288,7 @@ function buildPharmacyReceiptHtml(
       <div style="margin: 15px 0;">
         <p><strong>Receipt Code:</strong> ${receiptNo}</p>
         <p><strong>Pharmacy Code:</strong> ${pharmacyBill.code}</p>
-        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Date:</strong> ${formatDateTime(new Date())}</p>
         <p><strong>Patient Name:</strong> ${pharmacyBill.patientName}</p>
         <p><strong>Patient ID:</strong> ${pharmacyBill.patientId}</p>
       </div>

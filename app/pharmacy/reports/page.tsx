@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Header from "@/components/shared/Header";
-import { formatCurrency, formatDateTime } from "@/libs/helper";
+import { formatCurrency, formatDateTime, formatDate } from "@/libs/helper";
 import { useQuery } from "@tanstack/react-query";
 import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import {
@@ -720,7 +720,7 @@ export default function PharmacyReportsPage() {
                         <div className="flex flex-col">
                           <span>Batch: {log.new_batch || log.batch_number || "N/A"}</span>
                           <span className="text-gray-500">
-                            Exp: {log.new_expiry || log.expiry_date ? new Date(log.new_expiry || log.expiry_date).toLocaleDateString() : "N/A"}
+                            Exp: {log.new_expiry || log.expiry_date ? formatDate(log.new_expiry || log.expiry_date) : "N/A"}
                           </span>
                         </div>
                       </td>

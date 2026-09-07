@@ -32,15 +32,42 @@ export function formatCompactNumber(value: number) {
 }
 
 
-export function formatDateTime(value: string) {
-  const date = new Date(value);
+export function formatDateTime(value: string | number | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "object" && value instanceof Date ? value : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return new Intl.DateTimeFormat("en-NG", {
     dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+export function formatDate(value: string | number | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "object" && value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+  }).format(date);
+}
+
+export function formatTime(value: string | number | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "object" && value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
     timeStyle: "short",
   }).format(date);
 }

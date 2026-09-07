@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Header from "@/components/shared/Header";
-import { formatCurrency } from "@/libs/helper";
+import { formatCurrency, formatDateTime, formatDate } from "@/libs/helper";
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus, FiActivity, FiSend } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
@@ -693,7 +693,7 @@ export default function PharmacyInventoryPage() {
                         </td>
                         <td className="p-4 text-slate-600 dark:text-slate-300">{item.category_name}</td>
                         <td className="p-4 font-mono text-slate-500 dark:text-slate-400">{item.batch_number || "--"}</td>
-                        <td className="p-4 text-slate-600 dark:text-slate-300">{item.expiry_date}</td>
+                        <td className="p-4 text-slate-600 dark:text-slate-300">{formatDate(item.expiry_date)}</td>
                         <td className="p-4 text-center font-semibold text-slate-900 dark:text-slate-100">{item.stock}</td>
                         <td className="p-4 text-center text-gray-500 dark:text-slate-400">{item.reorder_level}</td>
                         <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
@@ -1331,13 +1331,7 @@ export default function PharmacyInventoryPage() {
 
                       <div className="space-y-6">
                         {histEvents.map((event: any, index: number) => {
-                          const eventDateStr = new Date(event.date).toLocaleDateString(undefined, {
-                            month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      });
+                          const eventDateStr = formatDateTime(event.date);
 
                       return (
                         <div key={index} className="relative flex gap-4 pl-10">
@@ -1423,8 +1417,8 @@ export default function PharmacyInventoryPage() {
                                   <div>
                                     <span className="font-semibold text-gray-400">Expiry Shift:</span>{" "}
                                     <span className="text-slate-800 dark:text-slate-200">
-                                      {event.details.old_expiry ? new Date(event.details.old_expiry).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "--"} &rarr;{" "}
-                                      {event.details.new_expiry ? new Date(event.details.new_expiry).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "--"}
+                                      {event.details.old_expiry ? formatDate(event.details.old_expiry) : "--"} &rarr;{" "}
+                                      {event.details.new_expiry ? formatDate(event.details.new_expiry) : "--"}
                                     </span>
                                   </div>
                                 </div>
@@ -1438,7 +1432,7 @@ export default function PharmacyInventoryPage() {
                                   <div>
                                     <span className="font-semibold text-gray-400">Expiry Date:</span>{" "}
                                     <span className="text-slate-800 dark:text-slate-200">
-                                      {event.details.expiry_date ? new Date(event.details.expiry_date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "--"}
+                                      {event.details.expiry_date ? formatDate(event.details.expiry_date) : "--"}
                                     </span>
                                   </div>
                                 </div>

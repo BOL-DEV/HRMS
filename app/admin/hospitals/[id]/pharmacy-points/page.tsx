@@ -4,6 +4,7 @@ import { ApiError } from "@/libs/api";
 import { clearAuthTokens, getAccessToken } from "@/libs/auth";
 import { createPharmacyUnit, getPharmacyUnits } from "@/libs/pharmacy-api";
 import StatusPill from "@/components/shared/StatusPill";
+import { formatDate } from "@/libs/helper";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -136,7 +137,7 @@ export default function HospitalPharmacyPointPage() {
                       <StatusPill status={unit.is_active ? "Active" : "Inactive"} />
                     </td>
                     <td className="p-3 text-gray-500 dark:text-slate-400">
-                      {new Date(unit.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })}
+                      {formatDate(unit.created_at)}
                     </td>
                   </tr>
                 ))
