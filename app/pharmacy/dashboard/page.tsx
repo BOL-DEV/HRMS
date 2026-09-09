@@ -56,6 +56,8 @@ export default function PharmacyDashboardPage() {
     refetchOnWindowFocus: false,
   });
 
+
+
   const { data: requestsData, isLoading: isRequestsLoading } = useQuery({
     queryKey: ["pharmacy-dashboard-pending-requests"],
     queryFn: () => getPharmacyRequests({ status: "pending", limit: 5 }),
@@ -504,11 +506,32 @@ export default function PharmacyDashboardPage() {
 
   // --- POINT PHARMACIST VIEW ---
   const pointRaw = unwrapPharmacyData<any>(pointStatsData, {});
-  const salesSummary = pointRaw?.sales_summary ?? pointRaw?.sales ?? {};
-  const alerts = pointRaw?.alerts ?? {};
-  const topDrugs = pointRaw?.top_dispensed_drugs ?? [];
+  const salesSummary = pointRaw?.sales_summary ?? pointRaw?.sales ?? pointRaw?.revenue_summary ?? pointRaw?.summary ?? pointRaw ?? {};
+  const alerts = pointRaw?.alerts ?? pointRaw?.inventory_alerts ?? pointRaw?.stock_alerts ?? pointRaw?.inventory_summary ?? pointRaw ?? {};
+  const topDrugs = pointRaw?.top_dispensed_drugs ?? pointRaw?.top_drugs ?? pointRaw?.top_selling_drugs ?? [];
   const profileRaw = unwrapPharmacyData<any>(pointProfileData, {});
-  const assignedUnit = profileRaw?.pharmacy_unit;
+  const assignedUnit = profileRaw?.pharmacy_unit ?? profileRaw?.unit ?? pointRaw?.pharmacy_unit ?? pointRaw?.unit;
+
+  const totalSalesRevenue = pointRaw?.revenue_today ?? salesSummary.total_revenue ?? salesSummary.total_sales ?? salesSummary.total_amount ?? pointRaw?.total_sales_revenue ?? 0;
+  const dispensedRequests = pointRaw?.total_count_dispensed ?? salesSummary.total_dispensed_requests ?? salesSummary.today_dispensed_count ?? salesSummary.dispensed_requests ?? salesSummary.total_requests ?? pointRaw?.total_dispensed_requests ?? 0;
+  const pendingRequestsCount = pointRaw?.pending_requests_count ?? (Array.isArray(pointRaw?.pending_requests) ? pointRaw.pending_requests.length : 0);
+  const lowStockCount = pointRaw?.low_stock_count ?? alerts.low_stock_count ?? alerts.low_stock_items ?? alerts.low_stock ?? 0;
+  const totalInventoryValue = pointRaw?.total_inventory_value ?? 0;
+
+  const lowStockItems: any[] = Array.isArray(pointRaw?.low_stock_items)
+    ? pointRaw.low_stock_items
+    : Array.isArray(pointRaw?.stock_alerts)
+    ? pointRaw.stock_alerts
+    : [];
+
+  const pointPendingRequests: any[] = Array.isArray(pointRaw?.pending_requests) && pointRaw.pending_requests.length > 0
+    ? pointRaw.pending_requests
+    : pendingRequests;
+
+  const cashRevenue = salesSummary.cash_revenue ?? salesSummary.cash ?? 0;
+  const posRevenue = salesSummary.pos_revenue ?? salesSummary.pos ?? 0;
+  const transferRevenue = salesSummary.transfer_revenue ?? salesSummary.transfer ?? 0;
+  const hasChannelBreakdown = cashRevenue > 0 || posRevenue > 0 || transferRevenue > 0;
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
@@ -570,11 +593,11 @@ export default function PharmacyDashboardPage() {
         ) : (
           <>
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard
-                title="Total Sales Revenue"
-                value={formatCurrency(salesSummary.total_revenue ?? 0)}
-                delta="Dispensed collections"
+                title="Today's Revenue"
+                value={formatCurrency(totalSalesRevenue)}
+                delta="Dispensed collections today"
                 icon={<span className="text-xl font-bold">₦</span>}
                 accentClassName="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
                 iconClassName="text-slate-700 dark:text-slate-300"
@@ -582,8 +605,8 @@ export default function PharmacyDashboardPage() {
                 valueClassName="text-slate-800 dark:text-slate-100"
               />
               <StatCard
-                title="Dispensed Requests"
-                value={String(salesSummary.total_dispensed_requests ?? salesSummary.today_dispensed_count ?? 0)}
+                title="Dispensed Today"
+                value={String(dispensedRequests)}
                 delta="Patient prescriptions"
                 icon={<FiFileText className="text-xl" />}
                 accentClassName="border-emerald-200 bg-white dark:border-emerald-500/30 dark:bg-slate-900"
@@ -592,103 +615,187 @@ export default function PharmacyDashboardPage() {
                 valueClassName="text-emerald-700 dark:text-emerald-300"
               />
               <StatCard
-                title="Low Stock Items"
-                value={String(alerts.low_stock_count ?? 0)}
-                delta="Requires restock"
-                deltaTone={(alerts.low_stock_count ?? 0) > 0 ? "negative" : "neutral"}
-                icon={<FiAlertTriangle className="text-xl" />}
+                title="Pending Requests"
+                value={String(pendingRequestsCount)}
+                delta="Awaiting dispensing / checkout"
+                deltaTone={pendingRequestsCount > 0 ? "negative" : "neutral"}
+                icon={<FiClock className="text-xl" />}
                 accentClassName="border-amber-200 bg-white dark:border-amber-500/30 dark:bg-slate-900"
                 iconClassName="text-amber-700 dark:text-amber-300"
                 iconBackgroundClassName="bg-amber-50 dark:bg-amber-500/10"
                 valueClassName="text-amber-700 dark:text-amber-300"
               />
               <StatCard
-                title="Out of Stock Items"
-                value={String(alerts.out_of_stock_count ?? 0)}
-                delta="Urgent attention needed"
-                deltaTone={(alerts.out_of_stock_count ?? 0) > 0 ? "negative" : "neutral"}
+                title="Low / Out of Stock"
+                value={String(lowStockCount)}
+                delta="Items at or below threshold"
+                deltaTone={lowStockCount > 0 ? "negative" : "neutral"}
                 icon={<FiAlertTriangle className="text-xl" />}
                 accentClassName="border-red-200 bg-white dark:border-red-500/30 dark:bg-slate-900"
                 iconClassName="text-red-700 dark:text-red-300"
                 iconBackgroundClassName="bg-red-50 dark:bg-red-500/10"
                 valueClassName="text-red-700 dark:text-red-300"
               />
+              <StatCard
+                title="Inventory Valuation"
+                value={formatCurrency(totalInventoryValue)}
+                delta="Total retail stock value"
+                icon={<FiPackage className="text-xl" />}
+                accentClassName="border-indigo-200 bg-white dark:border-indigo-500/30 dark:bg-slate-900"
+                iconClassName="text-indigo-700 dark:text-indigo-300"
+                iconBackgroundClassName="bg-indigo-50 dark:bg-indigo-500/10"
+                valueClassName="text-indigo-700 dark:text-indigo-300"
+              />
             </div>
 
-            {/* Payment Collections Breakdown & Top Dispensed Drugs */}
+            {/* Row 1: Low Stock Depletion Alerts & Top Dispensed / Payment Breakdown */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Payment Methods Breakdown */}
-              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-                  Revenue Breakdown by Channel
-                </h2>
-                <p className="text-xs text-gray-500 mb-4">Distribution of patient dispensing payments.</p>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/30">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cash</p>
-                    <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
-                      {formatCurrency(salesSummary.cash_revenue ?? 0)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/30">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">POS</p>
-                    <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
-                      {formatCurrency(salesSummary.pos_revenue ?? 0)}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/30">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Transfer</p>
-                    <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
-                      {formatCurrency(salesSummary.transfer_revenue ?? 0)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Top Selling Drugs */}
+              {/* Low Stock Depletion Alerts */}
               <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
                   <div>
-                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Top Dispensed Drugs</h2>
-                    <p className="text-xs text-gray-500">Highest volume medication dispensed at this point.</p>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                      <FiAlertTriangle className="text-amber-600" />
+                      Point Stock Depletion Alerts
+                    </h2>
+                    <p className="text-xs text-gray-500">Formulations running low or out of stock at this unit.</p>
                   </div>
+                  <Link
+                    href="/pharmacy/inventory"
+                    className="text-xs font-semibold text-brand-700 hover:text-brand-600 dark:text-brand-400"
+                  >
+                    View All &rarr;
+                  </Link>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-80">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-                        <th className="p-4 font-semibold">Drug Name</th>
-                        <th className="p-4 font-semibold text-right">Qty Dispensed</th>
-                        <th className="p-4 font-semibold text-right">Revenue</th>
+                        <th className="p-4 font-semibold">Formulation</th>
+                        <th className="p-4 font-semibold">Category</th>
+                        <th className="p-4 font-semibold text-center">Stock</th>
+                        <th className="p-4 font-semibold text-center">Limit</th>
+                        <th className="p-4 font-semibold text-right">Unit Price</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                      {topDrugs.length === 0 ? (
+                      {lowStockItems.length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="p-6 text-center text-gray-500 text-sm">
-                            No dispensed drugs recorded yet.
+                          <td colSpan={5} className="p-6 text-center text-gray-500 text-sm">
+                            All point formulation stocks are currently adequate.
                           </td>
                         </tr>
                       ) : (
-                        topDrugs.map((item: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
-                            <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
-                              {item.item_name}
-                            </td>
-                            <td className="p-4 text-right font-bold text-slate-700 dark:text-slate-300">
-                              {item.total_quantity}
-                            </td>
-                            <td className="p-4 text-right font-semibold text-brand-700 dark:text-brand-400">
-                              {formatCurrency(item.total_revenue ?? 0)}
-                            </td>
-                          </tr>
-                        ))
+                        lowStockItems.slice(0, 10).map((item: any) => {
+                          const isZero = Number(item.stock) === 0;
+                          return (
+                            <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                              <td className="p-4">
+                                <p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>
+                                {item.generic_name && (
+                                  <p className="text-xs text-gray-500">{item.generic_name}</p>
+                                )}
+                              </td>
+                              <td className="p-4 text-xs text-slate-600 dark:text-slate-300">
+                                {item.category_name || "—"}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                  isZero
+                                    ? "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                                    : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                                }`}>
+                                  {isZero ? "0 Out of stock" : `${item.stock} Low stock`}
+                                </span>
+                              </td>
+                              <td className="p-4 text-center text-xs text-gray-500 dark:text-slate-400">
+                                {item.reorder_level ?? 50}
+                              </td>
+                              <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
+                                {item.unit_price != null ? formatCurrency(item.unit_price) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
                 </div>
               </div>
+
+              {/* Channel Breakdown / Top Selling Drugs */}
+              {hasChannelBreakdown ? (
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
+                    Revenue Breakdown by Channel
+                  </h2>
+                  <p className="text-xs text-gray-500 mb-4">Distribution of patient dispensing payments.</p>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/30">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Cash</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
+                        {formatCurrency(cashRevenue)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/30">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">POS</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
+                        {formatCurrency(posRevenue)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 bg-slate-50/50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/30">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Transfer</p>
+                      <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
+                        {formatCurrency(transferRevenue)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Top Dispensed Drugs</h2>
+                      <p className="text-xs text-gray-500">Highest volume medication dispensed at this point.</p>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                          <th className="p-4 font-semibold">Drug Name</th>
+                          <th className="p-4 font-semibold text-right">Qty Dispensed</th>
+                          <th className="p-4 font-semibold text-right">Revenue</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {topDrugs.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="p-6 text-center text-gray-500 text-sm">
+                              No dispensed drugs recorded yet today.
+                            </td>
+                          </tr>
+                        ) : (
+                          topDrugs.map((item: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                              <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
+                                {item.item_name}
+                              </td>
+                              <td className="p-4 text-right font-bold text-slate-700 dark:text-slate-300">
+                                {item.total_quantity}
+                              </td>
+                              <td className="p-4 text-right font-semibold text-brand-700 dark:text-brand-400">
+                                {formatCurrency(item.total_revenue ?? 0)}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Pending Billing Requests Queue */}
@@ -719,20 +826,20 @@ export default function PharmacyDashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                    {isRequestsLoading ? (
+                    {isRequestsLoading && pointPendingRequests.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-8 text-center">
                           <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-700 border-t-transparent mx-auto"></div>
                         </td>
                       </tr>
-                    ) : pendingRequests.length === 0 ? (
+                    ) : pointPendingRequests.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-8 text-center text-gray-500">
                           No pending prescriptions generated yet. Go to Dispense to generate one.
                         </td>
                       </tr>
                     ) : (
-                      pendingRequests.map((bill: any) => (
+                      pointPendingRequests.map((bill: any) => (
                         <tr key={bill.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
                           <td className="p-4 font-mono font-bold text-brand-700 dark:text-brand-400">
                             {bill.billing_code}
