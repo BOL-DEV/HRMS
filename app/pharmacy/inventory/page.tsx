@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Header from "@/components/shared/Header";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { formatCurrency, formatDateTime, formatDate } from "@/libs/helper";
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus, FiActivity, FiSend } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -245,6 +246,8 @@ export default function PharmacyInventoryPage() {
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState("");
   const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [deletingDrugItem, setDeletingDrugItem] = useState<{ id: string; name: string } | null>(null);
+  const [deletingCategoryItem, setDeletingCategoryItem] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (!accessToken) {
@@ -360,6 +363,7 @@ export default function PharmacyInventoryPage() {
     mutationFn: deletePharmacyDrug,
     onSuccess: () => {
       toast.success("Drug removed from catalog.");
+      setDeletingDrugItem(null);
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
     },
     onError: (err) => {
@@ -393,6 +397,7 @@ export default function PharmacyInventoryPage() {
     mutationFn: deletePharmacyCategory,
     onSuccess: () => {
       toast.success("Category removed successfully.");
+      setDeletingCategoryItem(null);
       queryClient.invalidateQueries({ queryKey: ["pharmacy-categories"] });
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
     },
@@ -461,10 +466,10 @@ export default function PharmacyInventoryPage() {
     const expiryRaw = formExpiry.trim();
     const stock = Number(formStock);
     const reorder_level = Number(formReorderLevel);
-    const unit_price = Number(formPrice);
+    const unit_price = formPrice ? Number(formPrice) : 0;
 
-    if (!name || !formCategory || !expiryRaw || isNaN(stock) || isNaN(reorder_level) || isNaN(unit_price)) {
-      toast.error("Please fill out all fields with valid data.");
+    if (!name || !formCategory || !expiryRaw || isNaN(stock) || isNaN(reorder_level) || (!isStoreManager && isNaN(unit_price))) {
+      toast.error("Please fill out all required fields with valid data.");
       return;
     }
 
@@ -476,7 +481,7 @@ export default function PharmacyInventoryPage() {
       expiry_date: expiryRaw,
       stock,
       reorder_level,
-      unit_price,
+      unit_price: isStoreManager ? 0 : unit_price,
       status: formStatus,
     };
 
@@ -488,18 +493,16 @@ export default function PharmacyInventoryPage() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete ${name} from inventory?`)) {
-      deleteDrugMutation.mutate(id);
-    }
+    setDeletingDrugItem({ id, name });
   };
 
-  const handleCreateCategory = () => {
-    const catName = newCategoryName.trim();
-    if (!catName) {
-      toast.error("Enter a valid category name.");
+  const handleCreateCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) {
+      toast.error("Please enter a category name.");
       return;
     }
-    createCategoryMutation.mutate(catName);
+    createCategoryMutation.mutate(newCategoryName.trim());
   };
 
   const handleStartEditCategory = (category: PharmacyCategory) => {
@@ -508,25 +511,33 @@ export default function PharmacyInventoryPage() {
   };
 
   const handleSaveCategory = (category: PharmacyCategory) => {
-    const name = editingCategoryName.trim();
-    if (!name) {
-      toast.error("Enter a valid category name.");
+    if (!editingCategoryName.trim()) {
+      toast.error("Please enter a valid category name.");
       return;
     }
-
     updateCategoryMutation.mutate({
       id: category.id,
-      name,
+      name: editingCategoryName.trim(),
       isActive: category.is_active,
     });
   };
 
-  const getStatusStyle = (status: BackendDrugItem["status"] | string) => {
+  const getStatusStyle = (status: BackendDrugItem["status"] | string, stock?: number) => {
     const cleanStatus = String(status).toLowerCase();
-    if (cleanStatus === "in stock") {
+    if (stock === 0 || cleanStatus === "out of stock" || cleanStatus === "out_of_stock") {
+      return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20";
+    } else if (cleanStatus === "in stock" || cleanStatus === "in_stock") {
       return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20";
-    } else if (cleanStatus === "low stock") {
+    } else if (cleanStatus === "low stock" || cleanStatus === "low_stock") {
       return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20";
+    } else if (
+      cleanStatus === "1 month to expire" ||
+      cleanStatus === "1_month_to_expire" ||
+      cleanStatus === "1-month-to-expire" ||
+      cleanStatus === "expiring soon" ||
+      cleanStatus === "expiring_soon"
+    ) {
+      return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20";
     } else if (cleanStatus === "expired") {
       return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20";
     } else {
@@ -534,14 +545,28 @@ export default function PharmacyInventoryPage() {
     }
   };
 
-  if (!accessToken) {
-    return null;
-  }
+  const getDisplayStatus = (item: BackendDrugItem) => {
+    if (item.stock === 0) {
+      return "Out of stock";
+    }
+    const cleanStatus = String(item.status || "").toLowerCase();
+    if (cleanStatus === "in_stock" || cleanStatus === "in stock") return "In stock";
+    if (cleanStatus === "low_stock" || cleanStatus === "low stock") return "Low stock";
+    if (cleanStatus === "out_of_stock" || cleanStatus === "out of stock") return "Out of stock";
+    if (cleanStatus === "expired") return "Expired";
+    if (cleanStatus.includes("expire")) return "Expiring soon";
+    return item.status || "In stock";
+  };
 
   const inventory = unwrapPharmacyData<GetPharmacyInventoryResponse | null>(inventoryData, null);
   const items = inventory?.items ?? [];
   const totalPages = inventory?.total_pages ?? 1;
   const totalItems = inventory?.total_items ?? 0;
+  const showPriceColumn = !isStoreManager || Boolean(selectedUnitFilter);
+
+  if (!accessToken) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
@@ -562,24 +587,23 @@ export default function PharmacyInventoryPage() {
               <>
                 <button
                   onClick={handleOpenAddModal}
-                  className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+                  className="flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
                 >
                   <FiPlus />
-                  Add Drug
+                  Add Formulation
                 </button>
                 <button
                   onClick={() => setIsCategoryManagerOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
-                  <FiFolderPlus />
-                  Categories
+                  Manage Categories
                 </button>
               </>
             )}
           </div>
         </div>
 
-        {/* Search & Filters */}
+        {/* Filters */}
         <div className={`grid gap-4 bg-white p-4 rounded-2xl border border-gray-200 dark:bg-slate-900 dark:border-slate-800 ${
           isStoreManager ? "sm:grid-cols-5" : "sm:grid-cols-4"
         }`}>
@@ -642,9 +666,10 @@ export default function PharmacyInventoryPage() {
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
             >
               <option value="">All Statuses</option>
-              <option value="In stock">In stock</option>
-              <option value="Low stock">Low stock</option>
-              <option value="Expired">Expired</option>
+              <option value="in_stock">In stock</option>
+              <option value="low_stock">Low stock</option>
+              <option value="1_month_to_expire">1 month to expire</option>
+              <option value="expired">Expired</option>
             </select>
           </div>
         </div>
@@ -670,7 +695,7 @@ export default function PharmacyInventoryPage() {
                     <th className="p-4 font-semibold">Expiry</th>
                     <th className="p-4 font-semibold text-center">Stock</th>
                     <th className="p-4 font-semibold text-center">Reorder Limit</th>
-                    <th className="p-4 font-semibold text-right">Price</th>
+                    {showPriceColumn && <th className="p-4 font-semibold text-right">Price</th>}
                     <th className="p-4 font-semibold text-center">Status</th>
                     <th className="p-4 font-semibold text-right">Actions</th>
                   </tr>
@@ -678,7 +703,7 @@ export default function PharmacyInventoryPage() {
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                   {items.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-gray-500">
+                      <td colSpan={showPriceColumn ? 9 : 8} className="p-8 text-center text-gray-500">
                         No drug items match your search.
                       </td>
                     </tr>
@@ -696,12 +721,14 @@ export default function PharmacyInventoryPage() {
                         <td className="p-4 text-slate-600 dark:text-slate-300">{formatDate(item.expiry_date)}</td>
                         <td className="p-4 text-center font-semibold text-slate-900 dark:text-slate-100">{item.stock}</td>
                         <td className="p-4 text-center text-gray-500 dark:text-slate-400">{item.reorder_level}</td>
-                        <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
-                          {formatCurrency(item.unit_price)}
-                        </td>
+                        {showPriceColumn && (
+                          <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
+                            {item.unit_price != null ? formatCurrency(item.unit_price) : "—"}
+                          </td>
+                        )}
                         <td className="p-4 text-center">
-                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusStyle(item.status)}`}>
-                            {item.status}
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusStyle(getDisplayStatus(item), item.stock)}`}>
+                            {getDisplayStatus(item)}
                           </span>
                         </td>
                         <td className="p-4 text-right">
@@ -998,21 +1025,23 @@ export default function PharmacyInventoryPage() {
                     />
                   </label>
 
-                  <label className={editingDrug ? "block" : "block sm:col-span-2"}>
-                    <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Unit Price (₦)
-                    </span>
-                    <input
-                      type="number"
-                      value={formPrice}
-                      onChange={(e) => setFormPrice(e.target.value)}
-                      placeholder="e.g. 150"
-                      min="0"
-                      step="any"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                      required
-                    />
-                  </label>
+                  {!isStoreManager && (
+                    <label className={editingDrug ? "block" : "block sm:col-span-2"}>
+                      <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+                        Point Selling Price (₦)
+                      </span>
+                      <input
+                        type="number"
+                        value={formPrice}
+                        onChange={(e) => setFormPrice(e.target.value)}
+                        placeholder="e.g. 150"
+                        min="0"
+                        step="any"
+                        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+                        required={!isStoreManager}
+                      />
+                    </label>
+                  )}
 
                   {editingDrug && (
                     <label className="block animate-fade-in">
@@ -1232,9 +1261,7 @@ export default function PharmacyInventoryPage() {
                             <button
                               type="button"
                               onClick={() => {
-                                if (confirm(`Remove category "${category.name}"?`)) {
-                                  deleteCategoryMutation.mutate(category.id);
-                                }
+                                setDeletingCategoryItem({ id: category.id, name: category.name });
                               }}
                               disabled={deleteCategoryMutation.isPending}
                               className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/30"
@@ -1526,6 +1553,40 @@ export default function PharmacyInventoryPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Drug Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deletingDrugItem)}
+        title="Delete Item"
+        message={`Are you sure you want to delete "${deletingDrugItem?.name}" from inventory? This action cannot be undone.`}
+        confirmText="Delete Formulation"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteDrugMutation.isPending}
+        onConfirm={() => {
+          if (deletingDrugItem) {
+            deleteDrugMutation.mutate(deletingDrugItem.id);
+          }
+        }}
+        onClose={() => setDeletingDrugItem(null)}
+      />
+
+      {/* Delete Category Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(deletingCategoryItem)}
+        title="Remove Category"
+        message={`Are you sure you want to remove the category "${deletingCategoryItem?.name}"? Items in this category might need to be reassigned.`}
+        confirmText="Remove Category"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={deleteCategoryMutation.isPending}
+        onConfirm={() => {
+          if (deletingCategoryItem) {
+            deleteCategoryMutation.mutate(deletingCategoryItem.id);
+          }
+        }}
+        onClose={() => setDeletingCategoryItem(null)}
+      />
     </div>
   );
 }

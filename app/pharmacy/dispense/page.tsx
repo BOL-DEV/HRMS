@@ -488,12 +488,13 @@ export default function PharmacyDispensePage() {
       return;
     }
 
+    const unitPrice = selectedDrug.unit_price ?? 0;
     const newItem: PharmacyBillItem = {
       drugId: selectedDrug.id,
       name: selectedDrug.name,
       quantity: qty,
-      unitPrice: selectedDrug.unit_price,
-      amount: selectedDrug.unit_price * qty,
+      unitPrice: unitPrice,
+      amount: unitPrice * qty,
     };
 
     setBillItems((current) => [...current, newItem]);
@@ -714,7 +715,7 @@ export default function PharmacyDispensePage() {
                                 </p>
                               </div>
                               <span className="shrink-0 font-semibold text-brand-700 dark:text-brand-300">
-                                {formatCurrency(drug.unit_price)}
+                                {drug.unit_price != null ? formatCurrency(drug.unit_price) : "—"}
                               </span>
                             </div>
                           </button>
@@ -749,7 +750,7 @@ export default function PharmacyDispensePage() {
 
               {selectedDrug ? (
                 <p className="mt-3 text-xs text-brand-700 dark:text-brand-400 font-semibold">
-                  Unit Price: {formatCurrency(selectedDrug.unit_price)} | Stock available: {selectedDrug.stock} {selectedDrug.generic_name ? `(${selectedDrug.generic_name})` : ""}
+                  Unit Price: {selectedDrug.unit_price != null ? formatCurrency(selectedDrug.unit_price) : "—"} | Stock available: {selectedDrug.stock} {selectedDrug.generic_name ? `(${selectedDrug.generic_name})` : ""}
                 </p>
               ) : null}
             </div>

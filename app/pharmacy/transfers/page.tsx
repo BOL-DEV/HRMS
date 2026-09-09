@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Header from "@/components/shared/Header";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import { FiPlus, FiX, FiCheck, FiRefreshCw, FiSend, FiInbox, FiActivity } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -40,6 +41,11 @@ export default function PharmacyTransfersPage() {
   const [selectedItemId, setSelectedItemId] = useState("");
   const [dispatchQty, setDispatchQty] = useState("");
   const [remarks, setRemarks] = useState("");
+
+  // Approval Modal State
+  const [approvingTransfer, setApprovingTransfer] = useState<PharmacyTransferItem | null>(null);
+  const [approvalQuantities, setApprovalQuantities] = useState<Record<string, number>>({});
+  const [rejectingTransferId, setRejectingTransferId] = useState<string | null>(null);
 
   const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const isStoreManager = decoded?.role === "PHARMACY_STORE";
@@ -191,18 +197,36 @@ export default function PharmacyTransfersPage() {
 
   // Mutation: Action (approve/reject)
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: "approve" | "reject" }): Promise<any> => {
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload:
+        | {
+            action: "approve" | "reject";
+            quantity?: number;
+            items?: Array<{ id: string; quantity: number }>;
+          }
+        | "approve"
+        | "reject";
+    }): Promise<any> => {
       if (isStoreManager) {
-        return await updatePharmacyStoreTransferStatus(id, action);
+        return await updatePharmacyStoreTransferStatus(id, payload);
       }
+      const action = typeof payload === "string" ? payload : payload.action;
       return await updatePharmacyTransferStatus(id, action);
     },
     onSuccess: (_, variables) => {
+      const isApprove = typeof variables.payload === "string" ? variables.payload === "approve" : variables.payload.action === "approve";
       toast.success(
-        variables.action === "approve"
-          ? "Transfer request approved and stock moved."
+        isApprove
+          ? "Transfer request approved and stock dispatched."
           : "Transfer request rejected."
       );
+      setApprovingTransfer(null);
+      setApprovalQuantities({});
+      setRejectingTransferId(null);
       queryClient.invalidateQueries({ queryKey: ["pharmacy-transfers"] });
       queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
       queryClient.invalidateQueries({ queryKey: ["pharmacy-dashboard-stats"] });
@@ -259,10 +283,40 @@ export default function PharmacyTransfersPage() {
     createTransferMutation.mutate(payload);
   };
 
-  const handleAction = (id: string, action: "approve" | "reject") => {
-    if (confirm(`Are you sure you want to ${action} this transfer request?`)) {
-      updateStatusMutation.mutate({ id, action });
+  const handleOpenApproval = (trf: PharmacyTransferItem) => {
+    const initialQty: Record<string, number> = {};
+    if (trf.items && trf.items.length > 0) {
+      trf.items.forEach((it: any) => {
+        initialQty[it.id] = it.quantity ?? it.qty ?? 1;
+      });
     }
+    setApprovalQuantities(initialQty);
+    setApprovingTransfer(trf);
+  };
+
+  const handleReject = (id: string) => {
+    setRejectingTransferId(id);
+  };
+
+  const handleConfirmApproval = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!approvingTransfer) return;
+
+    const itemsPayload = (approvingTransfer.items || []).map((it: any) => {
+      const q = approvalQuantities[it.id] !== undefined ? approvalQuantities[it.id] : (it.quantity ?? it.qty ?? 1);
+      return {
+        id: it.id,
+        quantity: Math.max(1, Number(q)),
+      };
+    });
+
+    updateStatusMutation.mutate({
+      id: approvingTransfer.id,
+      payload: {
+        action: "approve",
+        items: itemsPayload.length > 0 ? itemsPayload : undefined,
+      },
+    });
   };
 
   if (!accessToken) return null;
@@ -400,7 +454,7 @@ export default function PharmacyTransfersPage() {
                           {trf.status === "pending" && (
                             <div className="flex justify-end gap-2">
                               <button
-                                onClick={() => handleAction(trf.id, "approve")}
+                                onClick={() => handleOpenApproval(trf)}
                                 className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
                                 title="Approve Request"
                                 disabled={updateStatusMutation.isPending}
@@ -408,7 +462,7 @@ export default function PharmacyTransfersPage() {
                                 <FiCheck className="h-4.5 w-4.5" />
                               </button>
                               <button
-                                onClick={() => handleAction(trf.id, "reject")}
+                                onClick={() => handleReject(trf.id)}
                                 className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
                                 title="Reject Request"
                                 disabled={updateStatusMutation.isPending}
@@ -533,6 +587,158 @@ export default function PharmacyTransfersPage() {
           </div>
         </div>
       )}
+
+      {/* Restock Approval Modal */}
+      {approvingTransfer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  Approve Restock Transfer
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Review and adjust quantities dispatched to the destination point.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setApprovingTransfer(null);
+                  setApprovalQuantities({});
+                }}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmApproval} className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/60 text-xs">
+                <div>
+                  <span className="font-semibold text-gray-500 dark:text-slate-400">From (Source):</span>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">{approvingTransfer.from_unit_name}</p>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-500 dark:text-slate-400">To (Destination):</span>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">{approvingTransfer.to_unit_name}</p>
+                </div>
+                {approvingTransfer.remarks && (
+                  <div className="col-span-2 border-t border-slate-200/60 pt-2 dark:border-slate-700/60">
+                    <span className="font-semibold text-gray-500 dark:text-slate-400">Remarks:</span>
+                    <p className="text-slate-700 dark:text-slate-300 italic mt-0.5">{approvingTransfer.remarks}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Requested Formulations & Dispatch Quantities
+                </label>
+                {approvingTransfer.items && approvingTransfer.items.length > 0 ? (
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                    {approvingTransfer.items.map((it: any) => {
+                      const name = it.item_name || it.drug_name || it.name || "Drug Formulation";
+                      const requestedQty = it.quantity ?? it.qty ?? 1;
+                      const currentVal = approvalQuantities[it.id] !== undefined ? approvalQuantities[it.id] : requestedQty;
+                      return (
+                        <div
+                          key={it.id}
+                          className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">{name}</p>
+                            {it.generic_name && (
+                              <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{it.generic_name}</p>
+                            )}
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5 font-medium">
+                              Requested: {requestedQty}
+                            </p>
+                          </div>
+                          <div className="w-28 shrink-0">
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                              Dispatch Qty
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              required
+                              value={currentVal}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setApprovalQuantities((prev) => ({
+                                  ...prev,
+                                  [it.id]: val,
+                                }));
+                              }}
+                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 italic p-3 border rounded-xl dark:border-slate-800">
+                    No individual item details specified. Approving will transfer the full batch.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectingTransferId(approvingTransfer.id);
+                  }}
+                  disabled={updateStatusMutation.isPending}
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/30 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 disabled:opacity-50"
+                >
+                  Reject Request
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApprovingTransfer(null);
+                      setApprovalQuantities({});
+                    }}
+                    className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updateStatusMutation.isPending}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm disabled:opacity-50"
+                  >
+                    {updateStatusMutation.isPending ? "Approving..." : "Approve & Dispatch"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(rejectingTransferId)}
+        title="Reject Transfer Request"
+        message="Are you sure you want to reject this transfer request? This action cannot be undone."
+        confirmText="Reject Transfer"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={updateStatusMutation.isPending}
+        onConfirm={() => {
+          if (rejectingTransferId) {
+            updateStatusMutation.mutate({
+              id: rejectingTransferId,
+              payload: { action: "reject" },
+            });
+          }
+        }}
+        onClose={() => setRejectingTransferId(null)}
+      />
     </div>
   );
 }

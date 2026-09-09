@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import Header from "@/components/shared/Header";
 import StatCard from "@/components/shared/StatCard";
 import StatusPill from "@/components/shared/StatusPill";
-import { formatCurrency, formatDateTime } from "@/libs/helper";
+import { formatCurrency, formatDateTime, formatDate } from "@/libs/helper";
 import {
   FiPackage,
   FiAlertTriangle,
@@ -111,12 +111,19 @@ export default function PharmacyDashboardPage() {
   // --- STORE MANAGER VIEW ---
   if (isStoreManager) {
     const storeRaw = unwrapPharmacyData<any>(storeStatsData, {});
-    const valuation = storeRaw?.inventory_valuation ?? {};
-    const alerts = storeRaw?.alerts ?? {};
-    const transfersSummary = storeRaw?.transfers_summary ?? {};
-    const pointUnits = storeRaw?.point_units_overview ?? [];
-    const recentStockAdditions = storeRaw?.recent_stock_additions ?? [];
     const storeUnit = storeRaw?.store_unit;
+    const totalItems = storeRaw?.total_store_items ?? storeRaw?.inventory_valuation?.total_items_count ?? 0;
+    const outOfStockCount = storeRaw?.out_of_stock_count ?? storeRaw?.alerts?.out_of_stock_count ?? 0;
+    const lowStockCount = storeRaw?.low_stock_count ?? storeRaw?.alerts?.low_stock_count ?? 0;
+    const expiringSoonCount = storeRaw?.expiring_soon_count ?? storeRaw?.alerts?.expiring_soon_count ?? 0;
+    const expiredCount = storeRaw?.expired_count ?? storeRaw?.alerts?.expired_count ?? 0;
+    const pendingTransfers = storeRaw?.pending_transfers_count ?? storeRaw?.transfers_summary?.pending_transfers_count ?? 0;
+    const completedTransfers = storeRaw?.completed_transfers_today ?? storeRaw?.transfers_summary?.completed_transfers_count ?? 0;
+    const unitsOverview = storeRaw?.units_overview;
+    const pointUnits = storeRaw?.point_units_overview ?? [];
+    const lowStockItems = storeRaw?.store_low_stock_items ?? [];
+    const expiringItems = storeRaw?.store_expiring_items ?? [];
+    const recentStockAdditions = storeRaw?.recent_stock_additions ?? [];
 
     return (
       <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
@@ -139,7 +146,7 @@ export default function PharmacyDashboardPage() {
                 )}
               </div>
               <p className="text-sm text-gray-500">
-                Real-time central warehouse valuation, alerts, and stock movements.
+                Real-time central warehouse inventory alerts, expiring items, and stock movements.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -173,20 +180,31 @@ export default function PharmacyDashboardPage() {
               {/* Stats Grid */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
-                  title="Total Inventory Valuation"
-                  value={formatCurrency(valuation.total_valuation ?? 0)}
-                  delta={`${valuation.total_items_count ?? 0} Catalog Items`}
-                  icon={<span className="text-xl font-bold">₦</span>}
-                  accentClassName="border-brand-200 bg-white dark:border-brand-500/30 dark:bg-slate-900"
-                  iconClassName="text-brand-700 dark:text-brand-300"
-                  iconBackgroundClassName="bg-brand-50 dark:bg-brand-500/10"
-                  valueClassName="text-brand-700 dark:text-brand-300"
+                  title="Total Formulations"
+                  value={String(totalItems)}
+                  delta="Central warehouse catalog"
+                  icon={<FiPackage className="text-xl" />}
+                  accentClassName="border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                  iconClassName="text-slate-700 dark:text-slate-300"
+                  iconBackgroundClassName="bg-slate-100 dark:bg-slate-800"
+                  valueClassName="text-slate-900 dark:text-slate-100"
                 />
                 <StatCard
-                  title="Low / Out of Stock"
-                  value={String((alerts.out_of_stock_count ?? 0) + (alerts.low_stock_count ?? 0))}
-                  delta={`${alerts.out_of_stock_count ?? 0} Out / ${alerts.low_stock_count ?? 0} Low`}
-                  deltaTone={(alerts.out_of_stock_count ?? 0) > 0 ? "negative" : "neutral"}
+                  title="Out of Stock Items"
+                  value={String(outOfStockCount)}
+                  delta="Zero stock in warehouse"
+                  deltaTone={outOfStockCount > 0 ? "negative" : "neutral"}
+                  icon={<FiAlertTriangle className="text-xl" />}
+                  accentClassName="border-red-200 bg-white dark:border-red-500/30 dark:bg-slate-900"
+                  iconClassName="text-red-700 dark:text-red-300"
+                  iconBackgroundClassName="bg-red-50 dark:bg-red-500/10"
+                  valueClassName="text-red-700 dark:text-red-300"
+                />
+                <StatCard
+                  title="Low Stock Items"
+                  value={String(lowStockCount)}
+                  delta="Below reorder threshold"
+                  deltaTone={lowStockCount > 0 ? "negative" : "neutral"}
                   icon={<FiAlertTriangle className="text-xl" />}
                   accentClassName="border-amber-200 bg-white dark:border-amber-500/30 dark:bg-slate-900"
                   iconClassName="text-amber-700 dark:text-amber-300"
@@ -194,76 +212,75 @@ export default function PharmacyDashboardPage() {
                   valueClassName="text-amber-700 dark:text-amber-300"
                 />
                 <StatCard
-                  title="Pending Transfers"
-                  value={String(transfersSummary.pending_transfers_count ?? 0)}
-                  delta={`${transfersSummary.completed_transfers_count ?? 0} completed`}
-                  deltaTone={(transfersSummary.pending_transfers_count ?? 0) > 0 ? "negative" : "neutral"}
+                  title="Expiring / Expired"
+                  value={`${expiringSoonCount} / ${expiredCount}`}
+                  delta={`${expiringSoonCount} soon, ${expiredCount} expired`}
+                  deltaTone={(expiringSoonCount + expiredCount) > 0 ? "negative" : "neutral"}
                   icon={<FiClock className="text-xl" />}
-                  accentClassName="border-blue-200 bg-white dark:border-blue-500/30 dark:bg-slate-900"
-                  iconClassName="text-blue-700 dark:text-blue-300"
-                  iconBackgroundClassName="bg-blue-50 dark:bg-blue-500/10"
-                  valueClassName="text-blue-700 dark:text-blue-300"
-                />
-                <StatCard
-                  title="Items Dispatched"
-                  value={String(transfersSummary.total_items_dispatched ?? 0)}
-                  delta="Total units to branches"
-                  icon={<FiCheckCircle className="text-xl" />}
-                  accentClassName="border-emerald-200 bg-white dark:border-emerald-500/30 dark:bg-slate-900"
-                  iconClassName="text-emerald-700 dark:text-emerald-300"
-                  iconBackgroundClassName="bg-emerald-50 dark:bg-emerald-500/10"
-                  valueClassName="text-emerald-700 dark:text-emerald-300"
+                  accentClassName="border-purple-200 bg-white dark:border-purple-500/30 dark:bg-slate-900"
+                  iconClassName="text-purple-700 dark:text-purple-300"
+                  iconBackgroundClassName="bg-purple-50 dark:bg-purple-500/10"
+                  valueClassName="text-purple-700 dark:text-purple-300"
                 />
               </div>
 
-              {/* Point Units Stock Overview & Recent Stock Additions Grid */}
+              {/* Row 1: Low / Out of Stock Formulations & Expiring Drugs */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Point Units Overview */}
+                {/* Low & Out of Stock Items */}
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
                     <div>
                       <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        <FiLayers className="text-brand-600" />
-                        Pharmacy Point Units Overview
+                        <FiAlertTriangle className="text-amber-600" />
+                        Warehouse Stock Depletion Alerts
                       </h2>
-                      <p className="text-xs text-gray-500">Live stock posture across all dispensing branch points.</p>
+                      <p className="text-xs text-gray-500">Items requiring supplier restocking or replenishment.</p>
                     </div>
+                    <Link
+                      href="/pharmacy/inventory"
+                      className="text-xs font-semibold text-brand-700 hover:text-brand-600 dark:text-brand-400"
+                    >
+                      View Catalog &rarr;
+                    </Link>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-                          <th className="p-4 font-semibold">Point Unit</th>
-                          <th className="p-4 font-semibold text-right">Total Stock Count</th>
-                          <th className="p-4 font-semibold text-right">Out of Stock</th>
+                        <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400 sticky top-0 z-10 backdrop-blur-xs">
+                          <th className="p-4 font-semibold">Formulation</th>
+                          <th className="p-4 font-semibold text-center">Stock</th>
+                          <th className="p-4 font-semibold text-center">Reorder Limit</th>
+                          <th className="p-4 font-semibold text-center">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
-                        {pointUnits.length === 0 ? (
+                        {lowStockItems.length === 0 ? (
                           <tr>
-                            <td colSpan={3} className="p-6 text-center text-gray-500 text-sm">
-                              No active dispensing point units found.
+                            <td colSpan={4} className="p-6 text-center text-gray-500 text-sm">
+                              No stock depletion alerts logged.
                             </td>
                           </tr>
                         ) : (
-                          pointUnits.map((pu: any) => (
-                            <tr key={pu.unit_id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
-                              <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
-                                {pu.unit_name}
+                          lowStockItems.slice(0, 10).map((item: any) => (
+                            <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                              <td className="p-4">
+                                <p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>
+                                <p className="text-xs text-gray-500">{item.category_name || "General"}</p>
                               </td>
-                              <td className="p-4 text-right font-semibold text-slate-900 dark:text-slate-100">
-                                {pu.total_stock_count ?? 0}
+                              <td className="p-4 text-center font-bold text-red-600 dark:text-red-400">
+                                {item.stock}
                               </td>
-                              <td className="p-4 text-right">
-                                {(pu.out_of_stock_items ?? 0) > 0 ? (
-                                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-400">
-                                    {pu.out_of_stock_items} items out
-                                  </span>
-                                ) : (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                    Adequate
-                                  </span>
-                                )}
+                              <td className="p-4 text-center text-gray-500 font-medium">
+                                {item.reorder_level}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                                  item.stock === 0
+                                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
+                                    : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400"
+                                }`}>
+                                  {item.stock === 0 ? "Out of stock" : (item.status || "Low stock")}
+                                </span>
                               </td>
                             </tr>
                           ))
@@ -273,6 +290,79 @@ export default function PharmacyDashboardPage() {
                   </div>
                 </div>
 
+                {/* Expiring & Expired Items */}
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <FiClock className="text-purple-600" />
+                        Expiring & Expired Batches
+                      </h2>
+                      <p className="text-xs text-gray-500">Monitor batch shelf-life and overdue formulations.</p>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto max-h-96">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400 sticky top-0 z-10 backdrop-blur-xs">
+                          <th className="p-4 font-semibold">Formulation</th>
+                          <th className="p-4 font-semibold">Expiry Date</th>
+                          <th className="p-4 font-semibold text-center">Shelf Life</th>
+                          <th className="p-4 font-semibold text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                        {expiringItems.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="p-6 text-center text-gray-500 text-sm">
+                              No expiring or expired formulations found.
+                            </td>
+                          </tr>
+                        ) : (
+                          expiringItems.slice(0, 10).map((item: any) => {
+                            const days = item.days_until_expiry;
+                            const isExpired = days !== undefined ? days <= 0 : item.status?.toLowerCase().includes("expired");
+                            return (
+                              <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                                <td className="p-4">
+                                  <p className="font-semibold text-slate-900 dark:text-slate-100">{item.name}</p>
+                                  <p className="text-xs text-gray-500">{item.category_name || "General"}</p>
+                                </td>
+                                <td className="p-4 text-xs font-medium text-slate-700 dark:text-slate-300">
+                                  {formatDate(item.expiry_date)}
+                                </td>
+                                <td className="p-4 text-center">
+                                  {days !== undefined ? (
+                                    <span className={`text-xs font-bold ${
+                                      days <= 0 ? "text-rose-600 dark:text-rose-400" : "text-purple-600 dark:text-purple-400"
+                                    }`}>
+                                      {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? "Today" : `In ${days}d`}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">—</span>
+                                  )}
+                                </td>
+                                <td className="p-4 text-center">
+                                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                                    isExpired
+                                      ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400"
+                                      : "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/20 dark:bg-purple-500/10 dark:text-purple-400"
+                                  }`}>
+                                    {item.status || (isExpired ? "Expired" : "Expiring soon")}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Recent Supplier Stock Additions & Hospital Unit Network */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Recent Supplier Stock Additions */}
                 <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
                   <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-slate-700">
@@ -284,34 +374,38 @@ export default function PharmacyDashboardPage() {
                       <p className="text-xs text-gray-500">Warehouse intake shipments received from vendors.</p>
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                        <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400 sticky top-0 z-10 backdrop-blur-xs">
                           <th className="p-4 font-semibold">Drug Item</th>
                           <th className="p-4 font-semibold text-right">Qty Added</th>
                           <th className="p-4 font-semibold text-right">New Stock</th>
+                          <th className="p-4 font-semibold">Pharmacist</th>
                           <th className="p-4 font-semibold">Date</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                         {recentStockAdditions.length === 0 ? (
                           <tr>
-                            <td colSpan={4} className="p-6 text-center text-gray-500 text-sm">
+                            <td colSpan={5} className="p-6 text-center text-gray-500 text-sm">
                               No recent stock additions logged.
                             </td>
                           </tr>
                         ) : (
-                          recentStockAdditions.slice(0, 5).map((log: any) => (
+                          recentStockAdditions.slice(0, 10).map((log: any) => (
                             <tr key={log.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
                               <td className="p-4 font-medium text-slate-900 dark:text-slate-100">
-                                {log.item_name || log.drug_name || log.name || log.pharmacy_item?.name || log.item?.name || log.pharmacy_item_name || "—"}
+                                {log.drug_name || log.item_name || log.name || log.pharmacy_item?.name || log.item?.name || "—"}
                               </td>
                               <td className="p-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
                                 +{log.quantity_changed}
                               </td>
                               <td className="p-4 text-right font-medium text-slate-700 dark:text-slate-300">
                                 {log.new_stock}
+                              </td>
+                              <td className="p-4 text-xs text-slate-500 dark:text-slate-400">
+                                {log.pharmacist_name || "—"}
                               </td>
                               <td className="p-4 text-xs text-gray-400">
                                 {formatDateTime(log.created_at)}
@@ -322,6 +416,83 @@ export default function PharmacyDashboardPage() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+
+                {/* Hospital Pharmacy Network Overview */}
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-4 dark:border-slate-700">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <FiLayers className="text-brand-600" />
+                        Hospital Pharmacy Network Posture
+                      </h2>
+                      <p className="text-xs text-gray-500">Overview of active pharmacy store and dispensing point units.</p>
+                    </div>
+                  </div>
+
+                  {/* Units summary cards */}
+                  <div className="grid grid-cols-3 gap-3 my-5">
+                    <div className="rounded-xl border border-gray-100 bg-slate-50 p-4 text-center dark:border-slate-800 dark:bg-slate-800/40">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Units</p>
+                      <p className="text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                        {unitsOverview?.total_units ?? (pointUnits.length + 1)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-center dark:border-emerald-900/30 dark:bg-emerald-950/20">
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Active Points</p>
+                      <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400 mt-1">
+                        {unitsOverview?.active_points_count ?? pointUnits.length}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-brand-100 bg-brand-50/50 p-4 text-center dark:border-brand-900/30 dark:bg-brand-950/20">
+                      <p className="text-xs font-semibold text-brand-700 dark:text-brand-400 uppercase tracking-wider">Central Stores</p>
+                      <p className="text-xl font-bold text-brand-700 dark:text-brand-400 mt-1">
+                        {unitsOverview?.active_stores_count ?? 1}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Point Units list if available */}
+                  {pointUnits.length > 0 ? (
+                    <div className="overflow-x-auto max-h-48 border border-gray-100 rounded-xl dark:border-slate-800">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+                            <th className="p-3 font-semibold">Point Unit</th>
+                            <th className="p-3 font-semibold text-right">Total Stock</th>
+                            <th className="p-3 font-semibold text-right">Out of Stock</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                          {pointUnits.map((pu: any) => (
+                            <tr key={pu.unit_id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                              <td className="p-3 font-medium text-slate-900 dark:text-slate-100">
+                                {pu.unit_name}
+                              </td>
+                              <td className="p-3 text-right font-semibold text-slate-900 dark:text-slate-100">
+                                {pu.total_stock_count ?? 0}
+                              </td>
+                              <td className="p-3 text-right">
+                                {(pu.out_of_stock_items ?? 0) > 0 ? (
+                                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                                    {pu.out_of_stock_items} out
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
+                                    Adequate
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-xs text-gray-500 dark:border-slate-800">
+                      Dispatches from Central Store automatically route stock to these active branch units.
+                    </div>
+                  )}
                 </div>
               </div>
             </>

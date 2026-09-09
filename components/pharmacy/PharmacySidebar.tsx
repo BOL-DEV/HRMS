@@ -5,7 +5,7 @@ import { FaRegChartBar } from "react-icons/fa";
 import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw } from "react-icons/fi";
 import Sidebar from "@/components/shared/Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IoMdClose as CloseIcon } from "react-icons/io";
 
 const sidebarData = {
@@ -64,6 +64,12 @@ import { useQuery } from "@tanstack/react-query";
 const PharmacySidebar = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
   const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
 
@@ -137,7 +143,7 @@ const PharmacySidebar = () => {
         {isOpen ? <CloseIcon /> : <RxHamburgerMenu />}
       </button>
 
-      <Sidebar title={sidebarData.title} links={links} isOpen={isOpen} />
+      <Sidebar title={sidebarData.title} links={mounted ? links : []} isOpen={isOpen} />
 
       {isOpen ? (
         <div
