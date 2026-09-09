@@ -71,14 +71,7 @@ export default function HeaderHospitalBrand() {
     staleTime: 1000 * 60 * 10,
   });
 
-  useEffect(() => {
-    if (accessToken) {
-      const decoded = decodeJwt(accessToken);
-      console.log("[HeaderHospitalBrand] profileQuery data:", profileQuery.data);
-      console.log("[HeaderHospitalBrand] hospitalImageQuery data:", hospitalImageQuery.data);
-      console.log("[HeaderHospitalBrand] decoded JWT claims:", decoded);
-    }
-  }, [accessToken, profileQuery.data, hospitalImageQuery.data]);
+
 
   const brand = useMemo(() => {
     if (section === "admin") {

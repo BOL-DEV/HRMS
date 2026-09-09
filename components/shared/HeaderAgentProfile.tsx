@@ -75,13 +75,7 @@ export default function HeaderAgentProfile() {
   const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const tokenUser = decoded?.user ?? decoded?.data ?? decoded ?? {};
 
-  useEffect(() => {
-    if (accessToken) {
-      console.log("[HeaderAgentProfile] profileQuery data:", profileQuery.data);
-      console.log("[HeaderAgentProfile] profileQuery error:", profileQuery.error);
-      console.log("[HeaderAgentProfile] decoded JWT claims:", decoded);
-    }
-  }, [accessToken, profileQuery.data, profileQuery.error, decoded]);
+
 
   const displayName = useMemo(() => {
     const profile = profileQuery.data?.data;

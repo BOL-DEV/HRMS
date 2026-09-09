@@ -127,8 +127,13 @@ export default function PharmacyInventoryPage() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyItemId, setHistoryItemId] = useState("");
   const [historyItemName, setHistoryItemName] = useState("");
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<BackendDrugItem | null>(null);
 
-  const { data: historyQueryData, isLoading: isHistoryLoading } = useQuery({
+  const {
+    data: historyQueryData,
+    isLoading: isHistoryLoading,
+    error: historyError,
+  } = useQuery({
     queryKey: ["pharmacy-drug-history", historyItemId, isStoreManager],
     queryFn: async (): Promise<any> => {
       if (isStoreManager) {
@@ -137,11 +142,42 @@ export default function PharmacyInventoryPage() {
       return await getPharmacyDrugHistory(historyItemId);
     },
     enabled: Boolean(accessToken) && isHistoryOpen && Boolean(historyItemId),
+    retry: false,
   });
 
-  const histData = (historyQueryData as any)?.data;
-  const histItem = histData?.item;
-  const histEvents: any[] = histData?.history ?? [];
+  const histRaw = unwrapPharmacyData<any>(historyQueryData, historyQueryData);
+  const histData = histRaw?.data ?? histRaw;
+  const histItem = histData?.item ?? histData?.drug ?? histData?.pharmacy_item ?? null;
+  const displayItem = histItem || selectedHistoryItem;
+
+
+
+  const rawEvents: any[] = Array.isArray(histData)
+    ? histData
+    : Array.isArray(histData?.history)
+    ? histData.history
+    : Array.isArray(histData?.events)
+    ? histData.events
+    : Array.isArray(histData?.logs)
+    ? histData.logs
+    : Array.isArray(histData?.data)
+    ? histData.data
+    : [];
+
+  const histEvents: any[] = rawEvents.length > 0 ? rawEvents : (
+    displayItem && Number(displayItem.stock) > 0 ? [{
+      type: "create",
+      date: displayItem.created_at || displayItem.expiry_date || new Date().toISOString(),
+      quantity_changed: displayItem.stock,
+      remaining_stock: displayItem.stock,
+      details: {
+        pharmacist_name: "Catalog Record",
+        initial_stock: displayItem.stock,
+        batch_number: displayItem.batch_number || "--",
+        expiry_date: displayItem.expiry_date || null,
+      }
+    }] : []
+  );
 
   // Form Fields State
   const [formName, setFormName] = useState("");
@@ -438,6 +474,7 @@ export default function PharmacyInventoryPage() {
   };
 
   const handleOpenHistory = (item: BackendDrugItem) => {
+    setSelectedHistoryItem(item);
     setHistoryItemId(item.id);
     setHistoryItemName(item.name);
     setIsHistoryOpen(true);
@@ -1291,11 +1328,11 @@ export default function PharmacyInventoryPage() {
                       Audit Logs
                     </span>
                     <h3 className="text-xl font-extrabold text-slate-950 dark:text-white mt-1">
-                      {historyItemName}
+                      {historyItemName || displayItem?.name}
                     </h3>
-                    {histItem && (
+                    {displayItem && (
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {histItem.generic_name || "No generic name"} | {histItem.category_name || "Formulation"}
+                        {displayItem.generic_name || "No generic name"} | {displayItem.category_name || "Formulation"}
                       </p>
                     )}
                   </div>
@@ -1304,6 +1341,7 @@ export default function PharmacyInventoryPage() {
                       setIsHistoryOpen(false);
                       setHistoryItemId("");
                       setHistoryItemName("");
+                      setSelectedHistoryItem(null);
                     }}
                     className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
                   >
@@ -1312,14 +1350,14 @@ export default function PharmacyInventoryPage() {
                 </div>
 
                 {/* Current Item Overview Grid */}
-                {histItem && (
+                {displayItem && (
                   <div className="px-6 py-4 bg-gray-50/50 dark:bg-slate-800/20 border-b border-gray-150 dark:border-slate-800 grid grid-cols-3 gap-4 text-center">
                     <div>
                       <span className="block text-xs font-semibold uppercase tracking-wider text-gray-400">
                         Current Stock
                       </span>
                       <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                        {histItem.stock}
+                        {displayItem.stock ?? 0}
                       </span>
                     </div>
                     <div>
@@ -1327,7 +1365,7 @@ export default function PharmacyInventoryPage() {
                         Unit Price
                       </span>
                       <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                        {formatCurrency(histItem.unit_price || 0)}
+                        {displayItem.unit_price != null ? formatCurrency(displayItem.unit_price) : "—"}
                       </span>
                     </div>
                     <div>
@@ -1335,7 +1373,7 @@ export default function PharmacyInventoryPage() {
                         Batch
                       </span>
                       <span className="text-lg font-bold text-slate-900 dark:text-slate-100 font-mono">
-                        {histItem.batch_number || "--"}
+                        {displayItem.batch_number || "--"}
                       </span>
                     </div>
                   </div>
@@ -1346,6 +1384,13 @@ export default function PharmacyInventoryPage() {
                   {isHistoryLoading ? (
                     <div className="flex h-64 items-center justify-center">
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-700 border-t-transparent"></div>
+                    </div>
+                  ) : historyError ? (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-400">
+                      <p className="font-bold mb-1">Failed to load audit logs</p>
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        {historyError instanceof Error ? historyError.message : "Unable to retrieve audit history from server."}
+                      </p>
                     </div>
                   ) : histEvents.length === 0 ? (
                     <div className="flex h-64 flex-col items-center justify-center text-center">
@@ -1358,124 +1403,128 @@ export default function PharmacyInventoryPage() {
 
                       <div className="space-y-6">
                         {histEvents.map((event: any, index: number) => {
-                          const eventDateStr = formatDateTime(event.date);
+                          const eventDateStr = formatDateTime(event.date || event.created_at || event.timestamp);
+                          const details = event.details || event || {};
+                          const eventType = String(event.type || event.action || "log").toLowerCase();
 
-                      return (
-                        <div key={index} className="relative flex gap-4 pl-10">
-                          {/* Timeline Node Badge */}
-                          <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center shadow-xs border border-white dark:border-slate-900 ${
-                            event.type === "sale"
-                              ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
-                              : event.type === "restock"
-                              ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400"
-                              : "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400"
-                          }`}>
-                            {event.type === "sale" ? (
-                              <span className="text-sm font-bold">-</span>
-                            ) : event.type === "restock" ? (
-                              <span className="text-sm font-bold">+</span>
-                            ) : (
-                              <span className="text-xs font-bold">N</span>
-                            )}
-                          </div>
-
-                          {/* Event Content Card */}
-                          <div className="flex-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-xs hover:border-gray-300 dark:hover:border-slate-700 transition">
-                            <div className="flex items-center justify-between gap-4">
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
-                                event.type === "sale" || event.type === "dispensed"
-                                  ? "bg-amber-100/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
-                                  : event.type === "restock" || event.type === "transfer_in"
-                                  ? "bg-emerald-100/60 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                                  : "bg-indigo-100/60 text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300"
+                          return (
+                            <div key={index} className="relative flex gap-4 pl-10">
+                              {/* Timeline Node Badge */}
+                              <div className={`absolute left-0 w-8 h-8 rounded-full flex items-center justify-center shadow-xs border border-white dark:border-slate-900 ${
+                                eventType === "sale" || eventType === "dispensed"
+                                  ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400"
+                                  : eventType === "restock" || eventType === "transfer_in"
+                                  ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                  : "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400"
                               }`}>
-                                {event.type}
-                              </span>
-                              <span className="text-xs text-gray-500">{eventDateStr}</span>
-                            </div>
+                                {eventType === "sale" || eventType === "dispensed" ? (
+                                  <span className="text-sm font-bold">-</span>
+                                ) : eventType === "restock" || eventType === "transfer_in" ? (
+                                  <span className="text-sm font-bold">+</span>
+                                ) : (
+                                  <span className="text-xs font-bold">N</span>
+                                )}
+                              </div>
 
-                            <p className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                              {event.type === "sale" || event.type === "dispensed" ? (
-                                <>
-                                  Dispensed <span className="text-amber-600 font-bold">{Math.abs(Number(event.quantity_changed || 0))}</span> unit(s)
-                                </>
-                              ) : event.type === "restock" || event.type === "transfer_in" ? (
-                                <>
-                                  {Number(event.quantity_changed) >= 0 ? "Restocked" : "Adjusted"}{" "}
-                                  <span className={`font-bold ${Number(event.quantity_changed) >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
-                                    {Number(event.quantity_changed) >= 0 ? `+${event.quantity_changed}` : event.quantity_changed}
-                                  </span>{" "}
-                                  unit(s)
-                                </>
-                              ) : (
-                                <>
-                                  Initial Load of{" "}
-                                  <span className="text-indigo-600 font-bold">
-                                    {Number(event.quantity_changed) >= 0 ? `+${event.quantity_changed}` : event.quantity_changed}
-                                  </span>{" "}
-                                  unit(s)
-                                </>
-                              )}
-                              <span className="text-xs text-gray-400 font-normal ml-2">
-                                (Remaining: {event.remaining_stock} units)
-                              </span>
-                            </p>
-
-                            {/* Details Summary Table */}
-                            <div className="mt-3.5 pt-3.5 border-t border-gray-100 dark:border-slate-800/80 text-xs text-gray-500 dark:text-slate-400 space-y-2">
-                              {(event.type === "sale" || event.type === "dispensed") && (
-                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
-                                  <div><span className="font-semibold text-gray-400">Billing Code:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.billing_code || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Receipt No:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{event.details.receipt_no || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Patient:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.patient_name || "--"} {event.details.patient_id ? `(${event.details.patient_id})` : ""}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Phone:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.phone_number || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Price Sold:</span> <span className="text-slate-800 dark:text-slate-200">{formatCurrency(event.details.unit_price_sold ?? 0)}/unit</span></div>
-                                  <div><span className="font-semibold text-gray-400">Total Price:</span> <span className="text-slate-800 dark:text-slate-200 font-bold">{formatCurrency(event.details.total_price_sold ?? 0)}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Pharmacist:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Cleared By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.bill_clearer_name || "--"} {event.details.payment_type ? `(${event.details.payment_type})` : ""}</span></div>
+                              {/* Event Content Card */}
+                              <div className="flex-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-4.5 shadow-xs hover:border-gray-300 dark:hover:border-slate-700 transition">
+                                <div className="flex items-center justify-between gap-4">
+                                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                                    eventType === "sale" || eventType === "dispensed"
+                                      ? "bg-amber-100/60 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                                      : eventType === "restock" || eventType === "transfer_in"
+                                      ? "bg-emerald-100/60 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                      : "bg-indigo-100/60 text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300"
+                                  }`}>
+                                    {event.type || event.action || "Log"}
+                                  </span>
+                                  <span className="text-xs text-gray-500">{eventDateStr}</span>
                                 </div>
-                              )}
 
-                              {(event.type === "restock" || event.type === "transfer_in" || event.type === "transfer_out") && (
-                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
-                                  <div><span className="font-semibold text-gray-400">Handled By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Stock Shift:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.old_stock ?? "--"} &rarr; {event.details.new_stock ?? "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Batch Shift:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{event.details.old_batch || "--"} &rarr; {event.details.new_batch || "--"}</span></div>
-                                  <div>
-                                    <span className="font-semibold text-gray-400">Expiry Shift:</span>{" "}
-                                    <span className="text-slate-800 dark:text-slate-200">
-                                      {event.details.old_expiry ? formatDate(event.details.old_expiry) : "--"} &rarr;{" "}
-                                      {event.details.new_expiry ? formatDate(event.details.new_expiry) : "--"}
+                                <p className="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                  {eventType === "sale" || eventType === "dispensed" ? (
+                                    <>
+                                      Dispensed <span className="text-amber-600 font-bold">{Math.abs(Number(event.quantity_changed || event.quantity || 0))}</span> unit(s)
+                                    </>
+                                  ) : eventType === "restock" || eventType === "transfer_in" ? (
+                                    <>
+                                      {Number(event.quantity_changed || event.quantity || 0) >= 0 ? "Restocked" : "Adjusted"}{" "}
+                                      <span className={`font-bold ${Number(event.quantity_changed || event.quantity || 0) >= 0 ? "text-emerald-600" : "text-amber-600"}`}>
+                                        {Number(event.quantity_changed || event.quantity || 0) >= 0 ? `+${event.quantity_changed || event.quantity}` : (event.quantity_changed || event.quantity)}
+                                      </span>{" "}
+                                      unit(s)
+                                    </>
+                                  ) : (
+                                    <>
+                                      Initial Load of{" "}
+                                      <span className="text-indigo-600 font-bold">
+                                        {Number(event.quantity_changed || event.quantity || event.remaining_stock || 0) >= 0 ? `+${event.quantity_changed || event.quantity || event.remaining_stock || 0}` : (event.quantity_changed || event.quantity || 0)}
+                                      </span>{" "}
+                                      unit(s)
+                                    </>
+                                  )}
+                                  {event.remaining_stock !== undefined && (
+                                    <span className="text-xs text-gray-400 font-normal ml-2">
+                                      (Remaining: {event.remaining_stock} units)
                                     </span>
-                                  </div>
-                                </div>
-                              )}
+                                  )}
+                                </p>
 
-                              {(event.type === "create" || event.type === "initial") && (
-                                <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
-                                  <div><span className="font-semibold text-gray-400">Created By:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.pharmacist_name || "--"}</span></div>
-                                  <div><span className="font-semibold text-gray-400">Initial Stock:</span> <span className="text-slate-800 dark:text-slate-200">{event.details.initial_stock ?? event.remaining_stock} units</span></div>
-                                  <div><span className="font-semibold text-gray-400">Batch Code:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{event.details.batch_number || "--"}</span></div>
-                                  <div>
-                                    <span className="font-semibold text-gray-400">Expiry Date:</span>{" "}
-                                    <span className="text-slate-800 dark:text-slate-200">
-                                      {event.details.expiry_date ? formatDate(event.details.expiry_date) : "--"}
-                                    </span>
-                                  </div>
+                                {/* Details Summary Table */}
+                                <div className="mt-3.5 pt-3.5 border-t border-gray-100 dark:border-slate-800/80 text-xs text-gray-500 dark:text-slate-400 space-y-2">
+                                  {(eventType === "sale" || eventType === "dispensed") && (
+                                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+                                      <div><span className="font-semibold text-gray-400">Billing Code:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{details.billing_code || event.billing_code || "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Receipt No:</span> <span className="font-mono text-slate-800 dark:text-slate-200">{details.receipt_no || event.receipt_no || "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Patient:</span> <span className="text-slate-800 dark:text-slate-200">{details.patient_name || event.patient_name || "--"} {(details.patient_id || event.patient_id) ? `(${details.patient_id || event.patient_id})` : ""}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Phone:</span> <span className="text-slate-800 dark:text-slate-200">{details.phone_number || event.phone_number || "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Price Sold:</span> <span className="text-slate-800 dark:text-slate-200">{formatCurrency(details.unit_price_sold ?? details.unit_price ?? 0)}/unit</span></div>
+                                      <div><span className="font-semibold text-gray-400">Total Price:</span> <span className="text-slate-800 dark:text-slate-200 font-bold">{formatCurrency(details.total_price_sold ?? details.total_price ?? 0)}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Pharmacist:</span> <span className="text-slate-800 dark:text-slate-200">{details.pharmacist_name || event.pharmacist_name || "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Cleared By:</span> <span className="text-slate-800 dark:text-slate-200">{details.bill_clearer_name || event.bill_clearer_name || "--"} {(details.payment_type || event.payment_type) ? `(${details.payment_type || event.payment_type})` : ""}</span></div>
+                                    </div>
+                                  )}
+
+                                  {(eventType === "restock" || eventType === "transfer_in" || eventType === "transfer_out") && (
+                                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+                                      <div><span className="font-semibold text-gray-400">Handled By:</span> <span className="text-slate-800 dark:text-slate-200">{details.pharmacist_name || event.pharmacist_name || "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Stock Shift:</span> <span className="text-slate-800 dark:text-slate-200">{details.old_stock ?? "--"} &rarr; {details.new_stock ?? "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Batch Shift:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{details.old_batch || "--"} &rarr; {details.new_batch || "--"}</span></div>
+                                      <div>
+                                        <span className="font-semibold text-gray-400">Expiry Shift:</span>{" "}
+                                        <span className="text-slate-800 dark:text-slate-200">
+                                          {details.old_expiry ? formatDate(details.old_expiry) : "--"} &rarr;{" "}
+                                          {details.new_expiry ? formatDate(details.new_expiry) : "--"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {(eventType === "create" || eventType === "initial" || (!["sale", "dispensed", "restock", "transfer_in", "transfer_out"].includes(eventType))) && (
+                                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+                                      <div><span className="font-semibold text-gray-400">Created By:</span> <span className="text-slate-800 dark:text-slate-200">{details.pharmacist_name || event.pharmacist_name || "--"}</span></div>
+                                      <div><span className="font-semibold text-gray-400">Initial Stock:</span> <span className="text-slate-800 dark:text-slate-200">{details.initial_stock ?? event.remaining_stock ?? "--"} units</span></div>
+                                      <div><span className="font-semibold text-gray-400">Batch Code:</span> <span className="text-slate-800 dark:text-slate-200 font-mono">{details.batch_number || event.batch_number || "--"}</span></div>
+                                      <div>
+                                        <span className="font-semibold text-gray-400">Expiry Date:</span>{" "}
+                                        <span className="text-slate-800 dark:text-slate-200">
+                                          {details.expiry_date || event.expiry_date ? formatDate(details.expiry_date || event.expiry_date) : "--"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
       {/* Request Restock Modal */}
       {isRequestModalOpen && requestItem && (
