@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
 import StatusPill from "@/components/shared/StatusPill";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import {
   FiSearch,
@@ -144,6 +145,7 @@ export default function PharmacyPrescriptionsPage() {
   // Add Item inside Edit Modal state
   const [selectedDrugId, setSelectedDrugId] = useState("");
   const [dispenseQty, setDispenseQty] = useState("1");
+  const [cancellingBill, setCancellingBill] = useState<{ id: string; code: string } | null>(null);
 
   const [showEditSuggestions, setShowEditSuggestions] = useState(false);
   const editContainerRef = useRef<HTMLDivElement>(null);
@@ -245,6 +247,7 @@ export default function PharmacyPrescriptionsPage() {
       toast.success("Prescription cancelled successfully.");
       queryClient.invalidateQueries({ queryKey: ["pharmacy-prescriptions"] });
       setViewingBill(null);
+      setCancellingBill(null);
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to cancel prescription.");
@@ -355,12 +358,13 @@ export default function PharmacyPrescriptionsPage() {
       return;
     }
 
+    const unitPrice = drug.unit_price ?? 0;
     const newItem: LocalPharmacyBillItem = {
       drugId: drug.id,
       name: drug.name,
       quantity: qty,
-      unitPrice: drug.unit_price,
-      amount: drug.unit_price * qty,
+      unitPrice: unitPrice,
+      amount: unitPrice * qty,
     };
 
     setEditItems((prev) => [...prev, newItem]);
@@ -701,11 +705,7 @@ export default function PharmacyPrescriptionsPage() {
                                   <FiEdit2 className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (confirm(`Cancel prescription code ${bill.billing_code}?`)) {
-                                      cancelRequestMutation.mutate(bill.id);
-                                    }
-                                  }}
+                                  onClick={() => setCancellingBill({ id: bill.id, code: bill.billing_code })}
                                   disabled={cancelRequestMutation.isPending}
                                   className="rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/20"
                                   title="Cancel Prescription"
@@ -867,11 +867,7 @@ export default function PharmacyPrescriptionsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => {
-                        if (confirm(`Cancel prescription code ${viewingBill.billing_code}?`)) {
-                          cancelRequestMutation.mutate(viewingBill.id);
-                        }
-                      }}
+                      onClick={() => setCancellingBill({ id: viewingBill.id, code: viewingBill.billing_code })}
                       disabled={cancelRequestMutation.isPending}
                       className="flex-1 rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20 flex items-center justify-center gap-2"
                     >
@@ -1021,7 +1017,7 @@ export default function PharmacyPrescriptionsPage() {
                         .map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.name} (Stock: {getAvailableStockForEdit(d.id)}) -{" "}
-                            {formatCurrency(d.unit_price)}
+                            {d.unit_price != null ? formatCurrency(d.unit_price) : "—"}
                           </option>
                         ))}
                     </select>
@@ -1050,7 +1046,7 @@ export default function PharmacyPrescriptionsPage() {
                 {activeSelectedDrug ? (
                   <p className="text-[11px] text-brand-600 font-medium">
                     Available stock: {getAvailableStockForEdit(activeSelectedDrug.id)} | price:{" "}
-                    {formatCurrency(activeSelectedDrug.unit_price)}
+                    {activeSelectedDrug.unit_price != null ? formatCurrency(activeSelectedDrug.unit_price) : "—"}
                   </p>
                 ) : null}
               </div>
@@ -1202,6 +1198,23 @@ export default function PharmacyPrescriptionsPage() {
           </div>
         </div>
       )}
+
+      {/* Cancel Prescription Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(cancellingBill)}
+        title="Cancel Prescription"
+        message={`Are you sure you want to cancel prescription code "${cancellingBill?.code}"? This action cannot be undone.`}
+        confirmText="Yes, Cancel Prescription"
+        cancelText="Keep Prescription"
+        variant="danger"
+        isLoading={cancelRequestMutation.isPending}
+        onConfirm={() => {
+          if (cancellingBill) {
+            cancelRequestMutation.mutate(cancellingBill.id);
+          }
+        }}
+        onClose={() => setCancellingBill(null)}
+      />
     </div>
   );
 }

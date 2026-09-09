@@ -24,8 +24,11 @@ export interface BackendDrugItem {
   expiry_date: string; // YYYY-MM-DD
   stock: number;
   reorder_level: number;
-  unit_price: number;
-  status: "In stock" | "Low stock" | "Expired";
+  unit_price?: number | null;
+  status: "In stock" | "Low stock" | "1 month to expire" | "Expired" | string;
+  unit_type?: "store" | "point";
+  unit_name?: string;
+  pharmacy_unit_id?: string;
   is_active: boolean;
 }
 
@@ -54,7 +57,7 @@ export type PharmacyDrugPayload = {
   expiry_date: string;
   stock: number;
   reorder_level: number;
-  unit_price: number;
+  unit_price?: number;
   status?: string;
 };
 
@@ -117,6 +120,60 @@ export interface GetPharmacyRequestsResponse {
 }
 
 export interface PharmacyDashboardStats {
+  pharmacy_unit?: {
+    id: string;
+    name: string;
+    type: "point" | "store";
+  };
+  sales_summary?: {
+    total_revenue: number;
+    total_dispensed_count?: number;
+    total_dispensed_requests?: number;
+    today_dispensed_count?: number;
+    pending_prescriptions_count?: number;
+    cash_revenue?: number;
+    pos_revenue?: number;
+    transfer_revenue?: number;
+  };
+  inventory_summary?: {
+    total_inventory_valuation: number;
+    total_stock_count: number;
+    out_of_stock_count: number;
+    low_stock_count: number;
+    expiring_soon_count: number;
+    expired_count: number;
+  };
+  dispense_chart?: Array<{
+    date: string;
+    amount: number;
+    count: number;
+  }>;
+  recent_activities?: Array<{
+    id: string;
+    patient_name: string;
+    billing_code: string;
+    total_amount: number;
+    payment_type?: string;
+    created_at: string;
+  }>;
+  expiring_items?: Array<{
+    id: string;
+    name: string;
+    expiry_date: string;
+    stock: number;
+    status: string;
+  }>;
+  alerts?: {
+    low_stock_count: number;
+    out_of_stock_count: number;
+    expiring_soon_count?: number;
+    expired_count?: number;
+  };
+  top_dispensed_drugs?: Array<{
+    item_name: string;
+    total_quantity: number;
+    total_revenue?: number;
+  }>;
   summary?: {
     total_inventory_items: number;
     total_categories: number;
@@ -143,8 +200,6 @@ export interface PharmacyDashboardStats {
     expiry_date: string;
     status: string;
   }>;
-
-  // Live backend fields
   revenue_today?: number;
   total_count_dispensed?: number;
   pending_requests_count?: number;
@@ -946,6 +1001,64 @@ export interface PharmacyStoreDashboardStats {
     id: string;
     name: string;
   };
+  total_store_inventory_value?: number;
+  total_store_items?: number;
+  out_of_stock_count?: number;
+  low_stock_count?: number;
+  expiring_soon_count?: number;
+  expired_count?: number;
+  pending_transfers_count?: number;
+  completed_transfers_today?: number;
+  units_overview?: {
+    total_units: number;
+    active_points_count: number;
+    active_stores_count: number;
+  };
+  recent_pending_transfers?: Array<{
+    id: string;
+    from_unit_name?: string;
+    to_unit_name?: string;
+    items_count?: number;
+    created_at?: string;
+    status?: string;
+  }>;
+  store_low_stock_items?: Array<{
+    id: string;
+    name: string;
+    generic_name?: string | null;
+    batch_number?: string | null;
+    expiry_date?: string;
+    stock: number;
+    reorder_level: number;
+    unit_price?: number | null;
+    category_name?: string;
+    status: string;
+  }>;
+  store_expiring_items?: Array<{
+    id: string;
+    name: string;
+    generic_name?: string | null;
+    batch_number?: string | null;
+    expiry_date?: string;
+    stock: number;
+    category_name?: string;
+    days_until_expiry?: number;
+    status: string;
+  }>;
+  recent_stock_additions?: Array<{
+    id: string;
+    drug_name?: string;
+    item_name?: string;
+    quantity_changed: number;
+    old_stock?: number;
+    new_stock: number;
+    new_batch?: string | null;
+    new_expiry?: string | null;
+    action_type?: string;
+    pharmacist_name: string;
+    created_at: string;
+  }>;
+  // Legacy / fallback fields
   inventory_valuation?: {
     total_valuation: number;
     total_items_count: number;
@@ -967,14 +1080,6 @@ export interface PharmacyStoreDashboardStats {
     total_stock_count: number;
     out_of_stock_items: number;
   }>;
-  recent_stock_additions?: Array<{
-    id: string;
-    item_name: string;
-    quantity_changed: number;
-    new_stock: number;
-    pharmacist_name: string;
-    created_at: string;
-  }>;
 }
 
 export interface PharmacyStoreInventoryItem {
@@ -987,8 +1092,10 @@ export interface PharmacyStoreInventoryItem {
   expiry_date?: string;
   stock: number;
   reorder_level: number;
-  unit_price: number;
-  status: "In stock" | "Low stock" | "Expired";
+  unit_price?: number | null;
+  status: "In stock" | "Low stock" | "1 month to expire" | "Expired" | string;
+  unit_type?: "store" | "point";
+  unit_name?: string;
   pharmacy_unit_id?: string;
 }
 
@@ -1253,8 +1360,16 @@ export async function dispatchPharmacyStoreTransfer(payload: {
 
 export async function updatePharmacyStoreTransferStatus(
   transferId: string,
-  action: "approve" | "reject"
+  payload:
+    | {
+        action: "approve" | "reject";
+        quantity?: number;
+        items?: Array<{ id: string; quantity: number }>;
+      }
+    | "approve"
+    | "reject"
 ) {
+  const body = typeof payload === "string" ? { action: payload } : payload;
   return withPharmacySessionRetry((accessToken) =>
     patchJson<{
       status: string;
@@ -1263,7 +1378,7 @@ export async function updatePharmacyStoreTransferStatus(
         id: string;
         status: "completed" | "rejected";
       };
-    }>(`/api/pharmacy-store/transfers/${transferId}`, { action }, {
+    }>(`/api/pharmacy-store/transfers/${transferId}`, body, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
