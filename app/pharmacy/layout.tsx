@@ -43,6 +43,9 @@ export default function PharmacyLayout({ children }: Props) {
     if (pathname.startsWith("/pharmacy/prescriptions")) {
       return { key: "prescriptions", name: "Prescriptions" };
     }
+    if (pathname.startsWith("/pharmacy/exchanges")) {
+      return { key: "dispense", name: "Exchanges" };
+    }
     if (pathname.startsWith("/pharmacy/inventory")) {
       return { key: "inventory", name: "Inventory" };
     }
@@ -65,9 +68,13 @@ export default function PharmacyLayout({ children }: Props) {
       return false;
     }
 
-    // Dispense & Prescriptions are Point Pharmacist only - reject Store Managers
+    // Dispense, Prescriptions & Exchanges are Point Pharmacist only - reject Store Managers
     if (userRole === "PHARMACY_STORE") {
-      if (pathname.startsWith("/pharmacy/dispense") || pathname.startsWith("/pharmacy/prescriptions")) {
+      if (
+        pathname.startsWith("/pharmacy/dispense") ||
+        pathname.startsWith("/pharmacy/prescriptions") ||
+        pathname.startsWith("/pharmacy/exchanges")
+      ) {
         return false;
       }
     }
