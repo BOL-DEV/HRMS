@@ -93,11 +93,6 @@ const PharmacySidebar = () => {
   const links = useMemo(() => {
     return sidebarData.links
       .filter((link) => {
-        // Hide transfers completely for Point Pharmacists (Transfers is Central Store only)
-        if (userRole !== "PHARMACY_STORE" && userRole !== "PLATFORM_ADMIN" && link.link === "/pharmacy/transfers") {
-          return false;
-        }
-
         // Hide retail dispensing and prescriptions for Central Store Managers
         if (userRole === "PHARMACY_STORE") {
           if (link.link === "/pharmacy/dispense" || link.link === "/pharmacy/prescriptions") {
@@ -105,9 +100,13 @@ const PharmacySidebar = () => {
           }
         }
 
-        if (!activeModules) return true; // fallback if profile not loaded
         const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
         if (isPlatformAdmin) return true;
+
+        // If modules array is not yet loaded or empty [], grant default access for the role
+        if (!activeModules || !Array.isArray(activeModules) || activeModules.length === 0) {
+          return true;
+        }
 
         const keyMap: Record<string, string | string[]> = {
           "/pharmacy/dashboard": "dashboard",
@@ -116,7 +115,9 @@ const PharmacySidebar = () => {
           "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
           "/pharmacy/transfers": ["transfers", "transfer-history"],
           "/pharmacy/reports": "reports",
+          "/pharmacy/settings": "dashboard",
         };
+
         const val = keyMap[link.link];
         if (!val) return true;
         if (Array.isArray(val)) {

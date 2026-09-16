@@ -507,6 +507,7 @@ export default function PharmacyDashboardPage() {
   // --- POINT PHARMACIST VIEW ---
   const pointRaw = unwrapPharmacyData<any>(pointStatsData, {});
   const salesSummary = pointRaw?.sales_summary ?? pointRaw?.sales ?? pointRaw?.revenue_summary ?? pointRaw?.summary ?? pointRaw ?? {};
+  const inventorySummary = pointRaw?.inventory_summary ?? pointRaw?.inventory_valuation ?? pointRaw?.inventory ?? {};
   const alerts = pointRaw?.alerts ?? pointRaw?.inventory_alerts ?? pointRaw?.stock_alerts ?? pointRaw?.inventory_summary ?? pointRaw ?? {};
   const topDrugs = pointRaw?.top_dispensed_drugs ?? pointRaw?.top_drugs ?? pointRaw?.top_selling_drugs ?? [];
   const profileRaw = unwrapPharmacyData<any>(pointProfileData, {});
@@ -515,8 +516,14 @@ export default function PharmacyDashboardPage() {
   const totalSalesRevenue = pointRaw?.revenue_today ?? salesSummary.total_revenue ?? salesSummary.total_sales ?? salesSummary.total_amount ?? pointRaw?.total_sales_revenue ?? 0;
   const dispensedRequests = pointRaw?.total_count_dispensed ?? salesSummary.total_dispensed_requests ?? salesSummary.today_dispensed_count ?? salesSummary.dispensed_requests ?? salesSummary.total_requests ?? pointRaw?.total_dispensed_requests ?? 0;
   const pendingRequestsCount = pointRaw?.pending_requests_count ?? (Array.isArray(pointRaw?.pending_requests) ? pointRaw.pending_requests.length : 0);
-  const lowStockCount = pointRaw?.low_stock_count ?? alerts.low_stock_count ?? alerts.low_stock_items ?? alerts.low_stock ?? 0;
-  const totalInventoryValue = pointRaw?.total_inventory_value ?? 0;
+  
+  const totalInventoryValue = inventorySummary.total_inventory_valuation ?? pointRaw?.total_inventory_value ?? inventorySummary.total_inventory_value ?? 0;
+  const totalItemsCount = inventorySummary.total_items_count ?? pointRaw?.total_items_count ?? pointRaw?.total_items ?? 0;
+  const totalStockCount = inventorySummary.total_stock_count ?? pointRaw?.total_stock_count ?? 0;
+  const outOfStockCount = inventorySummary.out_of_stock_count ?? alerts.out_of_stock_count ?? alerts.out_of_stock_items ?? alerts.out_of_stock ?? pointRaw?.out_of_stock_count ?? 0;
+  const lowStockCount = inventorySummary.low_stock_count ?? alerts.low_stock_count ?? alerts.low_stock_items ?? alerts.low_stock ?? pointRaw?.low_stock_count ?? 0;
+  const expiringSoonCount = inventorySummary.expiring_soon_count ?? alerts.expiring_soon_count ?? pointRaw?.expiring_soon_count ?? 0;
+  const expiredCount = inventorySummary.expired_count ?? alerts.expired_count ?? pointRaw?.expired_count ?? 0;
 
   const lowStockItems: any[] = Array.isArray(pointRaw?.low_stock_items)
     ? pointRaw.low_stock_items
@@ -592,8 +599,8 @@ export default function PharmacyDashboardPage() {
           </div>
         ) : (
           <>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {/* Stats Grid - 6 Dedicated KPI Cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               <StatCard
                 title="Today's Revenue"
                 value={formatCurrency(totalSalesRevenue)}
@@ -617,19 +624,19 @@ export default function PharmacyDashboardPage() {
               <StatCard
                 title="Pending Requests"
                 value={String(pendingRequestsCount)}
-                delta="Awaiting dispensing / checkout"
+                delta="Awaiting checkout"
                 deltaTone={pendingRequestsCount > 0 ? "negative" : "neutral"}
                 icon={<FiClock className="text-xl" />}
-                accentClassName="border-amber-200 bg-white dark:border-amber-500/30 dark:bg-slate-900"
-                iconClassName="text-amber-700 dark:text-amber-300"
-                iconBackgroundClassName="bg-amber-50 dark:bg-amber-500/10"
-                valueClassName="text-amber-700 dark:text-amber-300"
+                accentClassName="border-blue-200 bg-white dark:border-blue-500/30 dark:bg-slate-900"
+                iconClassName="text-blue-700 dark:text-blue-300"
+                iconBackgroundClassName="bg-blue-50 dark:bg-blue-500/10"
+                valueClassName="text-blue-700 dark:text-blue-300"
               />
               <StatCard
-                title="Low / Out of Stock"
-                value={String(lowStockCount)}
-                delta="Items at or below threshold"
-                deltaTone={lowStockCount > 0 ? "negative" : "neutral"}
+                title="Out of Stock Items"
+                value={String(outOfStockCount)}
+                delta="Zero stock in dispensary"
+                deltaTone={outOfStockCount > 0 ? "negative" : "neutral"}
                 icon={<FiAlertTriangle className="text-xl" />}
                 accentClassName="border-red-200 bg-white dark:border-red-500/30 dark:bg-slate-900"
                 iconClassName="text-red-700 dark:text-red-300"
@@ -637,9 +644,20 @@ export default function PharmacyDashboardPage() {
                 valueClassName="text-red-700 dark:text-red-300"
               />
               <StatCard
+                title="Low Stock Items"
+                value={String(lowStockCount)}
+                delta="Below reorder limit"
+                deltaTone={lowStockCount > 0 ? "negative" : "neutral"}
+                icon={<FiAlertTriangle className="text-xl" />}
+                accentClassName="border-amber-200 bg-white dark:border-amber-500/30 dark:bg-slate-900"
+                iconClassName="text-amber-700 dark:text-amber-300"
+                iconBackgroundClassName="bg-amber-50 dark:bg-amber-500/10"
+                valueClassName="text-amber-700 dark:text-amber-300"
+              />
+              <StatCard
                 title="Inventory Valuation"
                 value={formatCurrency(totalInventoryValue)}
-                delta="Total retail stock value"
+                delta={totalItemsCount > 0 ? `${totalItemsCount} catalog items` : "Total retail stock value"}
                 icon={<FiPackage className="text-xl" />}
                 accentClassName="border-indigo-200 bg-white dark:border-indigo-500/30 dark:bg-slate-900"
                 iconClassName="text-indigo-700 dark:text-indigo-300"
@@ -647,6 +665,32 @@ export default function PharmacyDashboardPage() {
                 valueClassName="text-indigo-700 dark:text-indigo-300"
               />
             </div>
+
+            {/* Expiry Alerts Banner (if any) */}
+            {(expiringSoonCount > 0 || expiredCount > 0) && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-purple-200 bg-purple-50/70 p-4 dark:border-purple-900/30 dark:bg-purple-950/20">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                    <FiClock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-purple-900 dark:text-purple-200">
+                      Formulation Expiry Alerts
+                    </p>
+                    <p className="text-xs text-purple-700 dark:text-purple-400">
+                      {expiringSoonCount > 0 && <span><strong>{expiringSoonCount}</strong> item(s) expiring soon. </span>}
+                      {expiredCount > 0 && <span className="text-red-600 dark:text-red-400"><strong>{expiredCount}</strong> item(s) already expired.</span>}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/pharmacy/inventory?status=1_month_to_expire"
+                  className="rounded-xl border border-purple-300 bg-white px-3.5 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-900 dark:text-purple-300 dark:hover:bg-slate-800"
+                >
+                  Review in Inventory &rarr;
+                </Link>
+              </div>
+            )}
 
             {/* Row 1: Low Stock Depletion Alerts & Top Dispensed / Payment Breakdown */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

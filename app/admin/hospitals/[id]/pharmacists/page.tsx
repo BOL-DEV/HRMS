@@ -177,6 +177,7 @@ export default function HospitalPharmacistsPage() {
 
       {isCreateOpen ? (
         <AdminHospitalPharmacistFormModal
+          hospitalId={hospitalId}
           isSubmitting={createMutation.isPending}
           onClose={() => setIsCreateOpen(false)}
           onSubmit={(payload) =>
@@ -187,6 +188,7 @@ export default function HospitalPharmacistsPage() {
 
       {editingPharmacist ? (
         <AdminHospitalPharmacistFormModal
+          hospitalId={hospitalId}
           pharmacist={editingPharmacist}
           isSubmitting={updateMutation.isPending}
           onClose={() => setEditingPharmacist(null)}

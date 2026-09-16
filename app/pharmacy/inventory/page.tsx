@@ -591,7 +591,14 @@ export default function PharmacyInventoryPage() {
     if (cleanStatus === "low_stock" || cleanStatus === "low stock") return "Low stock";
     if (cleanStatus === "out_of_stock" || cleanStatus === "out of stock") return "Out of stock";
     if (cleanStatus === "expired") return "Expired";
-    if (cleanStatus.includes("expire")) return "Expiring soon";
+    if (
+      cleanStatus === "1 month to expire" ||
+      cleanStatus === "1_month_to_expire" ||
+      cleanStatus === "1-month-to-expire" ||
+      cleanStatus.includes("expire")
+    ) {
+      return "1 month to expire";
+    }
     return item.status || "In stock";
   };
 

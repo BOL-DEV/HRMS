@@ -1086,8 +1086,11 @@ export type AdminHospitalPharmacistListItem = {
   hospital_id: string;
   status: AdminHospitalPharmacistStatus;
   role?: "PHARMACY" | "PHARMACY_STORE";
+  pharmacy_unit_id?: string;
+  unit_name?: string;
+  unit_type?: "point" | "store";
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   modules?: string[];
 };
 
@@ -1098,6 +1101,7 @@ export type CreateAdminHospitalPharmacistPayload = {
   phone: string;
   password?: string;
   role?: "PHARMACY" | "PHARMACY_STORE";
+  pharmacy_unit_id?: string;
   modules?: string[];
 };
 

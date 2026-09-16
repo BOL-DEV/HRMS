@@ -64,6 +64,7 @@ function AdminHospitalPharmacistsListSection({
             <tr className="bg-panel-muted text-left text-gray-600 dark:text-slate-300">
               <th className="p-3 font-semibold">Name</th>
               <th className="p-3 font-semibold">Role</th>
+              <th className="p-3 font-semibold">Assigned Unit</th>
               <th className="p-3 font-semibold">Email</th>
               <th className="p-3 font-semibold">Phone</th>
               <th className="p-3 font-semibold">Status</th>
@@ -77,7 +78,7 @@ function AdminHospitalPharmacistsListSection({
                     key={index}
                     className="border-b border-line-subtle"
                   >
-                    <td colSpan={6} className="p-3">
+                    <td colSpan={7} className="p-3">
                       <div className="h-10 animate-pulse rounded-lg bg-panel-muted" />
                     </td>
                   </tr>
@@ -86,10 +87,10 @@ function AdminHospitalPharmacistsListSection({
                 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="p-8 text-center text-sm text-gray-500 dark:text-slate-400"
                       >
-                        No pharmacists found for this hospital.
+                        No pharmacy users found for this hospital.
                       </td>
                     </tr>
                   )
@@ -101,8 +102,23 @@ function AdminHospitalPharmacistsListSection({
                       <td className="p-3 font-semibold text-gray-900 dark:text-slate-100">
                         {pharmacist.pharmacist_name}
                       </td>
+                      <td className="p-3">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          pharmacist.role === "PHARMACY_STORE"
+                            ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                            : "bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300"
+                        }`}>
+                          {pharmacist.role === "PHARMACY_STORE" ? "Store Manager" : "Point Pharmacist"}
+                        </span>
+                      </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
-                        {pharmacist.role === "PHARMACY_STORE" ? "Store Manager" : "Point Pharmacist"}
+                        {pharmacist.unit_name ? (
+                          <span className="font-medium text-slate-800 dark:text-slate-200">
+                            {pharmacist.unit_name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 dark:text-slate-500 text-xs">Unassigned</span>
+                        )}
                       </td>
                       <td className="p-3 text-gray-700 dark:text-slate-300">
                         {pharmacist.email}
