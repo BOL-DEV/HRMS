@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { FaRegChartBar } from "react-icons/fa";
-import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw } from "react-icons/fi";
+import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw, FiRepeat } from "react-icons/fi";
 import Sidebar from "@/components/shared/Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +27,12 @@ const sidebarData = {
       name: "Prescriptions",
       link: "/pharmacy/prescriptions",
       label: <FiFileText className="inline" />,
+      active: false,
+    },
+    {
+      name: "Exchanges",
+      link: "/pharmacy/exchanges",
+      label: <FiRepeat className="inline" />,
       active: false,
     },
     {
@@ -93,9 +99,13 @@ const PharmacySidebar = () => {
   const links = useMemo(() => {
     return sidebarData.links
       .filter((link) => {
-        // Hide retail dispensing and prescriptions for Central Store Managers
+        // Hide retail dispensing, prescriptions, and exchanges for Central Store Managers
         if (userRole === "PHARMACY_STORE") {
-          if (link.link === "/pharmacy/dispense" || link.link === "/pharmacy/prescriptions") {
+          if (
+            link.link === "/pharmacy/dispense" ||
+            link.link === "/pharmacy/prescriptions" ||
+            link.link === "/pharmacy/exchanges"
+          ) {
             return false;
           }
         }
@@ -112,6 +122,7 @@ const PharmacySidebar = () => {
           "/pharmacy/dashboard": "dashboard",
           "/pharmacy/dispense": "dispense",
           "/pharmacy/prescriptions": "prescriptions",
+          "/pharmacy/exchanges": ["dispense", "prescriptions", "dashboard"],
           "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
           "/pharmacy/transfers": ["transfers", "transfer-history"],
           "/pharmacy/reports": "reports",
