@@ -136,12 +136,13 @@ export interface PharmacyDashboardStats {
     transfer_revenue?: number;
   };
   inventory_summary?: {
-    total_inventory_valuation: number;
-    total_stock_count: number;
-    out_of_stock_count: number;
-    low_stock_count: number;
-    expiring_soon_count: number;
-    expired_count: number;
+    total_inventory_valuation?: number;
+    total_items_count?: number;
+    total_stock_count?: number;
+    out_of_stock_count?: number;
+    low_stock_count?: number;
+    expiring_soon_count?: number;
+    expired_count?: number;
   };
   dispense_chart?: Array<{
     date: string;
