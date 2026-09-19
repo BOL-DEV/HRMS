@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
 import { formatCurrency, formatDateTime, isValidNigerianPhoneNumber } from "@/libs/helper";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { decodeJwt, getAgentAccessToken } from "@/libs/auth";
@@ -312,6 +313,20 @@ export default function PharmacyDispensePage() {
 
   // Generated bill modal
   const [generatedBill, setGeneratedBill] = useState<PharmacyBill | null>(null);
+
+  useScrollLock(Boolean(generatedBill || paymentSelectionBillId));
+
+  useEffect(() => {
+    if (!generatedBill && !paymentSelectionBillId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setGeneratedBill(null);
+        setPaymentSelectionBillId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [generatedBill, paymentSelectionBillId]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -823,8 +838,16 @@ export default function PharmacyDispensePage() {
 
       {/* Code Receipt Modal */}
       {generatedBill ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative overflow-hidden">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setGeneratedBill(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative overflow-hidden"
+          >
             <div className="flex justify-end">
               <button
                 onClick={() => setGeneratedBill(null)}
@@ -941,8 +964,16 @@ export default function PharmacyDispensePage() {
 
       {/* Payment Method Selection Modal */}
       {paymentSelectionBillId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPaymentSelectionBillId(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide"
+          >
             <h3 className="text-lg font-bold text-slate-950 dark:text-white text-center mb-4">
               Select Payment Method
             </h3>

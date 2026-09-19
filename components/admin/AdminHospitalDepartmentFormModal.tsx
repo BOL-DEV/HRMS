@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FiX } from "react-icons/fi";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Props = {
   mode: "create" | "edit";
@@ -18,6 +19,16 @@ function AdminHospitalDepartmentFormModal({
   onClose,
   onSubmit,
 }: Props) {
+  useScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSubmitting, onClose]);
+
   const [name, setName] = useState(initialName);
 
   useEffect(() => {
@@ -39,8 +50,16 @@ function AdminHospitalDepartmentFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-line-subtle bg-panel shadow-2xl">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-2xl border border-line-subtle bg-panel shadow-2xl"
+      >
         <div className="flex items-start justify-between gap-4 border-b border-line-subtle p-5">
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">

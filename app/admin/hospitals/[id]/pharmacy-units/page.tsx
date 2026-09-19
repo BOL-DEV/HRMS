@@ -10,6 +10,7 @@ import { toast } from "react-hot-toast";
 import { FiPlus, FiX } from "react-icons/fi";
 import StatusPill from "@/components/shared/StatusPill";
 import { formatDate } from "@/libs/helper";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 export default function HospitalPharmacyUnitsPage() {
   const params = useParams<{ id: string }>();
@@ -21,6 +22,17 @@ export default function HospitalPharmacyUnitsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUnitName, setNewUnitName] = useState("");
   const [newUnitType, setNewUnitType] = useState<"store" | "point">("point");
+
+  useScrollLock(isModalOpen);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsModalOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen]);
 
   const unitsQuery = useQuery({
     queryKey: ["admin-hospital-pharmacy-units", hospitalId],
@@ -167,8 +179,16 @@ export default function HospitalPharmacyUnitsPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-line-subtle bg-panel shadow-2xl">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl border border-line-subtle bg-panel shadow-2xl my-8"
+          >
             <div className="flex items-start justify-between gap-4 border-b border-line-subtle p-5">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">

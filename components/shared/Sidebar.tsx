@@ -20,6 +20,7 @@ interface Props {
     }[];
   }[];
   isOpen?: boolean;
+  isLoading?: boolean;
 }
 
 const SIDEBAR_PREF_KEY = "swiftrev.sidebar.desktop-pinned";
@@ -61,7 +62,7 @@ function subscribeToDesktopSidebarPreference(onStoreChange: () => void) {
   };
 }
 
-function Sidebar({ title, links, isOpen = false }: Props) {
+function Sidebar({ title, links, isOpen = false, isLoading = false }: Props) {
   const [isDesktopHovered, setIsDesktopHovered] = useState(false);
   const [openGroups, setOpenGroups] = useState<
     Record<string, boolean | undefined>
@@ -125,6 +126,26 @@ function Sidebar({ title, links, isOpen = false }: Props) {
           </button>
         </div>
 
+        {isLoading ? (
+          <div className={`flex flex-col gap-2 pt-6 ${isDesktopExpanded ? "p-3" : "px-3 py-6"}`}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div
+                key={i}
+                className={`flex items-center gap-3 rounded-xl p-3 animate-pulse bg-gray-100/60 dark:bg-slate-800/40 ${
+                  !isDesktopExpanded ? "justify-center" : ""
+                }`}
+              >
+                <div className="h-5 w-5 rounded-lg bg-gray-200/80 dark:bg-slate-700/60 shrink-0" />
+                {isDesktopExpanded && (
+                  <div
+                    className="h-4 rounded-md bg-gray-200/80 dark:bg-slate-700/60"
+                    style={{ width: `${60 + (i % 3) * 20}%` }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
         <ul
           className={`flex flex-col gap-2 pt-6 ${
             isDesktopExpanded ? "p-2" : "px-4 py-6 md:px-0"
@@ -256,6 +277,7 @@ function Sidebar({ title, links, isOpen = false }: Props) {
             </li>
           ))}
         </ul>
+        )}
 
         <div className="mt-auto border-t border-line-subtle p-4 dark:border-line-subtle">
           <div

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
 import StatusPill from "@/components/shared/StatusPill";
 import ConfirmModal from "@/components/shared/ConfirmModal";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
 import {
   FiSearch,
@@ -135,6 +136,21 @@ export default function PharmacyPrescriptionsPage() {
   const [viewingBill, setViewingBill] = useState<PharmacyBillingRequest | null>(null);
   const [paymentSelectionBillId, setPaymentSelectionBillId] = useState<string | null>(null);
   const [editingBill, setEditingBill] = useState<PharmacyBillingRequest | null>(null);
+
+  useScrollLock(Boolean(viewingBill || editingBill || paymentSelectionBillId));
+
+  useEffect(() => {
+    if (!viewingBill && !editingBill && !paymentSelectionBillId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setViewingBill(null);
+        setEditingBill(null);
+        setPaymentSelectionBillId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewingBill, editingBill, paymentSelectionBillId]);
 
   // Edit form states
   const [editPatientId, setEditPatientId] = useState("");
@@ -752,8 +768,16 @@ export default function PharmacyPrescriptionsPage() {
 
       {/* View Receipt Modal */}
       {viewingBill ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative overflow-hidden">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewingBill(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative overflow-hidden"
+          >
             <div className="flex justify-end">
               <button
                 onClick={() => setViewingBill(null)}
@@ -901,8 +925,16 @@ export default function PharmacyPrescriptionsPage() {
 
       {/* Edit Modal */}
       {editingBill ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-          <div className="my-8 w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingBill(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative"
+          >
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl font-bold text-slate-950 dark:text-white">
@@ -1152,8 +1184,16 @@ export default function PharmacyPrescriptionsPage() {
 
       {/* Payment Method Selection Modal */}
       {paymentSelectionBillId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPaymentSelectionBillId(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide"
+          >
             <h3 className="text-lg font-bold text-slate-950 dark:text-white text-center mb-4">
               Select Payment Method
             </h3>

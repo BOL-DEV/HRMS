@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import ChartWatermark from "@/components/shared/ChartWatermark";
 import { formatDate, formatDateTime, formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/shared/StatusPill";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   Line,
   LineChart,
@@ -32,12 +34,30 @@ export type PatientProfile = {
 };
 
 function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; onClose: () => void }) {
+  useScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const trend = patient.paymentTrend ?? [];
   const txs = patient.recentTransactions ?? [];
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-end">
-      <div className="bg-white w-full max-w-4xl h-full overflow-y-auto shadow-2xl">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-start justify-end overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-4xl h-full overflow-y-auto shadow-2xl"
+      >
         <div className="p-5 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Patient Profile</h2>

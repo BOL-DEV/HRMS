@@ -28,6 +28,7 @@ import {
   unwrapPharmacyData,
   BackendDrugItem,
 } from "@/libs/pharmacy-api";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   ReturnReason,
   DrugCondition,
@@ -35,6 +36,9 @@ import {
   ExchangeReturnedItem,
   ExchangeReplacementItem,
   CreateDrugExchangePayload,
+  DrugExchangePayload,
+  processDrugExchangeTransaction,
+  generateExchangeReference,
   RETURN_REASON_LABELS,
   DRUG_CONDITION_LABELS,
   generateExchangeCode,
@@ -44,7 +48,7 @@ import {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (record: DrugExchangeRecord) => void;
+  onSuccess?: (record: DrugExchangeRecord) => void;
   pharmacistName?: string;
   pharmacyUnitName?: string;
 }
@@ -56,6 +60,17 @@ export default function DrugExchangeModal({
   pharmacistName,
   pharmacyUnitName,
 }: Props) {
+  useScrollLock(isOpen);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Step State: 1 = Patient & Return Selection, 2 = Replacement & Calculation, 3 = Settlement & Review
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -426,7 +441,7 @@ export default function DrugExchangeModal({
       try {
         const res = await mod.processDrugExchange(payload);
         toast.success(res.message);
-        onSuccess(res.data);
+        onSuccess?.(res.data);
         onClose();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to process exchange.");
@@ -439,8 +454,16 @@ export default function DrugExchangeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto">
-      <div className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl my-8 overflow-hidden dark:border-slate-800 dark:bg-slate-900 flex flex-col max-h-[90vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl my-8 overflow-hidden dark:border-slate-800 dark:bg-slate-900 flex flex-col max-h-[90vh]"
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-gray-100 p-5 dark:border-slate-800">
           <div className="flex items-center gap-3">
