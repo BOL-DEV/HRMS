@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import { FiX, FiPrinter, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 import { formatCurrency, formatDateTime } from "@/libs/helper";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   DrugExchangeRecord,
   RETURN_REASON_LABELS,
@@ -17,6 +18,16 @@ interface Props {
 
 export default function DrugExchangeReceiptModal({ exchange, onClose }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
+  useScrollLock(Boolean(exchange));
+
+  useEffect(() => {
+    if (!exchange) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [exchange, onClose]);
 
   if (!exchange) return null;
 
@@ -30,8 +41,16 @@ export default function DrugExchangeReceiptModal({ exchange, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static">
-      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl my-8 overflow-hidden dark:border-slate-800 dark:bg-slate-900 print:shadow-none print:border-none print:max-w-full">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto print:p-0 print:bg-white print:static"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl my-8 overflow-hidden dark:border-slate-800 dark:bg-slate-900 print:shadow-none print:border-none print:max-w-full"
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-gray-100 p-5 dark:border-slate-800 print:hidden">
           <div className="flex items-center gap-2">

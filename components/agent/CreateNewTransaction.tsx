@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   FiCheckCircle,
   FiPlus,
@@ -9,6 +10,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { formatCurrency } from "@/libs/helper";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import type {
   AgentBillItem,
   AgentIncomeHead,
@@ -89,6 +91,17 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     isPharmacyMode,
     showPharmacyOption,
   } = useCreateTransactionState({ open, onClose, onSuccess });
+
+  useScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, closeModal]);
 
   const config = paymentConfigQuery.data?.data;
   const isCashAllowed = config?.allow_payment_cash !== false && (config as any)?.allowPaymentCash !== false;

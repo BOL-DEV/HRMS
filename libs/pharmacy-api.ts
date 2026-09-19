@@ -912,19 +912,21 @@ export async function getPharmacyDrugHistory(itemId: string) {
   });
 }
 
+export interface PharmacyUnitItem {
+  id: string;
+  name: string;
+  type: "store" | "point";
+  is_active: boolean;
+  created_at: string;
+}
+
 export async function getPharmacyUnits(hospitalId?: string) {
   const query = hospitalId ? `?hospital_id=${hospitalId}` : "";
   return withPharmacySessionRetry((accessToken) =>
     getJson<{
       status: number;
       message: string;
-      data: Array<{
-        id: string;
-        name: string;
-        type: "store" | "point";
-        is_active: boolean;
-        created_at: string;
-      }>;
+      data: PharmacyUnitItem[];
     }>(`/api/pharmacy/units${query}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
@@ -949,8 +951,8 @@ export async function createPharmacyUnit(payload: { name: string; type: "store" 
 }
 
 export interface CreateTransferPayload {
-  from_unit_id: string;
   to_unit_id: string;
+  from_unit_id?: string;
   remarks?: string;
   items: Array<{
     source_pharmacy_item_id: string;
@@ -1443,12 +1445,28 @@ export async function updatePharmacyStoreTransferStatus(
     | {
         action: "approve" | "reject";
         quantity?: number;
-        items?: Array<{ id: string; quantity: number }>;
+        items?: Array<{ transfer_item_id?: string; id?: string; quantity: number }>;
       }
     | "approve"
     | "reject"
 ) {
-  const body = typeof payload === "string" ? { action: payload } : payload;
+  let body: Record<string, unknown>;
+  if (typeof payload === "string") {
+    body = { action: payload };
+  } else {
+    body = {
+      action: payload.action,
+      ...(payload.quantity !== undefined ? { quantity: payload.quantity } : {}),
+      ...(payload.items
+        ? {
+            items: payload.items.map((it) => ({
+              transfer_item_id: it.transfer_item_id || it.id,
+              quantity: it.quantity,
+            })),
+          }
+        : {}),
+    };
+  }
   return withPharmacySessionRetry((accessToken) =>
     patchJson<{
       status: string;

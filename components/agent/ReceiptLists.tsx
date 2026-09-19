@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   FiExternalLink,
   FiEye,
@@ -29,6 +30,7 @@ type Props = {
   totalCount: number;
   isLoading?: boolean;
   emptyMessage?: string;
+  onRefresh?: () => void;
 };
 
 function printReceiptHtml(receiptHTML: string, receiptCount?: number) {
@@ -285,8 +287,19 @@ function ReceiptLists({
       </div>
 
       {requesting ? (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !requestMutation.isPending) {
+              setRequesting(null);
+              setReason("");
+            }
+          }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
+          >
             <div className="border-b border-gray-200 p-5 dark:border-line-subtle">
               <h3 className="text-lg font-bold">
                 {requesting.reprint_status === "rejected"
@@ -345,8 +358,16 @@ function ReceiptLists({
       ) : null}
 
       {viewing ? (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewing(null);
+          }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
+          >
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5 dark:border-line-subtle">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Receipt Details</h3>

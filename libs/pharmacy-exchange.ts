@@ -128,148 +128,27 @@ export interface DrugExchangeRecord {
 
 const STORAGE_KEY = "swiftrev.pharmacy.exchanges";
 
-// Initial Demo Records for Instant Interactive UI
-const INITIAL_DEMO_EXCHANGES: DrugExchangeRecord[] = [
-  {
-    id: "exc-001",
-    exchange_code: "EXC-8N3D7K2Y",
-    original_billing_code: "ST1P8DGF",
-    patient_id: "P-10492",
-    patient_name: "Chiamaka Okafor",
-    phone_number: "07036330556",
-    hospital_number: "HN-2026-0814",
-    returned_items: [
-      {
-        returned_drug_id: "d1",
-        returned_drug_name: "Amoxicillin 500mg Capsule",
-        returned_unit_price: 2500,
-        returned_quantity: 1,
-        return_subtotal: 2500,
-        return_reason: "ADVERSE_REACTION",
-        reason_notes: "Patient experienced mild rash and nausea.",
-        drug_condition: "INTACT_RESELLABLE",
-        restock_to_inventory: true,
-      },
-    ],
-    replacement_items: [
-      {
-        replacement_drug_id: "d2",
-        replacement_drug_name: "Azithromycin 500mg Tablet",
-        replacement_unit_price: 4000,
-        replacement_quantity: 1,
-        replacement_subtotal: 4000,
-        batch_number: "AZI-2026-09",
-        expiry_date: "2028-04-30",
-      },
-    ],
-    total_returned_value: 2500,
-    total_replacement_cost: 4000,
-    balance_difference: 1500, // Patient paid additional ₦1,500
-    settlement_status: "ADDITIONAL_PAID",
-    payment_method: "POS",
-    cashier_bill_code: "EXC-BILL-912",
-    pharmacist_name: "Dr. Tunde Balogun",
-    pharmacy_unit_name: "Pharmacy Main",
-    remarks: "Switched to macrolide antibiotic per doctor prescription update.",
-    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "exc-002",
-    exchange_code: "EXC-4V9M1L0P",
-    original_billing_code: "9UANFK17",
-    patient_id: "MANUAL",
-    patient_name: "Aluko Babatunde",
-    phone_number: "08103818959",
-    hospital_number: "HN-2026-0422",
-    returned_items: [
-      {
-        returned_drug_id: "d3",
-        returned_drug_name: "Ciprofloxacin 500mg",
-        returned_unit_price: 3200,
-        returned_quantity: 1,
-        return_subtotal: 3200,
-        return_reason: "DUPLICATE_PURCHASE",
-        reason_notes: "Patient already had stock at home.",
-        drug_condition: "INTACT_RESELLABLE",
-        restock_to_inventory: true,
-      },
-    ],
-    replacement_items: [
-      {
-        replacement_drug_id: "d4",
-        replacement_drug_name: "Paracetamol 500mg Tablet",
-        replacement_unit_price: 500,
-        replacement_quantity: 2,
-        replacement_subtotal: 1000,
-        batch_number: "PCM-2025-01",
-        expiry_date: "2027-12-31",
-      },
-    ],
-    total_returned_value: 3200,
-    total_replacement_cost: 1000,
-    balance_difference: -2200, // Hospital refunded ₦2,200
-    settlement_status: "REFUND_ISSUED",
-    payment_method: "CASH",
-    pharmacist_name: "Dr. Tunde Balogun",
-    pharmacy_unit_name: "Pharmacy Main",
-    remarks: "Refunded difference via cash payout with signed voucher.",
-    created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: "exc-003",
-    exchange_code: "EXC-7Q2W9X4A",
-    original_billing_code: "PL8K1B2V",
-    patient_id: "P-88219",
-    patient_name: "Fatima Garba",
-    phone_number: "08035519823",
-    hospital_number: "HN-2026-0912",
-    returned_items: [
-      {
-        returned_drug_id: "d5",
-        returned_drug_name: "Ibuprofen 400mg Tablet",
-        returned_unit_price: 1200,
-        returned_quantity: 1,
-        return_subtotal: 1200,
-        return_reason: "PHYSICIAN_CHANGE",
-        reason_notes: "Doctor changed from NSAID to Paracetamol.",
-        drug_condition: "INTACT_RESELLABLE",
-        restock_to_inventory: true,
-      },
-    ],
-    replacement_items: [
-      {
-        replacement_drug_id: "d6",
-        replacement_drug_name: "Paracetamol Extra 500mg",
-        replacement_unit_price: 1200,
-        replacement_quantity: 1,
-        replacement_subtotal: 1200,
-        batch_number: "PCM-EX-2026",
-        expiry_date: "2028-02-28",
-      },
-    ],
-    total_returned_value: 1200,
-    total_replacement_cost: 1200,
-    balance_difference: 0, // Even Exchange
-    settlement_status: "EVEN_EXCHANGE",
-    payment_method: "NONE",
-    pharmacist_name: "Dr. Halimat Suleiman",
-    pharmacy_unit_name: "NHIS Point",
-    remarks: "Exact cost match exchange.",
-    created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-  },
-];
+const INITIAL_DEMO_EXCHANGES: DrugExchangeRecord[] = [];
 
 export function getStoredExchanges(): DrugExchangeRecord[] {
-  if (typeof window === "undefined") return INITIAL_DEMO_EXCHANGES;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_EXCHANGES));
-      return INITIAL_DEMO_EXCHANGES;
+      return [];
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Filter out old demo seed IDs if present
+    const cleaned = parsed.filter(
+      (r: DrugExchangeRecord) => !["exc-001", "exc-002", "exc-003"].includes(r.id)
+    );
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
-    return INITIAL_DEMO_EXCHANGES;
+    return [];
   }
 }
 
@@ -443,3 +322,7 @@ export async function processDrugExchange(
     data: newRecord,
   };
 }
+
+export type DrugExchangePayload = CreateDrugExchangePayload;
+export const processDrugExchangeTransaction = processDrugExchange;
+export const generateExchangeReference = generateExchangeCode;

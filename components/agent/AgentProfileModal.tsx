@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import ChartWatermark from "@/components/shared/ChartWatermark";
 import { BRAND_PRIMARY_CHART_COLOR } from "@/libs/brand";
 import { formatDateTime, formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/shared/StatusPill";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   CartesianGrid,
   Line,
@@ -35,12 +37,30 @@ function AgentProfileModal({
   agent: AgentProfile;
   onClose: () => void;
 }) {
+  useScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const trend = agent.revenueTrend ?? [];
   const patients = agent.topPatients ?? [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40">
-      <div className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl dark:bg-panel">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-start justify-end bg-black/50 backdrop-blur-xs overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="h-full w-full max-w-4xl overflow-y-auto bg-white shadow-2xl dark:bg-panel"
+      >
         <div className="flex items-center justify-between border-b border-gray-200 p-5 dark:border-line-subtle">
           <div>
             <h2 className="text-xl font-bold dark:text-slate-100">

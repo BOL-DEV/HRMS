@@ -1,8 +1,9 @@
 "use client";
 
 import { CreateFoAgentPayload } from "@/libs/type";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { FiEye, FiEyeOff, FiX } from "react-icons/fi";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Props = {
   isSubmitting?: boolean;
@@ -15,6 +16,16 @@ function CreateAgentModal({
   onClose,
   onSubmit,
 }: Props) {
+  useScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSubmitting, onClose]);
+
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState<CreateFoAgentPayload>({
     first_name: "",
@@ -40,8 +51,16 @@ function CreateAgentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
+      >
         <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5 dark:border-line-subtle">
           <div>
             <h3 className="text-lg font-bold dark:text-slate-100">

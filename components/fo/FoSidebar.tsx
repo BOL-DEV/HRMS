@@ -196,7 +196,12 @@ const FoSidebar = () => {
         />
       )}
 
-      <Sidebar title={sidebarData.title} links={links} isOpen={isOpen} />
+      <Sidebar
+        title={sidebarData.title}
+        links={links}
+        isOpen={isOpen}
+        isLoading={profileQuery.isLoading && !profileQuery.data}
+      />
 
       {isOpen ? (
         <div

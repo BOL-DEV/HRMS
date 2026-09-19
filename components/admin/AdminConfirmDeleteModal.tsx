@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { FiAlertTriangle, FiX } from "react-icons/fi";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Props = {
   title: string;
@@ -19,9 +21,27 @@ function AdminConfirmDeleteModal({
   onClose,
   onConfirm,
 }: Props) {
+  useScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isConfirming) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isConfirming, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-line-subtle bg-panel shadow-2xl">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isConfirming) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-line-subtle bg-panel shadow-2xl"
+      >
         <div className="flex items-start justify-between gap-4 border-b border-line-subtle p-5">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-red-100 p-2 text-red-600 dark:bg-red-500/10 dark:text-red-300">

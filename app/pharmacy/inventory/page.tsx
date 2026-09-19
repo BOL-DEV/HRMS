@@ -6,6 +6,7 @@ import ConfirmModal from "@/components/shared/ConfirmModal";
 import { formatCurrency, formatDateTime, formatDate } from "@/libs/helper";
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiChevronLeft, FiChevronRight, FiFolderPlus, FiActivity, FiSend } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ import {
   addPharmacyStoreStock,
   updatePharmacyPointItem,
   createPharmacyTransfer,
+  dispatchPharmacyStoreTransfer,
   getPharmacyUnits,
   BackendDrugItem,
   PharmacyCategory,
@@ -111,6 +113,17 @@ export default function PharmacyInventoryPage() {
   const unitsList = React.useMemo(() => {
     return unitsQuery.data?.data || [];
   }, [unitsQuery.data]);
+
+  const isViewingStore = React.useMemo(() => {
+    if (!isStoreManager) return false;
+    if (!selectedUnitFilter) return true;
+    const unit = unitsList.find((u: any) => u.id === selectedUnitFilter);
+    return unit ? unit.type === "store" : true;
+  }, [isStoreManager, selectedUnitFilter, unitsList]);
+
+  const selectedPointUnit = React.useMemo(() => {
+    return unitsList.find((u: any) => u.id === selectedUnitFilter);
+  }, [unitsList, selectedUnitFilter]);
 
   const targetUnitId = React.useMemo(() => {
     if (isStoreManager) {
@@ -276,6 +289,95 @@ export default function PharmacyInventoryPage() {
     requestRestockMutation.mutate(payload);
   };
 
+  // Transfer to Point states (Store Manager -> Filtered Point)
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [transferDrugItem, setTransferDrugItem] = useState<BackendDrugItem | null>(null);
+  const [transferStoreItem, setTransferStoreItem] = useState<BackendDrugItem | null>(null);
+  const [transferQty, setTransferQty] = useState("");
+  const [transferRemarks, setTransferRemarks] = useState("");
+  const [isLoadingStoreDrug, setIsLoadingStoreDrug] = useState(false);
+
+  const transferMutation = useMutation({
+    mutationFn: async (payload: {
+      to_unit_id: string;
+      remarks?: string;
+      items: Array<{ source_pharmacy_item_id: string; quantity: number }>;
+    }) => {
+      try {
+        return await dispatchPharmacyStoreTransfer(payload);
+      } catch {
+        return await createPharmacyTransfer(payload);
+      }
+    },
+    onSuccess: () => {
+      const pointName = selectedPointUnit?.name || "pharmacy point";
+      toast.success(`Stock transferred to ${pointName} successfully.`);
+      setIsTransferModalOpen(false);
+      setTransferDrugItem(null);
+      setTransferStoreItem(null);
+      setTransferQty("");
+      setTransferRemarks("");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-transfers"] });
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-store-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-point-dashboard"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to transfer stock.");
+    },
+  });
+
+  const handleOpenTransferModal = async (item: BackendDrugItem) => {
+    setTransferDrugItem(item);
+    setTransferStoreItem(null);
+    setTransferQty("");
+    setTransferRemarks("");
+    setIsTransferModalOpen(true);
+    setIsLoadingStoreDrug(true);
+    try {
+      const res = await getPharmacyStoreInventory({ search: item.name, limit: 10 });
+      const unwrapped = unwrapPharmacyData<any>(res, { items: [] });
+      const list = Array.isArray(unwrapped)
+        ? unwrapped
+        : Array.isArray(unwrapped.items)
+        ? unwrapped.items
+        : [];
+      const match = list.find((d: any) => d.name?.toLowerCase() === item.name?.toLowerCase()) || list[0] || null;
+      setTransferStoreItem(match);
+    } catch (err) {
+      console.error("Failed to load central store item stock", err);
+    } finally {
+      setIsLoadingStoreDrug(false);
+    }
+  };
+
+  const handleTransferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferDrugItem || !selectedUnitFilter) return;
+    const qty = Number(transferQty);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid positive quantity.");
+      return;
+    }
+    if (transferStoreItem && qty > Number(transferStoreItem.stock)) {
+      toast.error(
+        `Quantity (${qty}) exceeds available Central Store stock (${transferStoreItem.stock}).`
+      );
+      return;
+    }
+
+    transferMutation.mutate({
+      to_unit_id: selectedUnitFilter,
+      remarks: transferRemarks.trim() || undefined,
+      items: [
+        {
+          source_pharmacy_item_id: transferStoreItem?.id || transferDrugItem.id,
+          quantity: qty,
+        },
+      ],
+    });
+  };
+
   // Category Creation Inline State
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -284,6 +386,37 @@ export default function PharmacyInventoryPage() {
   const [editingCategoryName, setEditingCategoryName] = useState("");
   const [deletingDrugItem, setDeletingDrugItem] = useState<{ id: string; name: string } | null>(null);
   const [deletingCategoryItem, setDeletingCategoryItem] = useState<{ id: string; name: string } | null>(null);
+
+  const isAnyModalOpen = Boolean(
+    isModalOpen ||
+    isCategoryManagerOpen ||
+    isRestockModalOpen ||
+    isHistoryOpen ||
+    isRequestModalOpen ||
+    isTransferModalOpen ||
+    deletingDrugItem ||
+    deletingCategoryItem
+  );
+
+  useScrollLock(isAnyModalOpen);
+
+  useEffect(() => {
+    if (!isAnyModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+        setIsCategoryManagerOpen(false);
+        setIsRestockModalOpen(false);
+        setIsHistoryOpen(false);
+        setIsRequestModalOpen(false);
+        setIsTransferModalOpen(false);
+        setDeletingDrugItem(null);
+        setDeletingCategoryItem(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAnyModalOpen]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -718,6 +851,28 @@ export default function PharmacyInventoryPage() {
           </div>
         </div>
 
+        {/* Dispensary Point Inventory Information Banner */}
+        {isStoreManager && !isViewingStore && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-150 bg-indigo-50/70 p-4 text-xs text-indigo-950 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                <FiSend className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">
+                  {selectedPointUnit?.name || "Dispensary Point"} Inventory
+                </p>
+                <p className="mt-0.5 text-indigo-800/80 dark:text-indigo-300/80">
+                  Click <strong>Transfer to</strong> on any formulation to transfer available stock directly from the Central Store to this dispensary point.
+                </p>
+              </div>
+            </div>
+            <span className="shrink-0 inline-flex items-center rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-bold text-indigo-700 dark:border-indigo-800 dark:bg-slate-900 dark:text-indigo-300">
+              Point Dispensary
+            </span>
+          </div>
+        )}
+
         {/* Inventory List */}
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
@@ -787,8 +942,8 @@ export default function PharmacyInventoryPage() {
                               <span>Audit</span>
                             </button>
 
-                            {/* Store Manager Restock Button */}
-                            {isStoreManager && (
+                            {/* Store Manager Direct Restock Button (Only visible on Central Store Warehouse) */}
+                            {isViewingStore && (
                               <button
                                 onClick={() => handleOpenRestockModal(item)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/50 transition"
@@ -796,6 +951,18 @@ export default function PharmacyInventoryPage() {
                               >
                                 <FiPlus className="h-3.5 w-3.5" />
                                 <span>Restock</span>
+                              </button>
+                            )}
+
+                            {/* Store Manager Transfer to Point Button (When filtering by Pharmacy Point) */}
+                            {isStoreManager && !isViewingStore && (
+                              <button
+                                onClick={() => handleOpenTransferModal(item)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50/70 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-900/50 transition"
+                                title={`Transfer stock from Central Store to ${selectedPointUnit?.name || "Point"}`}
+                              >
+                                <FiSend className="h-3.5 w-3.5" />
+                                <span>Transfer to</span>
                               </button>
                             )}
 
@@ -869,8 +1036,16 @@ export default function PharmacyInventoryPage() {
 
       {/* Add / Edit Modal */}
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs overflow-y-auto">
-          <div className="my-8 w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-950 dark:text-white">
                 {editingDrug ? "Edit Formulation Details" : "Add New Formulation"}
@@ -1128,8 +1303,16 @@ export default function PharmacyInventoryPage() {
       ) : null}
 
       {isRestockModalOpen && restockItem ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs overflow-y-auto">
-          <div className="my-8 w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsRestockModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-950 dark:text-white">
                 Restock Formulation
@@ -1211,8 +1394,16 @@ export default function PharmacyInventoryPage() {
       ) : null}
 
       {isCategoryManagerOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsCategoryManagerOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
               <div>
                 <h3 className="text-lg font-bold text-slate-950 dark:text-white">Drug Categories</h3>
@@ -1326,8 +1517,16 @@ export default function PharmacyInventoryPage() {
 
       {/* Audit History Drawer */}
       {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/55 backdrop-blur-xs">
-          <div className="w-full max-w-2xl h-screen bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl flex flex-col animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsHistoryOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex justify-end bg-black/55 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl h-screen bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl flex flex-col animate-fade-in-slide"
+          >
                 {/* Drawer Header */}
                 <div className="p-6 border-b border-gray-150 dark:border-slate-800 flex items-start justify-between">
                   <div>
@@ -1535,8 +1734,18 @@ export default function PharmacyInventoryPage() {
 
       {/* Request Restock Modal */}
       {isRequestModalOpen && requestItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !requestRestockMutation.isPending) {
+              setIsRequestModalOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 Request Restock from Store
@@ -1603,6 +1812,138 @@ export default function PharmacyInventoryPage() {
                   className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm disabled:opacity-50"
                 >
                   {requestRestockMutation.isPending ? "Submitting..." : "Submit Request"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer to Dispensary Point Modal (Store Manager -> Point) */}
+      {isTransferModalOpen && transferDrugItem && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !transferMutation.isPending) {
+              setIsTransferModalOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800"
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-gray-150 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                  <FiSend className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    Transfer Stock to {selectedPointUnit?.name || "Dispensary Point"}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Move inventory directly from Central Store to this dispensary point
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsTransferModalOpen(false)}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleTransferSubmit} className="mt-5 space-y-4">
+              <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      {transferDrugItem.name}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {transferDrugItem.generic_name || transferDrugItem.category_name}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">
+                    {selectedPointUnit?.name || "Point"}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg border border-gray-200/80 bg-white p-2.5 dark:border-slate-700/80 dark:bg-slate-900">
+                    <span className="text-gray-500 dark:text-slate-400 block text-[11px] font-medium">
+                      Central Store Stock:
+                    </span>
+                    {isLoadingStoreDrug ? (
+                      <span className="font-semibold text-gray-400">Loading...</span>
+                    ) : (
+                      <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                        {transferStoreItem?.stock != null ? transferStoreItem.stock : "Available in Store"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-gray-200/80 bg-white p-2.5 dark:border-slate-700/80 dark:bg-slate-900">
+                    <span className="text-gray-500 dark:text-slate-400 block text-[11px] font-medium">
+                      Current Point Stock:
+                    </span>
+                    <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                      {transferDrugItem.stock}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Transfer Quantity <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={transferStoreItem?.stock != null ? transferStoreItem.stock : undefined}
+                  value={transferQty}
+                  onChange={(e) => setTransferQty(e.target.value)}
+                  placeholder="Enter quantity to transfer..."
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                  required
+                />
+                {transferStoreItem?.stock != null && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Available in Central Store: <strong>{transferStoreItem.stock}</strong> units
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                  Transfer Remarks / Notes
+                </label>
+                <textarea
+                  value={transferRemarks}
+                  onChange={(e) => setTransferRemarks(e.target.value)}
+                  placeholder="Optional remarks, transfer batch or dispatch notes..."
+                  rows={2}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-indigo-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsTransferModalOpen(false)}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={transferMutation.isPending || (transferStoreItem?.stock != null && transferStoreItem.stock <= 0)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 shadow-sm disabled:opacity-50 transition"
+                >
+                  <FiSend className="h-4 w-4" />
+                  {transferMutation.isPending ? "Transferring..." : "Confirm & Transfer"}
                 </button>
               </div>
             </form>

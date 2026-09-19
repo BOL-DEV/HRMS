@@ -79,7 +79,7 @@ const PharmacySidebar = () => {
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
   const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
 
-  const { data: profileResponse } = useQuery({
+  const { data: profileResponse, isLoading: isProfileLoading } = useQuery({
     queryKey: ["pharmacy-profile-sidebar", decoded?.role],
     queryFn: async () => {
       if (decoded?.role === "PHARMACY_STORE") {
@@ -92,9 +92,17 @@ const PharmacySidebar = () => {
     refetchOnWindowFocus: false,
   });
 
-  const activeModules = profileResponse?.data?.modules;
+  const userRole =
+    (profileResponse?.data?.role as string) ||
+    (decoded?.role as string) ||
+    (decoded?.user?.role as string) ||
+    (decoded?.data?.role as string) ||
+    "";
 
-  const userRole = (profileResponse?.data?.role as string) || (decoded?.role as string);
+  const jwtModules = decoded?.modules || decoded?.user?.modules || decoded?.data?.modules;
+  const activeModules =
+    profileResponse?.data?.modules ||
+    (Array.isArray(jwtModules) && jwtModules.length > 0 ? jwtModules : undefined);
 
   const links = useMemo(() => {
     return sidebarData.links
@@ -110,10 +118,12 @@ const PharmacySidebar = () => {
           }
         }
 
-        const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
+        const isPlatformAdmin =
+          (profileResponse?.data?.role as string) === "PLATFORM_ADMIN" ||
+          (decoded?.role as string) === "PLATFORM_ADMIN";
         if (isPlatformAdmin) return true;
 
-        // If modules array is not yet loaded or empty [], grant default access for the role
+        // If modules array is not yet loaded, grant default access if store, or check modules if point
         if (!activeModules || !Array.isArray(activeModules) || activeModules.length === 0) {
           return true;
         }
@@ -140,10 +150,13 @@ const PharmacySidebar = () => {
         ...link,
         active: pathname === link.link,
       }));
-  }, [pathname, activeModules, profileResponse, userRole]);
+  }, [pathname, activeModules, profileResponse, userRole, decoded]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);
+
+  // Show skeleton if unmounted or if profile query is loading for the first time
+  const isSidebarLoading = !mounted || (isProfileLoading && !profileResponse && !jwtModules);
 
   return (
     <div className="relative">
@@ -155,7 +168,12 @@ const PharmacySidebar = () => {
         {isOpen ? <CloseIcon /> : <RxHamburgerMenu />}
       </button>
 
-      <Sidebar title={sidebarData.title} links={mounted ? links : []} isOpen={isOpen} />
+      <Sidebar
+        title={sidebarData.title}
+        links={links}
+        isOpen={isOpen}
+        isLoading={isSidebarLoading}
+      />
 
       {isOpen ? (
         <div

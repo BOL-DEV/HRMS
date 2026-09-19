@@ -20,6 +20,7 @@ import {
   FiRotateCcw,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +38,7 @@ import {
   updatePharmacyTransferStatus,
   BackendDrugItem,
   PharmacyTransferItem,
+  PharmacyUnitItem,
   GetPharmacyInventoryResponse,
   unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
@@ -72,6 +74,23 @@ export default function PharmacyTransfersPage() {
   const [approvingTransfer, setApprovingTransfer] = useState<PharmacyTransferItem | null>(null);
   const [approvalQuantities, setApprovalQuantities] = useState<Record<string, number>>({});
   const [rejectingTransferId, setRejectingTransferId] = useState<string | null>(null);
+
+  const isAnyModalOpen = Boolean(isModalOpen || approvingTransfer || rejectingTransferId);
+  useScrollLock(isAnyModalOpen);
+
+  useEffect(() => {
+    if (!isAnyModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+        setApprovingTransfer(null);
+        setApprovalQuantities({});
+        setRejectingTransferId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isAnyModalOpen]);
 
   const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
   const isStoreManager = decoded?.role === "PHARMACY_STORE";
@@ -187,24 +206,17 @@ export default function PharmacyTransfersPage() {
     return [];
   }, [transfersQuery.data]);
 
-  // Mutation: Create Multi-Drug Transfer
+  // Mutation: Create Restock Request (Point Pharmacist)
   const createTransferMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      if (isStoreManager) {
-        return await dispatchPharmacyStoreTransfer({
-          to_unit_id: payload.to_unit_id,
-          remarks: payload.remarks,
-          items: payload.items,
-        });
-      }
+    mutationFn: async (payload: {
+      to_unit_id: string;
+      remarks?: string;
+      items: Array<{ source_pharmacy_item_id: string; quantity: number }>;
+    }) => {
       return await createPharmacyTransfer(payload);
     },
     onSuccess: () => {
-      toast.success(
-        isStoreManager
-          ? "Stock dispatched to branch point successfully."
-          : "Restock request submitted to central store."
-      );
+      toast.success("Restock request submitted to central store.");
       setIsModalOpen(false);
       setSelectedPointId("");
       setRemarks("");
@@ -215,7 +227,7 @@ export default function PharmacyTransfersPage() {
       queryClient.invalidateQueries({ queryKey: ["pharmacy-point-dashboard"] });
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Failed to initiate transfer.");
+      toast.error(err instanceof Error ? err.message : "Failed to submit restock request.");
     },
   });
 
@@ -230,7 +242,7 @@ export default function PharmacyTransfersPage() {
         | {
             action: "approve" | "reject";
             quantity?: number;
-            items?: Array<{ id: string; quantity: number }>;
+            items?: Array<{ transfer_item_id?: string; id?: string; quantity: number }>;
           }
         | "approve"
         | "reject";
@@ -271,9 +283,6 @@ export default function PharmacyTransfersPage() {
   }, [modalUnits, isModalOpen, selectedPointId]);
 
   const handleOpenModal = () => {
-    if (modalUnits.length > 0) {
-      setSelectedPointId(modalUnits[0].id);
-    }
     setRemarks("");
     setDispatchItems([{ drug: null, quantity: "" }]);
     setIsModalOpen(true);
@@ -310,32 +319,14 @@ export default function PharmacyTransfersPage() {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedPointId) {
-      toast.error(isStoreManager ? "Please select a destination point." : "Please select a target store.");
-      return;
-    }
-
     const validItems = dispatchItems.filter((row) => row.drug && Number(row.quantity) > 0);
     if (validItems.length === 0) {
       toast.error("Please select at least one drug formulation with a valid quantity.");
       return;
     }
 
-    // Validate quantities against available stock when store manager is dispatching
-    if (isStoreManager) {
-      for (const row of validItems) {
-        if (row.drug && Number(row.quantity) > Number(row.drug.stock)) {
-          toast.error(
-            `Quantity for "${row.drug.name}" (${row.quantity}) exceeds available stock (${row.drug.stock}).`
-          );
-          return;
-        }
-      }
-    }
-
     const payload = {
-      from_unit_id: isStoreManager ? activeUnitId : selectedPointId,
-      to_unit_id: isStoreManager ? selectedPointId : activeUnitId,
+      to_unit_id: activeUnitId,
       remarks: remarks.trim() || undefined,
       items: validItems.map((row) => ({
         source_pharmacy_item_id: row.drug!.id,
@@ -368,7 +359,7 @@ export default function PharmacyTransfersPage() {
     const itemsPayload = (approvingTransfer.items || []).map((it: any) => {
       const q = approvalQuantities[it.id] !== undefined ? approvalQuantities[it.id] : (it.quantity ?? it.qty ?? 1);
       return {
-        id: it.id,
+        transfer_item_id: it.id,
         quantity: Math.max(1, Number(q)),
       };
     });
@@ -399,25 +390,37 @@ export default function PharmacyTransfersPage() {
     <div className="min-h-screen w-full bg-gray-50 dark:bg-canvas">
       <Header
         title="Stock Transfers"
-        Subtitle="Manage branch stock replenishment and central store transfers"
+        Subtitle={
+          isStoreManager
+            ? "Review, approve, and dispatch incoming restock requests from dispensary points"
+            : "Manage branch stock replenishment and central store transfers"
+        }
       />
 
       <div className="space-y-6 p-6">
         {/* Header Block */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Transfers Ledger</h1>
-            <p className="text-sm text-gray-500">Track and dispatch drug transfers across hospital pharmacy points.</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              {isStoreManager ? "Inbound Transfers Approval Ledger" : "Transfers Ledger"}
+            </h1>
+            <p className="text-sm text-gray-500">
+              {isStoreManager
+                ? "Review and approve stock transfer requests submitted by dispensary points."
+                : "Track and submit restock requests across hospital pharmacy points."}
+            </p>
           </div>
-          <div>
-            <button
-              onClick={handleOpenModal}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
-            >
-              <FiPlus />
-              {isStoreManager ? "Dispatch Stock" : "Request Restock"}
-            </button>
-          </div>
+          {!isStoreManager && (
+            <div>
+              <button
+                onClick={handleOpenModal}
+                className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm"
+              >
+                <FiPlus />
+                Request Restock
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filters & Tabs Card */}
@@ -624,19 +627,27 @@ export default function PharmacyTransfersPage() {
         )}
       </div>
 
-      {/* Multi-Drug Dispatch / Restock Request Modal */}
+      {/* Restock Request Modal (Point Pharmacist -> Central Store) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="my-8 w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !createTransferMutation.isPending) {
+              setIsModalOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800 animate-fade-in-slide"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">
-                  {isStoreManager ? "Dispatch Stock to Pharmacy Point" : "Request Restock from Central Store"}
+                  Request Restock from Central Store
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {isStoreManager
-                    ? "Transfer multiple formulations from central warehouse to a dispensary point."
-                    : "Submit a bulk restock request to replenish formulations from central warehouse."}
+                  Submit a bulk restock request to replenish formulations from the Central Store Warehouse.
                 </p>
               </div>
               <button
@@ -648,33 +659,31 @@ export default function PharmacyTransfersPage() {
             </div>
 
             <form onSubmit={handleFormSubmit} className="mt-5 space-y-5">
-              {/* Destination Point Selector */}
-              <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                  {isStoreManager ? "Destination Pharmacy Point *" : "Source Central Store *"}
-                </label>
-                <select
-                  required
-                  value={selectedPointId}
-                  onChange={(e) => setSelectedPointId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
-                >
-                  <option value="">
-                    {isStoreManager ? "-- Select Destination Point --" : "-- Select Central Store --"}
-                  </option>
-                  {modalUnits.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Informational Destination Banner */}
+              <div className="rounded-2xl bg-brand-50/60 p-3.5 border border-brand-100 dark:bg-brand-950/20 dark:border-brand-900/30 flex items-center justify-between text-xs">
+                <div>
+                  <span className="font-semibold text-brand-700 dark:text-brand-300 uppercase tracking-wider block text-[10px]">
+                    Source Warehouse
+                  </span>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                    Central Store Warehouse
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="font-semibold text-brand-700 dark:text-brand-300 uppercase tracking-wider block text-[10px]">
+                    Destination Unit
+                  </span>
+                  <p className="font-bold text-slate-900 dark:text-slate-100 mt-0.5">
+                    {profile?.pharmacy_unit?.name || "Current Pharmacy Point"}
+                  </p>
+                </div>
               </div>
 
               {/* Multi-Drug Rows */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider">
-                    Formulations to Dispatch ({dispatchItems.length})
+                    Formulations to Request ({dispatchItems.length})
                   </label>
                   <button
                     type="button"
@@ -695,7 +704,6 @@ export default function PharmacyTransfersPage() {
                       {/* Searchable Combobox */}
                       <div className="flex-1">
                         <DrugSearchCombobox
-                          isStore={isStoreManager}
                           selectedDrug={item.drug}
                           onSelectDrug={(drug) => handleSelectDrug(index, drug)}
                         />
@@ -706,7 +714,6 @@ export default function PharmacyTransfersPage() {
                         <input
                           type="number"
                           min="1"
-                          max={isStoreManager && item.drug ? item.drug.stock : undefined}
                           placeholder="Qty"
                           value={item.quantity}
                           disabled={!item.drug}
@@ -716,7 +723,7 @@ export default function PharmacyTransfersPage() {
                         />
                         {item.drug && (
                           <span className="block text-[10px] text-gray-500 text-center mt-1">
-                            Avail: <strong>{item.drug.stock}</strong>
+                            Store Stock: <strong>{item.drug.stock}</strong>
                           </span>
                         )}
                       </div>
@@ -740,12 +747,12 @@ export default function PharmacyTransfersPage() {
               {/* Remarks */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                  Remarks / Dispatch Notes (Optional)
+                  Remarks / Restock Notes (Optional)
                 </label>
                 <textarea
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="e.g. Urgent restock for emergency ward..."
+                  placeholder="e.g. Weekly restocking for emergency & inpatient dispensary..."
                   rows={2}
                   className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-brand-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
                 />
@@ -764,11 +771,7 @@ export default function PharmacyTransfersPage() {
                   disabled={createTransferMutation.isPending}
                   className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-6 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-sm disabled:opacity-50"
                 >
-                  {createTransferMutation.isPending
-                    ? "Dispatching..."
-                    : isStoreManager
-                    ? "Dispatch Stock"
-                    : "Submit Request"}
+                  {createTransferMutation.isPending ? "Submitting..." : "Submit Restock Request"}
                 </button>
               </div>
             </form>
@@ -778,8 +781,19 @@ export default function PharmacyTransfersPage() {
 
       {/* Restock Approval Modal */}
       {approvingTransfer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-          <div className="my-8 w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !updateStatusMutation.isPending) {
+              setApprovingTransfer(null);
+              setApprovalQuantities({});
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-900 border border-gray-150 dark:border-slate-800 animate-fade-in-slide"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-slate-800">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -936,15 +950,13 @@ export default function PharmacyTransfersPage() {
   );
 }
 
-// Subcomponent: Live Search Combobox for Drug Formulations
+// Subcomponent: Live Search Combobox for Drug Formulations from Central Store
 function DrugSearchCombobox({
   selectedDrug,
   onSelectDrug,
-  isStore,
 }: {
   selectedDrug: BackendDrugItem | null;
   onSelectDrug: (drug: BackendDrugItem | null) => void;
-  isStore?: boolean;
 }) {
   const [query, setQuery] = useState(selectedDrug ? selectedDrug.name : "");
   const [results, setResults] = useState<BackendDrugItem[]>([]);
@@ -979,12 +991,7 @@ function DrugSearchCombobox({
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        let res: any;
-        if (isStore) {
-          res = await getPharmacyStoreInventory({ search: query, limit: 12 });
-        } else {
-          res = await getPharmacyInventory({ search: query, limit: 12 });
-        }
+        const res = await getPharmacyStoreInventory({ search: query, limit: 12 });
         const unwrapped = unwrapPharmacyData<any>(res, { items: [] });
         const items = Array.isArray(unwrapped)
           ? unwrapped
@@ -1001,7 +1008,7 @@ function DrugSearchCombobox({
     }, 280);
 
     return () => clearTimeout(timer);
-  }, [query, isStore, selectedDrug]);
+  }, [query, selectedDrug]);
 
   return (
     <div ref={containerRef} className="relative">
