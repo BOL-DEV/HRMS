@@ -22,9 +22,12 @@ import { toast } from "react-hot-toast";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPharmacyInventory,
-  getPharmacyRequests,
   lookupPatientForPharmacy,
   getPharmacyWalkInPatient,
+  searchPharmacyHospitalPatients,
+  getPharmacyProfile,
+  getPharmacyRequests,
+  getPharmacyRequestById,
   unwrapPharmacyData,
   BackendDrugItem,
 } from "@/libs/pharmacy-api";
@@ -37,11 +40,13 @@ import {
   ExchangeReplacementItem,
   CreateDrugExchangePayload,
   DrugExchangePayload,
-  processDrugExchangeTransaction,
-  generateExchangeReference,
+  submitDrugExchange,
+  searchDrugExchangePatients,
+  getPatientDispensedDrugs,
+  DrugExchangePatient,
+  PatientDispensedDrugItem,
   RETURN_REASON_LABELS,
   DRUG_CONDITION_LABELS,
-  generateExchangeCode,
   DrugExchangeRecord,
 } from "@/libs/pharmacy-exchange";
 
@@ -62,6 +67,14 @@ export default function DrugExchangeModal({
 }: Props) {
   useScrollLock(isOpen);
 
+  // Pharmacy Profile to retrieve hospital_id
+  const { data: profileResponse } = useQuery({
+    queryKey: ["pharmacy-profile-exchange-modal"],
+    queryFn: getPharmacyProfile,
+    enabled: isOpen,
+  });
+  const hospitalId = profileResponse?.data?.hospital_id;
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,6 +90,7 @@ export default function DrugExchangeModal({
   // Patient Lookup State
   const [patientQuery, setPatientQuery] = useState("");
   const [isSearchingPatient, setIsSearchingPatient] = useState(false);
+  const [patientSearchResults, setPatientSearchResults] = useState<DrugExchangePatient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<{
     id: string;
     name: string;
@@ -84,8 +98,8 @@ export default function DrugExchangeModal({
     hospital_number?: string;
   } | null>(null);
 
-  // Dispense History State
-  const [patientDispenses, setPatientDispenses] = useState<any[]>([]);
+  // Dispensed Drugs State
+  const [dispensedDrugs, setDispensedDrugs] = useState<PatientDispensedDrugItem[]>([]);
   const [isLoadingDispenses, setIsLoadingDispenses] = useState(false);
   const [selectedBillCode, setSelectedBillCode] = useState<string>("");
 
@@ -97,8 +111,8 @@ export default function DrugExchangeModal({
   const [manualDrugName, setManualDrugName] = useState("");
   const [manualUnitPrice, setManualUnitPrice] = useState("");
   const [manualQty, setManualQty] = useState("1");
-  const [manualReason, setManualReason] = useState<ReturnReason>("PHYSICIAN_CHANGE");
-  const [manualCondition, setManualCondition] = useState<DrugCondition>("INTACT_RESELLABLE");
+  const [manualReason, setManualReason] = useState<ReturnReason>("ADVERSE_REACTION");
+  const [manualCondition, setManualCondition] = useState<DrugCondition>("sealed");
   const [manualNotes, setManualNotes] = useState("");
 
   // Exchange Type: "exchange" (Swap for replacement) or "return_only" (Refund / Credit)
@@ -129,14 +143,14 @@ export default function DrugExchangeModal({
     return unwrapped?.items ?? [];
   }, [inventoryData]);
 
-  // Financial Calculations (Hooks must be unconditional at top level)
+  // Financial Calculations
   const totalReturnValue = useMemo(() => {
-    return returnedItems.reduce((sum, item) => sum + item.return_subtotal, 0);
+    return returnedItems.reduce((sum, item) => sum + (item.return_subtotal || 0), 0);
   }, [returnedItems]);
 
   const totalReplacementCost = useMemo(() => {
     if (exchangeType === "return_only") return 0;
-    return replacementItems.reduce((sum, item) => sum + item.replacement_subtotal, 0);
+    return replacementItems.reduce((sum, item) => sum + (item.replacement_subtotal || 0), 0);
   }, [replacementItems, exchangeType]);
 
   const balanceDifference = useMemo(() => {
@@ -149,7 +163,8 @@ export default function DrugExchangeModal({
       setStep(1);
       setPatientQuery("");
       setSelectedPatient(null);
-      setPatientDispenses([]);
+      setPatientSearchResults([]);
+      setDispensedDrugs([]);
       setSelectedBillCode("");
       setReturnedItems([]);
       setReplacementItems([]);
@@ -158,6 +173,30 @@ export default function DrugExchangeModal({
       setIsSubmitting(false);
     }
   }, [isOpen]);
+
+  // Fetch dispensed drugs whenever a patient is selected
+  const loadPatientDispensedHistory = async (patientId: string) => {
+    setIsLoadingDispenses(true);
+    try {
+      const res = await getPatientDispensedDrugs(patientId);
+      const items = res.data?.items ?? [];
+      setDispensedDrugs(items);
+      if (items.length > 0 && items[0].billing_code) {
+        setSelectedBillCode(items[0].billing_code);
+      }
+    } catch {
+      setDispensedDrugs([]);
+    } finally {
+      setIsLoadingDispenses(false);
+    }
+  };
+
+  const handleSelectPatient = (patient: { id: string; name: string; phone: string; hospital_number?: string }) => {
+    setSelectedPatient(patient);
+    setPatientSearchResults([]);
+    loadPatientDispensedHistory(patient.id);
+    toast.success(`Selected patient: ${patient.name}`);
+  };
 
   // Handle Patient Search (PID, Hospital Number, Name, Phone, or Billing Code)
   const handleSearchPatient = async (e?: React.FormEvent) => {
@@ -169,114 +208,214 @@ export default function DrugExchangeModal({
     }
 
     setIsSearchingPatient(true);
-    setIsLoadingDispenses(true);
-    try {
-      let matchedPatient: {
-        id: string;
-        name: string;
-        phone: string;
-        hospital_number?: string;
-      } | null = null;
+    setPatientSearchResults([]);
 
-      // 1. First, try the existing Patient Lookup endpoint: GET /api/pharmacy/patients/:patient_id
+    try {
+      // Step A: Check if query matches a Billing Code or Dispense Request Code
+      try {
+        const dispensedRes = await getPatientDispensedDrugs("", q);
+        const items = dispensedRes.data?.items ?? [];
+        if (items.length > 0) {
+          const first = items[0];
+          const detectedPatient = {
+            id: first.patient_id || q,
+            name: first.patient_name || `Patient (${first.patient_id || q})`,
+            phone: first.phone_number || "",
+          };
+          setSelectedPatient(detectedPatient);
+          setDispensedDrugs(items);
+          setSelectedBillCode(first.billing_code || q);
+          toast.success(`Found ${items.length} dispensed medication(s) for bill ${q}`);
+          setIsSearchingPatient(false);
+          return;
+        }
+      } catch {
+        // continue
+      }
+
+      // Check Pharmacy Requests by Billing Code or ID
+      try {
+        let matchedReq: any = null;
+        try {
+          const directReq = await getPharmacyRequestById(q);
+          matchedReq = (directReq as any)?.data || directReq;
+        } catch {
+          const listReq = await getPharmacyRequests({ limit: 50 });
+          const rawList: any[] = (listReq as any)?.data?.requests || (listReq as any)?.data?.items || (listReq as any)?.requests || (Array.isArray(listReq) ? listReq : []);
+          matchedReq = rawList.find(
+            (r) =>
+              r.billing_code?.toUpperCase() === q.toUpperCase() ||
+              r.id === q ||
+              r.patient_id === q
+          );
+        }
+
+        if (matchedReq && matchedReq.patient_name) {
+          const reqItems = (matchedReq.items || []).map((it: any) => ({
+            request_id: matchedReq.id,
+            billing_code: matchedReq.billing_code || q,
+            dispensed_at: matchedReq.created_at || new Date().toISOString(),
+            patient_id: matchedReq.patient_id || q,
+            patient_name: matchedReq.patient_name,
+            phone_number: matchedReq.phone_number || "",
+            pharmacy_request_item_id: it.id,
+            pharmacy_item_id: it.pharmacy_item_id,
+            drug_name: it.name || it.item_name || "Medication",
+            generic_name: "",
+            batch_number: "N/A",
+            expiry_date: "",
+            quantity_dispensed: Number(it.quantity || 1),
+            quantity_returned: 0,
+            available_to_return: Number(it.quantity || 1),
+            unit_price: Number(it.unit_price || (Number(it.amount || 0) / Number(it.quantity || 1))),
+            total_price: Number(it.amount || (Number(it.unit_price || 0) * Number(it.quantity || 1))),
+          }));
+
+          const detectedPatient = {
+            id: matchedReq.patient_id || q,
+            name: matchedReq.patient_name,
+            phone: matchedReq.phone_number || "",
+          };
+          setSelectedPatient(detectedPatient);
+          setDispensedDrugs(reqItems);
+          setSelectedBillCode(matchedReq.billing_code || q);
+          toast.success(`Found ${reqItems.length} medication(s) for bill ${matchedReq.billing_code || q}`);
+          setIsSearchingPatient(false);
+          return;
+        }
+      } catch {
+        // continue
+      }
+
+      // Step B: Search Drug Exchange Patients API
+      let exchangePatients: DrugExchangePatient[] = [];
+      try {
+        const searchRes = await searchDrugExchangePatients(q, 10);
+        exchangePatients = searchRes.data ?? [];
+      } catch {
+        // continue
+      }
+
+      if (exchangePatients.length > 0) {
+        setPatientSearchResults(exchangePatients);
+        if (exchangePatients.length === 1) {
+          const first = exchangePatients[0];
+          handleSelectPatient({
+            id: first.patient_id,
+            name: first.patient_name,
+            phone: first.phone_number,
+          });
+        }
+        setIsSearchingPatient(false);
+        return;
+      }
+
+      // Step C: Fallback to Hospital Patients search
+      if (hospitalId) {
+        try {
+          const hospRes = await searchPharmacyHospitalPatients(hospitalId, { query: q, limit: 10 });
+          const hospPatients = hospRes.data?.patients ?? [];
+          if (hospPatients.length > 0) {
+            const mapped = hospPatients.map((p) => ({
+              patient_id: p.patient_id,
+              patient_name: p.patient_name,
+              phone_number: p.phone_number,
+            }));
+            setPatientSearchResults(mapped);
+            if (mapped.length === 1) {
+              const first = mapped[0];
+              handleSelectPatient({
+                id: first.patient_id,
+                name: first.patient_name,
+                phone: first.phone_number,
+              });
+            }
+            setIsSearchingPatient(false);
+            return;
+          }
+        } catch {
+          // continue
+        }
+      }
+
+      // Step D: Fallback to Pharmacy Patient Lookup by ID
       try {
         const lookupRes = await lookupPatientForPharmacy(q);
-        const patientObj = (lookupRes as any)?.patient || (lookupRes as any)?.data?.patient || lookupRes;
-        if (patientObj && patientObj.patient_name) {
-          matchedPatient = {
+        const patientObj = (lookupRes as any)?.patient || (lookupRes as any)?.data?.patient;
+        if (lookupRes?.exists && patientObj && patientObj.patient_name) {
+          handleSelectPatient({
             id: patientObj.patient_id || q,
             name: patientObj.patient_name,
             phone: patientObj.phone_number || "",
-            hospital_number: (patientObj as any)?.hospital_number || (patientObj as any)?.patient_code || undefined,
-          };
+          });
+          setIsSearchingPatient(false);
+          return;
         }
       } catch {
-        // Fallback to walk-in if numeric/phone
+        // continue
       }
 
-      // 2. If not found by patient ID, try Walk-In endpoint: GET /api/pharmacy/walk-in/:phoneNumber
-      if (!matchedPatient && /^\d{8,14}$/.test(q)) {
+      // Step E: Fallback to Walk-In if numeric phone
+      if (/^\d{8,14}$/.test(q)) {
         try {
           const walkRes = await getPharmacyWalkInPatient(q);
           const walkData = (walkRes as any)?.data || walkRes;
           if (walkData?.patient_name) {
-            matchedPatient = {
+            handleSelectPatient({
               id: "WALK_IN",
               name: walkData.patient_name,
               phone: q,
-            };
+            });
+            setIsSearchingPatient(false);
+            return;
           }
         } catch {
-          // continue fallback
+          // continue
         }
       }
 
-      // 3. Query Dispense requests to find matching patient history & billing requests
-      let patientDispenseList: any[] = [];
+      // Step F: Check if query matches dispensed history directly
       try {
-        const requestsRes = await getPharmacyRequests({ status: "dispensed", limit: 30 });
-        const list = unwrapPharmacyData<any>(requestsRes, []);
-        const rawList = Array.isArray(list) ? list : list?.requests ?? list?.items ?? [];
-
-        // Check if query matches a specific billing code directly
-        const matchedByBillCode = rawList.filter(
-          (r: any) => r.billing_code?.toLowerCase() === q.toLowerCase()
-        );
-
-        if (matchedByBillCode.length > 0) {
-          patientDispenseList = matchedByBillCode;
-          const targetBill = matchedByBillCode[0];
-          if (!matchedPatient) {
-            matchedPatient = {
-              id: targetBill.patient_id || "WALK_IN",
-              name: targetBill.patient_name || "Patient",
-              phone: targetBill.phone_number || "",
-            };
-          }
-          setSelectedBillCode(targetBill.billing_code);
-        } else {
-          // Filter by patient ID, phone, or name
-          patientDispenseList = rawList.filter((r: any) => {
-            if (!r) return false;
-            const matchPid = matchedPatient?.id && r.patient_id?.toLowerCase() === matchedPatient.id.toLowerCase();
-            const matchPhone = (matchedPatient?.phone || q) && r.phone_number?.includes(matchedPatient?.phone || q);
-            const matchName = (matchedPatient?.name || q) && r.patient_name?.toLowerCase().includes((matchedPatient?.name || q).toLowerCase());
-            return matchPid || matchPhone || matchName;
-          });
-        }
-
-        // If patient not matched from API yet, but found in dispense history
-        if (!matchedPatient && patientDispenseList.length > 0) {
-          const first = patientDispenseList[0];
-          matchedPatient = {
-            id: first.patient_id || "PATIENT-RECORD",
-            name: first.patient_name || `Patient (${q})`,
-            phone: first.phone_number || (isDigitsOnly(q) ? q : ""),
+        const directDispense = await getPatientDispensedDrugs(q);
+        const directItems = directDispense.data?.items ?? [];
+        if (directItems.length > 0) {
+          const first = directItems[0];
+          const detected = {
+            id: first.patient_id || q,
+            name: first.patient_name || (isDigitsOnly(q) ? `Patient (${q})` : q),
+            phone: first.phone_number || "",
           };
+          setSelectedPatient(detected);
+          setDispensedDrugs(directItems);
+          if (first.billing_code) setSelectedBillCode(first.billing_code);
+          toast.success(`Found ${directItems.length} dispensed item(s)`);
+          setIsSearchingPatient(false);
+          return;
         }
       } catch {
-        patientDispenseList = [];
+        // continue
       }
 
-      // 4. Default fallback if patient is new or returning without digital history
-      if (!matchedPatient) {
-        matchedPatient = {
-          id: /^[a-zA-Z0-9_-]{3,20}$/.test(q) ? q : "WALK_IN",
-          name: isDigitsOnly(q) ? `Patient (${q})` : q,
-          phone: isDigitsOnly(q) ? q : "",
-        };
-        toast("No registered patient record found. Enter return details manually.");
-      } else {
-        toast.success(`Patient loaded: ${matchedPatient.name}`);
-      }
-
-      setSelectedPatient(matchedPatient);
-      setPatientDispenses(patientDispenseList);
+      // Step G: If no patient record found in database, initialize manual patient entry gracefully
+      const fallbackPatient = {
+        id: /^[a-zA-Z0-9_-]{3,20}$/.test(q) ? q : "WALK_IN",
+        name: isDigitsOnly(q) ? `Patient (${q})` : q,
+        phone: isDigitsOnly(q) ? q : "",
+      };
+      setSelectedPatient(fallbackPatient);
+      loadPatientDispensedHistory(fallbackPatient.id);
+      toast("No registered patient record found. You can enter return items manually below.");
     } catch {
-      toast.error("Could not complete patient search.");
+      const fallbackPatient = {
+        id: q || "WALK_IN",
+        name: isDigitsOnly(q) ? `Patient (${q})` : q,
+        phone: isDigitsOnly(q) ? q : "",
+      };
+      setSelectedPatient(fallbackPatient);
+      loadPatientDispensedHistory(fallbackPatient.id);
+      toast("Ready for manual return entry.");
     } finally {
       setIsSearchingPatient(false);
-      setIsLoadingDispenses(false);
     }
   };
 
@@ -285,28 +424,44 @@ export default function DrugExchangeModal({
   }
 
   // Add Item from Previous Dispense History
-  const handleSelectDispensedDrugToReturn = (bill: any, item: any) => {
-    const existing = returnedItems.find((it) => it.returned_drug_id === item.pharmacy_item_id);
+  const handleSelectDispensedDrugToReturn = (item: PatientDispensedDrugItem) => {
+    const existing = returnedItems.find(
+      (it) =>
+        (it.pharmacy_request_item_id && it.pharmacy_request_item_id === item.pharmacy_request_item_id) ||
+        it.pharmacy_item_id === item.pharmacy_item_id
+    );
     if (existing) {
-      toast("This item is already added to the return list.");
+      toast("This medication is already added to the return list.");
       return;
     }
 
-    const unitPrice = item.unit_price || 0;
+    const available = item.available_to_return ?? item.quantity_dispensed ?? 1;
+    if (available <= 0) {
+      toast.error("This medication has already been fully returned.");
+      return;
+    }
+
+    const unitPrice = Number(item.unit_price) || 0;
     const qty = 1;
     const newItem: ExchangeReturnedItem = {
-      returned_drug_id: item.pharmacy_item_id || item.id || `ret-${Date.now()}`,
-      returned_drug_name: item.name || item.item_name || "Dispensed Formulation",
+      pharmacy_request_item_id: item.pharmacy_request_item_id,
+      pharmacy_item_id: item.pharmacy_item_id,
+      returned_drug_id: item.pharmacy_item_id,
+      returned_drug_name: item.drug_name,
       returned_unit_price: unitPrice,
       returned_quantity: qty,
+      available_to_return: available,
       return_subtotal: unitPrice * qty,
-      return_reason: "PHYSICIAN_CHANGE",
-      drug_condition: "INTACT_RESELLABLE",
+      return_reason: "ADVERSE_REACTION",
+      drug_condition: "sealed",
       restock_to_inventory: true,
+      restock_inventory: true,
     };
 
     setReturnedItems((prev) => [...prev, newItem]);
-    setSelectedBillCode(bill.billing_code || bill.id);
+    if (item.billing_code) {
+      setSelectedBillCode(item.billing_code);
+    }
     toast.success(`Added "${newItem.returned_drug_name}" to return list.`);
   };
 
@@ -314,14 +469,16 @@ export default function DrugExchangeModal({
   const handleAddManualReturnItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualDrugName.trim() || !manualUnitPrice || Number(manualUnitPrice) <= 0) {
-      toast.error("Please enter a valid drug name and original purchase unit price.");
+      toast.error("Please enter a valid drug name and unit price.");
       return;
     }
 
     const price = Number(manualUnitPrice);
     const qty = Math.max(1, Number(manualQty) || 1);
+    const isSealedOrGood = manualCondition === "sealed" || manualCondition === "good";
     const newItem: ExchangeReturnedItem = {
-      returned_drug_id: `manual-ret-${Date.now()}`,
+      pharmacy_item_id: `manual-${Date.now()}`,
+      returned_drug_id: `manual-${Date.now()}`,
       returned_drug_name: manualDrugName.trim(),
       returned_unit_price: price,
       returned_quantity: qty,
@@ -329,7 +486,8 @@ export default function DrugExchangeModal({
       return_reason: manualReason,
       reason_notes: manualNotes.trim() || undefined,
       drug_condition: manualCondition,
-      restock_to_inventory: manualCondition === "INTACT_RESELLABLE",
+      restock_to_inventory: isSealedOrGood,
+      restock_inventory: isSealedOrGood,
     };
 
     setReturnedItems((prev) => [...prev, newItem]);
@@ -351,10 +509,12 @@ export default function DrugExchangeModal({
       const target = { ...updated[index], [field]: value };
 
       if (field === "returned_quantity" || field === "returned_unit_price") {
-        target.return_subtotal = target.returned_quantity * target.returned_unit_price;
+        target.return_subtotal = (target.returned_quantity || 1) * (target.returned_unit_price || 0);
       }
       if (field === "drug_condition") {
-        target.restock_to_inventory = value === "INTACT_RESELLABLE";
+        const isRestockable = value === "sealed" || value === "good" || value === "INTACT_RESELLABLE";
+        target.restock_to_inventory = isRestockable;
+        target.restock_inventory = isRestockable;
       }
 
       updated[index] = target;
@@ -383,6 +543,7 @@ export default function DrugExchangeModal({
 
     const price = selectedReplacementDrug.unit_price ?? 0;
     const newItem: ExchangeReplacementItem = {
+      pharmacy_item_id: selectedReplacementDrug.id,
       replacement_drug_id: selectedReplacementDrug.id,
       replacement_drug_name: selectedReplacementDrug.name,
       replacement_unit_price: price,
@@ -404,7 +565,7 @@ export default function DrugExchangeModal({
   };
 
   // Final Submit
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     if (!selectedPatient) {
       toast.error("Patient information is missing.");
       return;
@@ -423,33 +584,45 @@ export default function DrugExchangeModal({
     setIsSubmitting(true);
 
     const payload: CreateDrugExchangePayload = {
-      original_billing_code: selectedBillCode || undefined,
       patient_id: selectedPatient.id,
       patient_name: selectedPatient.name,
       phone_number: selectedPatient.phone,
       hospital_number: selectedPatient.hospital_number,
-      returned_items: returnedItems,
-      replacement_items: exchangeType === "exchange" ? replacementItems : [],
-      payment_method: balanceDifference > 0 ? paymentMethod : "NONE",
+      original_billing_code: selectedBillCode || undefined,
       remarks: generalRemarks.trim() || undefined,
+      returned_items: returnedItems.map((it) => ({
+        pharmacy_request_item_id: it.pharmacy_request_item_id || undefined,
+        pharmacy_item_id: it.pharmacy_item_id || it.returned_drug_id || "",
+        quantity: Number(it.returned_quantity || 1),
+        reason: it.return_reason || "ADVERSE_REACTION",
+        condition: it.drug_condition || "sealed",
+        unit_price: it.returned_unit_price != null ? Number(it.returned_unit_price) : undefined,
+        restock_inventory: it.restock_inventory ?? it.restock_to_inventory ?? true,
+        drug_name: it.returned_drug_name,
+      })),
+      replacement_items: exchangeType === "exchange" ? replacementItems.map((it) => ({
+        pharmacy_item_id: it.pharmacy_item_id || it.replacement_drug_id || "",
+        quantity: Number(it.replacement_quantity || 1),
+        unit_price: it.replacement_unit_price != null ? Number(it.replacement_unit_price) : undefined,
+        drug_name: it.replacement_drug_name,
+      })) : [],
+      payment_method: balanceDifference > 0 ? paymentMethod : "NONE",
       pharmacist_name: pharmacistName || "Dispensing Pharmacist",
       pharmacy_unit_name: pharmacyUnitName || "Pharmacy Main",
     };
 
-    // Process record using module handler
-    import("@/libs/pharmacy-exchange").then(async (mod) => {
-      try {
-        const res = await mod.processDrugExchange(payload);
-        toast.success(res.message);
-        onSuccess?.(res.data);
-        onClose();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to process exchange.");
-      } finally {
-        setIsSubmitting(false);
-      }
-    });
+    try {
+      const res = await submitDrugExchange(payload);
+      toast.success(res.message || "Drug exchange submitted successfully.");
+      onSuccess?.(res.data);
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to process exchange.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   if (!isOpen) return null;
 
@@ -567,6 +740,42 @@ export default function DrugExchangeModal({
                   </button>
                 </form>
 
+                {/* Patient Multi-Search Autocomplete Results */}
+                {patientSearchResults.length > 1 && !selectedPatient && (
+                  <div className="rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800 space-y-1">
+                    <p className="px-3 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Select Matching Patient ({patientSearchResults.length}):
+                    </p>
+                    {patientSearchResults.map((pt) => (
+                      <div
+                        key={pt.patient_id}
+                        onClick={() =>
+                          handleSelectPatient({
+                            id: pt.patient_id,
+                            name: pt.patient_name,
+                            phone: pt.phone_number,
+                          })
+                        }
+                        className="flex items-center justify-between rounded-lg p-3 text-xs hover:bg-brand-50 cursor-pointer dark:hover:bg-slate-700/60 transition"
+                      >
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-slate-100">{pt.patient_name}</p>
+                          <p className="text-gray-500">
+                            PID: <span className="font-mono text-brand-700 dark:text-brand-300">{pt.patient_id}</span>
+                            {pt.phone_number && ` • Phone: ${pt.phone_number}`}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          className="rounded-lg bg-brand-700 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-600 shadow-xs"
+                        >
+                          Select Patient &rarr;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Patient Profile Card (If found/selected) */}
                 {selectedPatient && (
                   <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-200 bg-brand-50/50 p-4 dark:border-brand-500/30 dark:bg-brand-500/10">
@@ -584,19 +793,32 @@ export default function DrugExchangeModal({
                         </p>
                       </div>
                     </div>
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      Patient Verified
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                        Patient Verified
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPatient(null);
+                          setDispensedDrugs([]);
+                          setReturnedItems([]);
+                        }}
+                        className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                      >
+                        Change Patient
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Previously Dispensed Bills & Medication Accordion */}
+              {/* Previously Dispensed Medication for this Patient */}
               {selectedPatient && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                      Previously Dispensed Medication for this Patient
+                      Previously Dispensed Medication for this Patient ({dispensedDrugs.length})
                     </h4>
                     <button
                       type="button"
@@ -609,51 +831,92 @@ export default function DrugExchangeModal({
 
                   {isLoadingDispenses ? (
                     <div className="p-6 text-center text-xs text-gray-500">Loading dispense history...</div>
-                  ) : patientDispenses.length === 0 ? (
+                  ) : dispensedDrugs.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-xs text-gray-500 dark:border-slate-800">
                       No previous digital dispense records found. Click <strong>&quot;Manual Return Entry&quot;</strong> to record a walk-in return.
                     </div>
                   ) : (
-                    <div className="space-y-2.5 max-h-48 overflow-y-auto">
-                      {patientDispenses.map((bill: any) => (
-                        <div
-                          key={bill.id}
-                          className="rounded-xl border border-gray-200 bg-white p-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-                        >
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-2 mb-2 dark:border-slate-800 text-xs">
-                            <span className="font-mono font-bold text-brand-700 dark:text-brand-400">
-                              Bill Code: {bill.billing_code || bill.id}
-                            </span>
-                            <span className="text-gray-400">
-                              {formatDateTime(bill.created_at)}
-                            </span>
-                          </div>
-                          <div className="space-y-1.5">
-                            {(bill.items || []).map((item: any) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between rounded-lg bg-gray-50 p-2 text-xs dark:bg-slate-800/60"
-                              >
-                                <div>
-                                  <p className="font-semibold text-slate-900 dark:text-slate-100">
-                                    {item.name || item.item_name}
-                                  </p>
-                                  <p className="text-[11px] text-gray-500">
-                                    Dispensed: {item.quantity} units @ {formatCurrency(item.unit_price)} each
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSelectDispensedDrugToReturn(bill, item)}
-                                  className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300"
-                                >
-                                  Return Item &rarr;
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-xs max-h-64 overflow-y-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-gray-50 dark:bg-slate-800 text-gray-500 font-semibold border-b border-gray-200 dark:border-slate-700 sticky top-0">
+                          <tr>
+                            <th className="p-3">Drug Name</th>
+                            <th className="p-3">Bill & Date</th>
+                            <th className="p-3 text-center">Dispensed</th>
+                            <th className="p-3 text-center">Available Return</th>
+                            <th className="p-3 text-right">Unit Price</th>
+                            <th className="p-3 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+                          {dispensedDrugs.map((item) => {
+                            const isAdded = returnedItems.some(
+                              (it) =>
+                                (it.pharmacy_request_item_id && it.pharmacy_request_item_id === item.pharmacy_request_item_id) ||
+                                it.pharmacy_item_id === item.pharmacy_item_id
+                            );
+                            const available = item.available_to_return ?? item.quantity_dispensed ?? 0;
+                            const isEligible = available > 0 && !isAdded;
+
+                            return (
+                              <tr key={item.pharmacy_request_item_id || item.pharmacy_item_id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
+                                <td className="p-3">
+                                  <p className="font-semibold text-slate-900 dark:text-slate-100">{item.drug_name}</p>
+                                  {item.batch_number && (
+                                    <p className="text-[11px] text-gray-500">
+                                      Batch: {item.batch_number} {item.expiry_date && `| Exp: ${item.expiry_date}`}
+                                    </p>
+                                  )}
+                                </td>
+                                <td className="p-3 text-gray-600 dark:text-slate-300">
+                                  <span className="font-mono font-medium text-brand-700 dark:text-brand-400 block">
+                                    {item.billing_code || "Dispensed"}
+                                  </span>
+                                  <span className="text-[11px] text-gray-400">
+                                    {item.dispensed_at ? formatDateTime(item.dispensed_at) : "—"}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-center font-medium">
+                                  {item.quantity_dispensed}
+                                </td>
+                                <td className="p-3 text-center font-bold">
+                                  <span
+                                    className={`inline-block rounded-full px-2 py-0.5 text-[11px] ${
+                                      available > 0
+                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                        : "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400"
+                                    }`}
+                                  >
+                                    {available} units
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right font-medium">
+                                  {formatCurrency(item.unit_price)}
+                                </td>
+                                <td className="p-3 text-center">
+                                  {isAdded ? (
+                                    <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500 dark:bg-slate-800 dark:text-slate-400">
+                                      Added
+                                    </span>
+                                  ) : available <= 0 ? (
+                                    <span className="text-gray-400 italic text-[11px]">
+                                      Fully Returned
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSelectDispensedDrugToReturn(item)}
+                                      className="rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300"
+                                    >
+                                      + Return Drug
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
@@ -732,9 +995,11 @@ export default function DrugExchangeModal({
                         onChange={(e) => setManualCondition(e.target.value as DrugCondition)}
                         className="w-full rounded-lg border border-gray-200 bg-white p-2 text-xs outline-none dark:bg-slate-800 dark:border-slate-700"
                       >
-                        <option value="INTACT_RESELLABLE">Intact / Sealed / Resellable (Restock to inventory)</option>
-                        <option value="OPENED_DAMAGED">Opened / Damaged / Broken Seal (Quarantine for disposal)</option>
-                        <option value="EXPIRED">Expired Formulation (Destroy audit log)</option>
+                        <option value="sealed">Sealed / Intact (Restock back to inventory)</option>
+                        <option value="good">Good Condition (Restock back to inventory)</option>
+                        <option value="opened">Opened / Broken Seal (Quarantine for disposal)</option>
+                        <option value="damaged">Damaged / Compromised (Quarantine for disposal)</option>
+                        <option value="expired">Expired Formulation (Destroy audit log)</option>
                       </select>
                     </div>
                     <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
@@ -792,12 +1057,13 @@ export default function DrugExchangeModal({
                               {item.returned_drug_name}
                             </td>
                             <td className="p-3 text-center">
-                              {formatCurrency(item.returned_unit_price)}
+                              {formatCurrency(item.returned_unit_price ?? 0)}
                             </td>
                             <td className="p-3 text-center">
                               <input
                                 type="number"
                                 min="1"
+                                max={item.available_to_return || undefined}
                                 value={item.returned_quantity}
                                 onChange={(e) =>
                                   handleUpdateReturnedItem(
@@ -832,13 +1098,15 @@ export default function DrugExchangeModal({
                                 }
                                 className="rounded border border-gray-200 bg-white p-1 text-xs dark:bg-slate-800"
                               >
-                                <option value="INTACT_RESELLABLE">Intact (Restock +Qty)</option>
-                                <option value="OPENED_DAMAGED">Opened (Quarantine)</option>
-                                <option value="EXPIRED">Expired (Destruction)</option>
+                                <option value="sealed">Sealed (Restock)</option>
+                                <option value="good">Good (Restock)</option>
+                                <option value="opened">Opened (Quarantine)</option>
+                                <option value="damaged">Damaged (Quarantine)</option>
+                                <option value="expired">Expired (Destruction)</option>
                               </select>
                             </td>
                             <td className="p-3 text-right font-bold text-slate-900 dark:text-slate-100">
-                              {formatCurrency(item.return_subtotal)}
+                              {formatCurrency(item.return_subtotal ?? 0)}
                             </td>
                             <td className="p-3 text-center">
                               <button
@@ -1015,7 +1283,6 @@ export default function DrugExchangeModal({
                               <th className="p-3">Drug Formulation</th>
                               <th className="p-3 text-center">Unit Price</th>
                               <th className="p-3 text-center">Qty</th>
-                              <th className="p-3">Batch & Expiry</th>
                               <th className="p-3 text-right">Subtotal</th>
                               <th className="p-3 text-center">Action</th>
                             </tr>
@@ -1027,22 +1294,20 @@ export default function DrugExchangeModal({
                                   {item.replacement_drug_name}
                                 </td>
                                 <td className="p-3 text-center">
-                                  {formatCurrency(item.replacement_unit_price)}
+                                  {formatCurrency(item.replacement_unit_price ?? 0)}
                                 </td>
                                 <td className="p-3 text-center font-bold">
                                   {item.replacement_quantity}
                                 </td>
-                                <td className="p-3 text-gray-500">
-                                  {item.batch_number || "—"} | {item.expiry_date || "—"}
-                                </td>
                                 <td className="p-3 text-right font-bold text-slate-900 dark:text-slate-100">
-                                  {formatCurrency(item.replacement_subtotal)}
+                                  {formatCurrency(item.replacement_subtotal ?? 0)}
                                 </td>
                                 <td className="p-3 text-center">
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveReplacementItem(idx)}
                                     className="text-red-500 hover:text-red-700 p-1"
+                                    title="Remove"
                                   >
                                     <FiTrash2 />
                                   </button>
