@@ -86,6 +86,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     pharmacyCode,
     setPharmacyCode,
     pharmacyBill,
+    drugExchangeBill,
     isSearchingPharmacyCode,
     handlePharmacyCodeLookup,
     isPharmacyMode,
@@ -166,18 +167,18 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
             <div className="p-6 space-y-6">
               <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">
-                  Pharmacy Request Payment
+                  Pharmacy Prescription & Drug Exchange Payment
                 </h3>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                   <label className="flex-1 block">
                     <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Billing Code
+                      Billing Code / Exchange Reference (e.g. EL3DZ671 or DEX-...)
                     </span>
                     <input
                       type="text"
                       value={pharmacyCode}
                       onChange={(e) => setPharmacyCode(e.target.value)}
-                      placeholder="Enter 8-char code (e.g. EL3DZ671)"
+                      placeholder="Enter billing code or DEX- reference code..."
                       className="w-full rounded-xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                     />
                   </label>
@@ -187,12 +188,196 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     onClick={() => handlePharmacyCodeLookup(pharmacyCode)}
                     className="rounded-xl bg-slate-900 dark:bg-slate-800 px-5 py-3.5 text-sm font-semibold text-white hover:bg-slate-800 dark:hover:bg-slate-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
                   >
-                    {isSearchingPharmacyCode ? "Searching..." : "Lookup by Billing Code"}
+                    {isSearchingPharmacyCode ? "Searching..." : "Lookup Code"}
                   </button>
                 </div>
               </div>
 
-              {pharmacyBill ? (
+              {/* Drug Exchange Settlement Card */}
+              {drugExchangeBill ? (
+                <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr] animate-fade-in-slide">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-slate-800">
+                      <div>
+                        <h4 className="text-base font-bold text-slate-950 dark:text-white">
+                          Drug Return & Exchange Settlement
+                        </h4>
+                        <p className="text-xs font-mono font-bold text-brand-700 dark:text-brand-400">
+                          Ref: {drugExchangeBill.exchangeCode}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          drugExchangeBill.netAmount > 0
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+                            : drugExchangeBill.netAmount < 0
+                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                            : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                        }`}
+                      >
+                        {drugExchangeBill.netAmount > 0
+                          ? "Pending Payment"
+                          : drugExchangeBill.netAmount < 0
+                          ? "Pending Refund"
+                          : "Even Exchange"}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2 text-sm text-slate-600 dark:text-slate-300">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Patient Name</p>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{drugExchangeBill.patientName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase font-semibold">Patient ID</p>
+                        <p className="font-semibold text-slate-900 dark:text-white mt-0.5">{drugExchangeBill.patientId}</p>
+                      </div>
+                      {drugExchangeBill.phoneNumber && (
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase font-semibold">Phone Number</p>
+                          <p className="font-semibold text-slate-950 dark:text-white mt-0.5">{drugExchangeBill.phoneNumber}</p>
+                        </div>
+                      )}
+                      {drugExchangeBill.remarks && (
+                        <div className="sm:col-span-2">
+                          <p className="text-xs text-gray-500 uppercase font-semibold">Remarks</p>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5 italic">{drugExchangeBill.remarks}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Returned Items Breakdown */}
+                    <div className="border-t border-gray-100 pt-3 dark:border-slate-800">
+                      <p className="text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider mb-2">
+                        Returned Medication ({drugExchangeBill.returnedItems.length})
+                      </p>
+                      <div className="space-y-1.5">
+                        {drugExchangeBill.returnedItems.map((it, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-xs bg-rose-50/50 p-2 rounded-lg dark:bg-rose-950/20">
+                            <div>
+                              <p className="font-semibold text-slate-900 dark:text-slate-100">{it.name}</p>
+                              <p className="text-[11px] text-gray-500">
+                                {it.quantity} x {formatCurrency(it.unitPrice)}
+                                {it.reason && ` • ${it.reason}`}
+                              </p>
+                            </div>
+                            <span className="font-bold text-rose-700 dark:text-rose-300">
+                              -{formatCurrency(it.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Replacement Items Breakdown */}
+                    {drugExchangeBill.replacementItems.length > 0 && (
+                      <div className="border-t border-gray-100 pt-3 dark:border-slate-800">
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">
+                          Replacement Medication ({drugExchangeBill.replacementItems.length})
+                        </p>
+                        <div className="space-y-1.5">
+                          {drugExchangeBill.replacementItems.map((it, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-xs bg-emerald-50/50 p-2 rounded-lg dark:bg-emerald-950/20">
+                              <div>
+                                <p className="font-semibold text-slate-900 dark:text-slate-100">{it.name}</p>
+                                <p className="text-[11px] text-gray-500">
+                                  {it.quantity} x {formatCurrency(it.unitPrice)}
+                                </p>
+                              </div>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                                +{formatCurrency(it.amount)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Settlement Action Card */}
+                  <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <h4 className="text-base font-bold text-slate-950 dark:text-white">
+                        {drugExchangeBill.netAmount < 0 ? "Disburse Refund" : "Collect Payment"}
+                      </h4>
+
+                      <label className="space-y-2 block">
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                          Payment / Disbursement Type
+                        </span>
+                        <select
+                          value={form.paymentType}
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              paymentType: event.target.value as NewTransactionForm["paymentType"],
+                            }))
+                          }
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                        >
+                          {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
+                          {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
+                          {allowedPaymentMethods.pos && <option value="pos">POS</option>}
+                        </select>
+                      </label>
+
+                      <div className="border-t border-gray-100 pt-3 space-y-1.5 dark:border-slate-800 text-xs">
+                        <div className="flex justify-between text-gray-500">
+                          <span>Total Returned Value:</span>
+                          <span>{formatCurrency(drugExchangeBill.totalReturnedAmount)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-500">
+                          <span>Total Replacement Cost:</span>
+                          <span>{formatCurrency(drugExchangeBill.totalReplacementAmount)}</span>
+                        </div>
+                        <div className="border-t border-gray-100 pt-2 flex justify-between items-center text-base font-bold text-slate-950 dark:text-white">
+                          <span>{drugExchangeBill.netAmount < 0 ? "Refund Due:" : "Net Balance Due:"}</span>
+                          <span
+                            className={
+                              drugExchangeBill.netAmount > 0
+                                ? "text-amber-600 dark:text-amber-400 font-black"
+                                : drugExchangeBill.netAmount < 0
+                                ? "text-purple-600 dark:text-purple-400 font-black"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            }
+                          >
+                            {formatCurrency(Math.abs(drugExchangeBill.netAmount))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-6">
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={paymentMutation.isPending}
+                        className={`w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 ${
+                          drugExchangeBill.netAmount < 0
+                            ? "bg-purple-700 hover:bg-purple-600"
+                            : "bg-brand-700 hover:bg-brand-600"
+                        }`}
+                      >
+                        {paymentMutation.isPending
+                          ? "Processing..."
+                          : drugExchangeBill.netAmount < 0
+                          ? "Disburse Refund & Print Voucher"
+                          : "Process Payment & Dispense Replacement"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closeModal}
+                        className="w-full rounded-xl border border-gray-200 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Standard Prescription Bill Card */}
+              {pharmacyBill && !drugExchangeBill ? (
                 <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr] animate-fade-in-slide">
                   {/* Bill Details */}
                   <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 space-y-4">
@@ -298,6 +483,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
               ) : null}
             </div>
           ) : isExpressMode ? (
+
             <ExpressTransactionSection
               departments={departments}
               departmentsError={configError ?? departmentsError}

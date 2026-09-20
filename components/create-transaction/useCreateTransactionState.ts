@@ -29,7 +29,11 @@ import {
   searchAgentHospitalPatients,
   getAgentPendingPharmacyRequests,
   processAgentPharmacyPayment,
+  getPendingDrugExchanges,
+  processDrugExchangePayment,
+  refundDrugExchange,
 } from "@/libs/agent-auth";
+import { ApiError } from "@/libs/api";
 import { openReceiptPrintWindowFromHtml, isValidNigerianPhoneNumber, formatDateTime } from "@/libs/helper";
 import type {
   ExpressPaymentForm,
@@ -43,6 +47,31 @@ interface UseCreateTransactionStateProps {
   onClose: () => void;
   onSuccess?: () => unknown | Promise<unknown>;
 }
+
+export type DrugExchangeBillItem = {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  reason?: string;
+  condition?: string;
+};
+
+export type DrugExchangeBill = {
+  id: string;
+  exchangeCode: string;
+  patientId: string;
+  patientName: string;
+  phoneNumber: string;
+  netAmount: number;
+  totalReturnedAmount: number;
+  totalReplacementAmount: number;
+  status: "pending_payment" | "pending_refund" | "completed" | string;
+  returnedItems: DrugExchangeBillItem[];
+  replacementItems: DrugExchangeBillItem[];
+  remarks?: string;
+  createdAt?: string;
+};
 
 type PharmacyBillItem = {
   drugId: string;
@@ -65,6 +94,7 @@ type PharmacyBill = {
   status: "pending" | "paid" | "cancelled";
   createdAt: string;
 };
+
 
 function getInitialForm(): NewTransactionForm {
   return {
@@ -313,6 +343,93 @@ function buildPharmacyReceiptHtml(
   `;
 }
 
+function buildDrugExchangeReceiptHtml(
+  exchangeBill: DrugExchangeBill,
+  response: any,
+  paymentType: string,
+) {
+  const isRefund = (exchangeBill.netAmount || 0) < 0;
+  const absAmount = Math.abs(exchangeBill.netAmount || 0);
+  const receiptNo = response?.data?.transaction?.receipt_no || response?.data?.receipt?.receiptNo || exchangeBill.exchangeCode;
+
+  const returnRows = exchangeBill.returnedItems
+    .map(
+      (item) => `
+        <tr>
+          <td><span style="color: #c00;">[RETURN]</span> ${item.name}</td>
+          <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: right;">NGN ${item.unitPrice.toLocaleString()}</td>
+          <td style="text-align: right;">-NGN ${item.amount.toLocaleString()}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  const replacementRows = exchangeBill.replacementItems
+    .map(
+      (item) => `
+        <tr>
+          <td><span style="color: #080;">[REPLACE]</span> ${item.name}</td>
+          <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: right;">NGN ${item.unitPrice.toLocaleString()}</td>
+          <td style="text-align: right;">+NGN ${item.amount.toLocaleString()}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  return `
+    <div style="font-family: monospace; padding: 20px; max-width: 400px; margin: 0 auto; line-height: 1.4; color: #000;">
+      <div style="text-align: center; margin-bottom: 15px;">
+        <h2 style="margin: 0; font-size: 18px;">HOSPITAL PHARMACY</h2>
+        <p style="margin: 2px 0; font-size: 12px; font-weight: bold;">
+          ${isRefund ? "DRUG RETURN REFUND DISBURSEMENT VOUCHER" : "DRUG RETURN & EXCHANGE PAYMENT RECEIPT"}
+        </p>
+        <p style="margin: 2px 0; font-size: 11px;">Receipt No: ${receiptNo}</p>
+        <p style="margin: 2px 0; font-size: 11px;">Exchange Code: ${exchangeBill.exchangeCode}</p>
+        <p style="margin: 2px 0; font-size: 11px;">Date: ${formatDateTime(new Date().toISOString())}</p>
+      </div>
+      <div style="border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 8px 0; margin-bottom: 10px; font-size: 12px;">
+        <p style="margin: 2px 0;"><strong>Patient:</strong> ${exchangeBill.patientName}</p>
+        <p style="margin: 2px 0;"><strong>Patient ID:</strong> ${exchangeBill.patientId}</p>
+        ${exchangeBill.phoneNumber ? `<p style="margin: 2px 0;"><strong>Phone:</strong> ${exchangeBill.phoneNumber}</p>` : ""}
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+        <thead>
+          <tr style="border-bottom: 1px solid #000;">
+            <th style="text-align: left; padding-bottom: 4px;">Item Description</th>
+            <th style="text-align: center; padding-bottom: 4px;">Qty</th>
+            <th style="text-align: right; padding-bottom: 4px;">Rate</th>
+            <th style="text-align: right; padding-bottom: 4px;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${returnRows}
+          ${replacementRows}
+        </tbody>
+      </table>
+      <div style="border-top: 1px dashed #000; margin-top: 12px; padding-top: 8px; font-size: 11px; space-y: 2px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span>Total Returned Value:</span>
+          <span>NGN ${exchangeBill.totalReturnedAmount.toLocaleString()}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>Total Replacement Value:</span>
+          <span>NGN ${exchangeBill.totalReplacementAmount.toLocaleString()}</span>
+        </div>
+        <div style="border-top: 1px solid #000; margin-top: 6px; padding-top: 6px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between;">
+          <span>${isRefund ? "Total Refund Disbursed:" : "Net Amount Paid:"}</span>
+          <span>NGN ${absAmount.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="margin-top: 18px; text-align: center; font-size: 11px;">
+        <p style="margin: 2px 0;">Method: ${paymentType.toUpperCase()}</p>
+        <p style="margin: 2px 0;">Thank you for your transaction!</p>
+      </div>
+    </div>
+  `;
+}
+
 export function useCreateTransactionState({
   open,
   onClose,
@@ -323,6 +440,7 @@ export function useCreateTransactionState({
     useState<TransactionMode>("patient");
   const [pharmacyCode, setPharmacyCode] = useState("");
   const [pharmacyBill, setPharmacyBill] = useState<PharmacyBill | null>(null);
+  const [drugExchangeBill, setDrugExchangeBill] = useState<DrugExchangeBill | null>(null);
   const [isSearchingPharmacyCode, setIsSearchingPharmacyCode] = useState(false);
   const isPharmacyMode = transactionMode === "pharmacy";
   const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
@@ -422,11 +540,15 @@ export function useCreateTransactionState({
         query: deferredPatientSearchInput,
         limit: 10,
       }),
-    enabled: open && Boolean(hospitalId && deferredPatientSearchInput),
+    enabled:
+      open &&
+      Boolean(hospitalId) &&
+      deferredPatientSearchInput.length > 0 &&
+      showPatientSuggestions,
   });
 
   const patientSuggestions = useMemo(
-    () => patientSearchQuery.data?.data.patients ?? [],
+    () => patientSearchQuery.data?.data?.patients ?? [],
     [patientSearchQuery.data],
   );
 
@@ -481,34 +603,45 @@ export function useCreateTransactionState({
     mutationFn: lookupAgentPatient,
     onSuccess: (response) => {
       const patient = response.data.patient;
-
       if (response.data.exists && patient) {
-        toast.success("Patient found. Details loaded.", {
+        setForm((current) => ({
+          ...current,
+          patientName: patient.patient_name,
+          phoneNumber: patient.phone_number,
+          patientExists: true,
+        }));
+        toast.success(`Patient record found: ${patient.patient_name}`, {
+          id: patientLookupToastId,
+        });
+        setShowPatientSuggestions(false);
+      } else {
+        toast("No patient found for this ID. You can enter details manually.", {
           id: patientLookupToastId,
         });
         setForm((current) => ({
           ...current,
-          patientExists: true,
-          patientName: patient.patient_name,
-          phoneNumber: patient.phone_number,
+          patientExists: false,
+          patientName: current.patientName,
+          phoneNumber: current.phoneNumber,
+        }));
+        setShowPatientSuggestions(false);
+      }
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 404) {
+        toast("No patient found for this ID. You can enter details manually.", {
+          id: patientLookupToastId,
+        });
+        setForm((current) => ({
+          ...current,
+          patientExists: false,
+          patientName: current.patientName,
+          phoneNumber: current.phoneNumber,
         }));
         setShowPatientSuggestions(false);
         return;
       }
 
-      toast("Patient not found. Enter name and phone manually.", {
-        id: patientLookupToastId,
-      });
-      setForm((current) => ({
-        ...current,
-        patientExists: false,
-        patientName: current.patientName,
-        phoneNumber: current.phoneNumber,
-      }));
-      setShowPatientSuggestions(false);
-    },
-    onError: (error) => {
-      setShowPatientSuggestions(false);
       toast.error(
         error instanceof Error ? error.message : "Unable to verify patient ID.",
         {
@@ -551,6 +684,20 @@ export function useCreateTransactionState({
 
   const paymentMutation = useMutation({
     mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
+      if (isPharmacyMode && drugExchangeBill) {
+        if (drugExchangeBill.netAmount < 0 || drugExchangeBill.status === "pending_refund") {
+          return refundDrugExchange({
+            exchange_code: drugExchangeBill.exchangeCode,
+            payment_type: form.paymentType,
+            remarks: "Cashier refund disbursement",
+          });
+        }
+        return processDrugExchangePayment({
+          exchange_code: drugExchangeBill.exchangeCode,
+          payment_type: form.paymentType,
+        });
+      }
+
       if (isPharmacyMode && pharmacyBill) {
         if (!pharmacyBill.code) {
           throw new Error("This pharmacy request is missing a billing code.");
@@ -566,10 +713,21 @@ export function useCreateTransactionState({
       }
       return processAgentPayment(variables);
     },
-    onSuccess: async (response) => {
+    onSuccess: async (response: any) => {
       toast.success(response.message || "Payment processed successfully.");
-      if (isPharmacyMode && pharmacyBill) {
-        if (!response.data.receipt?.receiptHTML) {
+      if (isPharmacyMode && drugExchangeBill) {
+        if (!response.data?.receipt?.receiptHTML) {
+          response.data = response.data || {};
+          response.data.receipt = response.data.receipt || {};
+          response.data.receipt.receiptHTML = buildDrugExchangeReceiptHtml(
+            drugExchangeBill,
+            response,
+            form.paymentType,
+          );
+        }
+      } else if (isPharmacyMode && pharmacyBill) {
+        if (!response.data?.receipt?.receiptHTML) {
+          response.data = response.data || {};
           response.data.receipt = response.data.receipt || {};
           response.data.receipt.receiptHTML = buildPharmacyReceiptHtml(
             pharmacyBill,
@@ -589,6 +747,7 @@ export function useCreateTransactionState({
       setShowBillItemList(true);
       setPharmacyCode("");
       setPharmacyBill(null);
+      setDrugExchangeBill(null);
       setIsSearchingPharmacyCode(false);
       onClose();
     },
@@ -632,18 +791,131 @@ export function useCreateTransactionState({
     setShowBillItemList(true);
     setPharmacyCode("");
     setPharmacyBill(null);
+    setDrugExchangeBill(null);
     setIsSearchingPharmacyCode(false);
   };
 
   const handlePharmacyCodeLookup = async (code: string) => {
     if (!code.trim()) {
-      toast.error("Enter a billing code.");
+      toast.error("Enter a billing or exchange code.");
       return;
     }
 
     setIsSearchingPharmacyCode(true);
     try {
       const cleanCode = code.trim().toUpperCase();
+
+      // 1. Check if this is a Drug Return & Exchange Code (DEX-...)
+      if (cleanCode.startsWith("DEX") || cleanCode.includes("DEX")) {
+        try {
+          const exRes = await getPendingDrugExchanges(cleanCode);
+          const rawData = exRes.data;
+          const exList: any[] = Array.isArray(rawData)
+            ? rawData
+            : rawData?.items
+            ? rawData.items
+            : rawData
+            ? [rawData]
+            : [];
+          const matchedEx =
+            exList.find(
+              (ex: any) =>
+                ex.exchange_code?.toUpperCase() === cleanCode ||
+                ex.id?.toUpperCase() === cleanCode
+            ) || exList[0];
+
+          if (matchedEx) {
+            const rawItems: any[] = matchedEx.items || [];
+            const returnedItems: DrugExchangeBillItem[] = (
+              matchedEx.returned_items ||
+              rawItems.filter((i) => i.item_type === "returned")
+            ).map((it: any) => ({
+              name: it.drug_name || it.returned_drug_name || it.name || "Returned Drug",
+              quantity: Number(it.quantity || it.returned_quantity || 1),
+              unitPrice: Number(it.unit_price || it.returned_unit_price || 0),
+              amount: Number(
+                it.total_price || (it.unit_price || 0) * (it.quantity || 1)
+              ),
+              reason: it.reason || it.return_reason,
+              condition: it.condition || it.drug_condition,
+            }));
+
+            const replacementItems: DrugExchangeBillItem[] = (
+              matchedEx.replacement_items ||
+              rawItems.filter((i) => i.item_type === "replacement")
+            ).map((it: any) => ({
+              name: it.drug_name || it.replacement_drug_name || it.name || "Replacement Drug",
+              quantity: Number(it.quantity || it.replacement_quantity || 1),
+              unitPrice: Number(it.unit_price || it.replacement_unit_price || 0),
+              amount: Number(
+                it.total_price || (it.unit_price || 0) * (it.quantity || 1)
+              ),
+            }));
+
+            const totalReturned =
+              matchedEx.total_returned_amount ??
+              returnedItems.reduce((s, i) => s + i.amount, 0);
+            const totalReplacement =
+              matchedEx.total_replacement_amount ??
+              replacementItems.reduce((s, i) => s + i.amount, 0);
+            const netAmount =
+              matchedEx.net_amount ?? (totalReplacement - totalReturned);
+
+            const mappedExchangeBill: DrugExchangeBill = {
+              id: matchedEx.id || cleanCode,
+              exchangeCode: matchedEx.exchange_code || cleanCode,
+              patientId: matchedEx.patient_id || "WALK_IN",
+              patientName: matchedEx.patient_name || "Patient",
+              phoneNumber: matchedEx.phone_number || "",
+              netAmount,
+              totalReturnedAmount: totalReturned,
+              totalReplacementAmount: totalReplacement,
+              status:
+                matchedEx.status ||
+                (netAmount > 0
+                  ? "pending_payment"
+                  : netAmount < 0
+                  ? "pending_refund"
+                  : "completed"),
+              returnedItems,
+              replacementItems,
+              remarks: matchedEx.remarks,
+              createdAt: matchedEx.created_at,
+            };
+
+            setPharmacyBill(null);
+            setDrugExchangeBill(mappedExchangeBill);
+
+            // Default allowed payment method
+            const config = paymentConfigQuery.data?.data;
+            let allowedDefault: "cash" | "pos" | "transfer" = "cash";
+            if (config) {
+              const isCashAllowed =
+                config.allow_payment_cash !== false &&
+                (config as any).allowPaymentCash !== false;
+              const isTransferAllowed =
+                config.allow_payment_transfer !== false &&
+                (config as any).allowPaymentTransfer !== false;
+              const isPosAllowed =
+                config.allow_payment_pos !== false &&
+                (config as any).allowPaymentPos !== false;
+              if (isCashAllowed) allowedDefault = "cash";
+              else if (isTransferAllowed) allowedDefault = "transfer";
+              else if (isPosAllowed) allowedDefault = "pos";
+            }
+            setForm((cur) => ({ ...cur, paymentType: allowedDefault }));
+
+            toast.success(
+              `Drug Exchange ${mappedExchangeBill.exchangeCode} loaded for ${mappedExchangeBill.patientName}.`
+            );
+            return;
+          }
+        } catch {
+          // continue fallback
+        }
+      }
+
+      // 2. Standard Prescription Bill Request Lookup
       let res = await getAgentPendingPharmacyRequests({ billing_code: cleanCode });
       let requests = getPendingPharmacyRequests(res);
       let matchedRequest =
@@ -670,19 +942,27 @@ export function useCreateTransactionState({
         if (!mappedBill.code) {
           toast.error("This pharmacy request is missing a billing code.");
           setPharmacyBill(null);
+          setDrugExchangeBill(null);
           return;
         }
 
         toast.success(`Prescription bill loaded for ${mappedBill.patientName}.`);
+        setDrugExchangeBill(null);
         setPharmacyBill(mappedBill);
 
-        // Select first allowed payment method as default instead of hardcoding "cash"
+        // Select first allowed payment method as default
         const config = paymentConfigQuery.data?.data;
         let allowedDefault: "cash" | "pos" | "transfer" = "cash";
         if (config) {
-          const isCashAllowed = config.allow_payment_cash !== false && (config as any).allowPaymentCash !== false;
-          const isTransferAllowed = config.allow_payment_transfer !== false && (config as any).allowPaymentTransfer !== false;
-          const isPosAllowed = config.allow_payment_pos !== false && (config as any).allowPaymentPos !== false;
+          const isCashAllowed =
+            config.allow_payment_cash !== false &&
+            (config as any).allowPaymentCash !== false;
+          const isTransferAllowed =
+            config.allow_payment_transfer !== false &&
+            (config as any).allowPaymentTransfer !== false;
+          const isPosAllowed =
+            config.allow_payment_pos !== false &&
+            (config as any).allowPaymentPos !== false;
           if (isCashAllowed) allowedDefault = "cash";
           else if (isTransferAllowed) allowedDefault = "transfer";
           else if (isPosAllowed) allowedDefault = "pos";
@@ -693,12 +973,14 @@ export function useCreateTransactionState({
           paymentType: allowedDefault,
         }));
       } else {
-        toast.error(`No pending pharmacy requests found for code "${code}".`);
+        toast.error(`No pending pharmacy requests or exchanges found for code "${code}".`);
         setPharmacyBill(null);
+        setDrugExchangeBill(null);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error looking up pharmacy bill.");
       setPharmacyBill(null);
+      setDrugExchangeBill(null);
     } finally {
       setIsSearchingPharmacyCode(false);
     }
@@ -1027,8 +1309,20 @@ export function useCreateTransactionState({
 
   const handleSubmit = () => {
     if (isPharmacyMode) {
+      if (drugExchangeBill) {
+        paymentMutation.mutate({
+          patient_id: drugExchangeBill.patientId,
+          department_id: "Pharmacy",
+          patient_name: drugExchangeBill.patientName,
+          phone_number: drugExchangeBill.phoneNumber,
+          payment_type: form.paymentType,
+          pharmacy_code: drugExchangeBill.exchangeCode,
+        });
+        return;
+      }
+
       if (!pharmacyBill) {
-        toast.error("Please load a pharmacy bill first.");
+        toast.error("Please load a pharmacy billing code or exchange code first.");
         return;
       }
       paymentMutation.mutate({
@@ -1221,6 +1515,8 @@ export function useCreateTransactionState({
     setPharmacyCode,
     pharmacyBill,
     setPharmacyBill,
+    drugExchangeBill,
+    setDrugExchangeBill,
     isSearchingPharmacyCode,
     handlePharmacyCodeLookup,
     isPharmacyMode,

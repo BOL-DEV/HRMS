@@ -419,3 +419,52 @@ export async function processAgentPharmacyPayment(payload: {
   );
 }
 
+export async function getPendingDrugExchanges(search?: string) {
+  const query = search ? `?search=${encodeURIComponent(search.trim())}` : "";
+  return withAgentSessionRetry((accessToken) =>
+    getJson<{
+      status: string | number;
+      message?: string;
+      data: any;
+    }>(`/api/payments/drug-exchange/pending${query}`, {
+      headers: getAgentAuthHeaders(accessToken),
+    }),
+  );
+}
+
+export async function processDrugExchangePayment(payload: {
+  exchange_code: string;
+  payment_type: AgentPaymentType;
+}) {
+  return withAgentSessionRetry((accessToken) =>
+    postJson<ProcessPaymentResponse>(
+      "/api/payments/drug-exchange/process",
+      payload,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+export async function refundDrugExchange(payload: {
+  exchange_code: string;
+  payment_type: AgentPaymentType;
+  remarks?: string;
+}) {
+  return withAgentSessionRetry((accessToken) =>
+    postJson<{
+      status: string | number;
+      message?: string;
+      data: any;
+    }>(
+      "/api/payments/drug-exchange/refund",
+      payload,
+      {
+        headers: getAgentAuthHeaders(accessToken),
+      },
+    ),
+  );
+}
+
+

@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import {
   DrugExchangeRecord,
   getDrugExchangesList,
+  getDrugExchangeReports,
   RETURN_REASON_LABELS,
   DRUG_CONDITION_LABELS,
   SETTLEMENT_STATUS_LABELS,
@@ -63,7 +64,7 @@ export default function DrugExchangesPage() {
   const [isNewExchangeOpen, setIsNewExchangeOpen] = useState(false);
   const [selectedReceiptExchange, setSelectedReceiptExchange] = useState<DrugExchangeRecord | null>(null);
 
-  // Query Exchanges
+  // Query Exchanges List
   const {
     data: exchangesData,
     isLoading,
@@ -80,13 +81,52 @@ export default function DrugExchangesPage() {
     enabled: Boolean(accessToken),
   });
 
-  const records = exchangesData?.data?.items ?? [];
-  const summary = exchangesData?.data?.summary ?? {
-    total_exchanges: 0,
-    total_returned_value: 0,
-    total_replacement_cost: 0,
-    net_additional_paid: 0,
-    net_refunds_issued: 0,
+  // Query Exchange Reports KPI
+  const { data: reportsData } = useQuery({
+    queryKey: ["pharmacy-drug-exchange-reports", startDate, endDate],
+    queryFn: () =>
+      getDrugExchangeReports({
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      }),
+    enabled: Boolean(accessToken),
+  });
+
+  const rawRecords = exchangesData?.data?.items ?? [];
+  const records = useMemo(() => {
+    let list = rawRecords;
+    if (statusFilter !== "all") {
+      list = list.filter((rec) => {
+        const s = String(rec.settlement_status || (rec as any).status || "").toLowerCase().replace(/-/g, "_");
+        const target = statusFilter.toLowerCase().replace(/-/g, "_");
+        return s === target;
+      });
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((rec) => {
+        return (
+          rec.exchange_code?.toLowerCase().includes(q) ||
+          rec.patient_name?.toLowerCase().includes(q) ||
+          rec.patient_id?.toLowerCase().includes(q) ||
+          rec.phone_number?.toLowerCase().includes(q) ||
+          (rec.returned_items || []).some((it) => it.returned_drug_name?.toLowerCase().includes(q)) ||
+          (rec.replacement_items || []).some((it) => it.replacement_drug_name?.toLowerCase().includes(q))
+        );
+      });
+    }
+    return list;
+  }, [rawRecords, statusFilter, search]);
+
+  const listSummary = exchangesData?.data?.summary;
+  const reportsSummary = reportsData?.data?.summary;
+
+  const summary = {
+    total_exchanges: reportsSummary?.total_exchanges ?? listSummary?.total_exchanges ?? rawRecords.length,
+    total_returned_value: reportsSummary?.total_returned_value ?? listSummary?.total_returned_value ?? 0,
+    total_replacement_cost: reportsSummary?.total_replacement_value ?? listSummary?.total_replacement_cost ?? 0,
+    net_additional_paid: reportsSummary?.total_additional_amount_due ?? listSummary?.net_additional_paid ?? 0,
+    net_refunds_issued: reportsSummary?.total_refund_amount_due ?? listSummary?.net_refunds_issued ?? 0,
   };
 
   const hasActiveFilters = Boolean(search || statusFilter !== "all" || startDate || endDate);
@@ -189,10 +229,10 @@ export default function DrugExchangesPage() {
             <div className="flex flex-wrap gap-1">
               {[
                 { id: "all", label: "All Exchanges" },
-                { id: "ADDITIONAL_PAID", label: "Additional Paid" },
-                { id: "REFUND_ISSUED", label: "Refund Issued" },
-                { id: "EVEN_EXCHANGE", label: "Even Exchange" },
-                { id: "PENDING_CASHIER", label: "Pending Cashier" },
+                { id: "pending_payment", label: "Pending Payment" },
+                { id: "pending_refund", label: "Pending Refund" },
+                { id: "completed", label: "Completed" },
+                { id: "cancelled", label: "Cancelled" },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -289,10 +329,14 @@ export default function DrugExchangesPage() {
                   </tr>
                 ) : (
                   records.map((rec) => {
-                    const statusConfig = SETTLEMENT_STATUS_LABELS[rec.settlement_status] || {
-                      label: rec.settlement_status,
+                    const statusKey = rec.settlement_status || "pending_payment";
+                    const statusConfig = SETTLEMENT_STATUS_LABELS[statusKey] || {
+                      label: rec.settlement_status || "Pending",
                       badgeClass: "bg-gray-100 text-gray-800",
                     };
+                    const returnedItems = rec.returned_items || [];
+                    const replacementItems = rec.replacement_items || [];
+                    const balance = rec.balance_difference ?? rec.net_amount ?? 0;
 
                     return (
                       <tr
@@ -322,35 +366,48 @@ export default function DrugExchangesPage() {
                         {/* Returned Item */}
                         <td className="p-4">
                           <div className="space-y-1">
-                            {rec.returned_items.map((item, i) => (
-                              <div key={i} className="text-xs">
-                                <span className="font-medium text-rose-700 dark:text-rose-400">
-                                  -{item.returned_quantity}x {item.returned_drug_name}
-                                </span>
-                                <span className="text-[11px] text-gray-400 block">
-                                  Reason: {RETURN_REASON_LABELS[item.return_reason] || item.return_reason}
-                                </span>
-                              </div>
-                            ))}
+                            {returnedItems.map((item, i) => {
+                              const drugName = item.returned_drug_name || (item as any).drug_name || (item as any).item_name || (item as any).name || "Medication";
+                              const qty = item.returned_quantity ?? (item as any).quantity ?? 1;
+                              const reasonKey = item.return_reason || (item as any).reason || "";
+                              const reasonLabel = (reasonKey && RETURN_REASON_LABELS[reasonKey]) || reasonKey || "Patient Return";
+
+                              return (
+                                <div key={i} className="text-xs">
+                                  <span className="font-medium text-rose-700 dark:text-rose-400">
+                                    -{qty}x {drugName}
+                                  </span>
+                                  <span className="text-[11px] text-gray-400 block">
+                                    Reason: {reasonLabel}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </td>
 
                         {/* Replacement Item */}
                         <td className="p-4">
-                          {rec.replacement_items.length === 0 ? (
+                          {replacementItems.length === 0 ? (
                             <span className="text-gray-400 italic">None (Return Only)</span>
                           ) : (
                             <div className="space-y-1">
-                              {rec.replacement_items.map((item, i) => (
-                                <div key={i} className="text-xs">
-                                  <span className="font-medium text-emerald-700 dark:text-emerald-400">
-                                    +{item.replacement_quantity}x {item.replacement_drug_name}
-                                  </span>
-                                  <span className="text-[11px] text-gray-400 block">
-                                    @ {formatCurrency(item.replacement_unit_price)}
-                                  </span>
-                                </div>
-                              ))}
+                              {replacementItems.map((item, i) => {
+                                const repDrugName = item.replacement_drug_name || (item as any).drug_name || (item as any).item_name || (item as any).name || "Medication";
+                                const repQty = item.replacement_quantity ?? (item as any).quantity ?? 1;
+                                const repPrice = item.replacement_unit_price ?? (item as any).unit_price ?? 0;
+
+                                return (
+                                  <div key={i} className="text-xs">
+                                    <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                                      +{repQty}x {repDrugName}
+                                    </span>
+                                    <span className="text-[11px] text-gray-400 block">
+                                      @ {formatCurrency(repPrice)}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </td>
@@ -359,19 +416,19 @@ export default function DrugExchangesPage() {
                         <td className="p-4 text-right">
                           <div className="text-xs space-y-0.5">
                             <p className="text-gray-500 text-[11px]">
-                              Ret: {formatCurrency(rec.total_returned_value)} | Rep: {formatCurrency(rec.total_replacement_cost)}
+                              Ret: {formatCurrency(rec.total_returned_value ?? 0)} | Rep: {formatCurrency(rec.total_replacement_cost ?? 0)}
                             </p>
                             <p className={`font-bold ${
-                              rec.balance_difference > 0
+                              balance > 0
                                 ? "text-amber-700 dark:text-amber-400"
-                                : rec.balance_difference < 0
+                                : balance < 0
                                 ? "text-purple-700 dark:text-purple-400"
                                 : "text-blue-700 dark:text-blue-400"
                             }`}>
-                              {rec.balance_difference > 0
-                                ? `+ ${formatCurrency(rec.balance_difference)} (Paid)`
-                                : rec.balance_difference < 0
-                                ? `- ${formatCurrency(Math.abs(rec.balance_difference))} (Refund)`
+                              {balance > 0
+                                ? `+ ${formatCurrency(balance)} (Paid)`
+                                : balance < 0
+                                ? `- ${formatCurrency(Math.abs(balance))} (Refund)`
                                 : "₦0.00 (Even)"}
                             </p>
                           </div>
