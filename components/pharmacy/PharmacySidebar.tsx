@@ -134,9 +134,15 @@ const PharmacySidebar = () => {
           "/pharmacy/prescriptions": "prescriptions",
           "/pharmacy/exchanges": ["dispense", "prescriptions", "dashboard"],
           "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
-          "/pharmacy/transfers": ["transfers", "transfer-history"],
-          "/pharmacy/reports": "reports",
-          "/pharmacy/settings": "dashboard",
+          "/pharmacy/reports": [
+            "reports",
+            "drug-report",
+            "detailed-drug-report",
+            "stock-inventory-report",
+            "expiry-report",
+            "pharmacist-performance-report",
+            "returns-exchanges-report",
+          ],
         };
 
         const val = keyMap[link.link];

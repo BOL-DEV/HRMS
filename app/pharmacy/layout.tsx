@@ -91,6 +91,17 @@ export default function PharmacyLayout({ children }: Props) {
     if (moduleInfo.key === "transfers") {
       return activeModules.includes("transfers") || activeModules.includes("transfer-history");
     }
+    if (moduleInfo.key === "reports") {
+      return (
+        activeModules.includes("reports") ||
+        activeModules.includes("drug-report") ||
+        activeModules.includes("detailed-drug-report") ||
+        activeModules.includes("stock-inventory-report") ||
+        activeModules.includes("expiry-report") ||
+        activeModules.includes("pharmacist-performance-report") ||
+        activeModules.includes("returns-exchanges-report")
+      );
+    }
     return activeModules.includes(moduleInfo.key);
   }, [moduleInfo, activeModules, profileResponse, decoded, pathname]);
 
