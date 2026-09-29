@@ -27,59 +27,29 @@ export const RETURN_REASON_LABELS: Record<string, string> = {
   "Patient request": "Patient Request",
 };
 
-export type DrugCondition = "sealed" | "good" | "opened" | "damaged" | "expired" | "INTACT_RESELLABLE" | "OPENED_DAMAGED" | "EXPIRED";
+export type DrugCondition = "good" | "sealed" | "INTACT_RESELLABLE";
 
 export const DRUG_CONDITION_LABELS: Record<
   string,
   { label: string; desc: string; restock: boolean; badgeColor: string }
 > = {
-  sealed: {
-    label: "Sealed / Intact",
-    desc: "Unopened manufacturer package. Restock back to dispensary inventory.",
-    restock: true,
-    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300",
-  },
   good: {
     label: "Good Condition",
-    desc: "Clean, intact blister/strip. Restock back to dispensary inventory.",
+    desc: "Clean, intact blister/strip. Restocked back to dispensary inventory.",
     restock: true,
     badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300",
   },
-  opened: {
-    label: "Opened / Broken Seal",
-    desc: "Safety seal broken. Quarantine for disposal, do NOT restock.",
-    restock: false,
-    badgeColor: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300",
-  },
-  damaged: {
-    label: "Damaged / Compromised",
-    desc: "Crushed, exposed or compromised. Quarantine for disposal.",
-    restock: false,
-    badgeColor: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300",
-  },
-  expired: {
-    label: "Expired Formulation",
-    desc: "Expired medication. Log for destruction audit, do NOT restock.",
-    restock: false,
-    badgeColor: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300",
+  sealed: {
+    label: "Good / Sealed",
+    desc: "Unopened manufacturer package. Restocked back to dispensary inventory.",
+    restock: true,
+    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300",
   },
   INTACT_RESELLABLE: {
-    label: "Intact / Sealed / Resellable",
-    desc: "Unopened packaging. Restock back to dispensary inventory.",
+    label: "Intact / Resellable",
+    desc: "Unopened packaging. Restocked back to dispensary inventory.",
     restock: true,
     badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300",
-  },
-  OPENED_DAMAGED: {
-    label: "Opened / Damaged",
-    desc: "Safety seal broken. Quarantine for disposal, do NOT restock.",
-    restock: false,
-    badgeColor: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300",
-  },
-  EXPIRED: {
-    label: "Expired",
-    desc: "Expired formulation. Log for destruction audit.",
-    restock: false,
-    badgeColor: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300",
   },
 };
 
@@ -153,6 +123,8 @@ export interface DrugExchangePatient {
 export interface PatientDispensedDrugItem {
   request_id: string;
   billing_code: string;
+  created_at?: string;
+  paid_at?: string;
   dispensed_at: string;
   patient_id: string;
   patient_name: string;
@@ -170,6 +142,10 @@ export interface PatientDispensedDrugItem {
   available_to_return: number;
   unit_price: number;
   total_price: number;
+  hours_since_payment?: number;
+  is_within_24_hours?: boolean;
+  is_eligible_for_exchange?: boolean;
+  exchange_ineligible_reason?: string | null;
 }
 
 export interface ReturnedItemPayload {
@@ -177,7 +153,7 @@ export interface ReturnedItemPayload {
   pharmacy_item_id: string;
   quantity: number;
   reason: string;
-  condition: string;
+  condition: string; // Strictly "good"
   unit_price?: number;
   restock_inventory?: boolean;
   drug_name?: string;
@@ -225,11 +201,20 @@ export interface DrugExchangeRecord {
   patient_name: string;
   phone_number?: string;
   hospital_number?: string;
+  pharmacy_unit_id?: string;
+  pharmacy_unit_name?: string;
+  pharmacist_id?: string;
+  pharmacist_name?: string;
   total_returned_amount: number;
   total_replacement_amount: number;
   net_amount: number;
   additional_amount_paid?: number;
   refund_amount?: number;
+  refund_balance?: number;
+  refund_approved_by?: string | null;
+  refund_approved_by_name?: string | null;
+  refund_approved_at?: string | null;
+  refund_approval_remarks?: string | null;
   status: ExchangeSettlementStatus | string;
   remarks?: string;
   created_at: string;
@@ -244,9 +229,6 @@ export interface DrugExchangeRecord {
   settlement_status?: ExchangeSettlementStatus | string;
   payment_method?: PaymentMethod;
   cashier_bill_code?: string;
-  pharmacist_name?: string;
-  pharmacist_id?: string;
-  pharmacy_unit_name?: string;
 }
 
 export interface DrugExchangeReportsResponse {
@@ -281,6 +263,20 @@ export interface DrugExchangeReportsResponse {
     total_replacement_value: number;
   }>;
   daily_summary?: Array<any>;
+}
+
+export interface PharmacyStoreRefundsResponse {
+  summary: {
+    total_pending_refund_count: number;
+    total_pending_refund_amount: number;
+    total_approved_refund_count: number;
+    total_approved_refund_amount: number;
+  };
+  total_items: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  refunds: DrugExchangeRecord[];
 }
 
 // Compatibility types for existing components
@@ -324,7 +320,7 @@ export function normalizeExchangeRecord(record: any): DrugExchangeRecord {
   if (!record || typeof record !== "object") {
     return {
       id: Math.random().toString(),
-      exchange_code: "DEX-RECORD",
+      exchange_code: "7NP7E8LZ",
       patient_id: "",
       patient_name: "Patient",
       phone_number: "",
@@ -334,6 +330,8 @@ export function normalizeExchangeRecord(record: any): DrugExchangeRecord {
       total_replacement_cost: 0,
       net_amount: 0,
       balance_difference: 0,
+      refund_amount: 0,
+      refund_balance: 0,
       status: "completed",
       settlement_status: "completed",
       returned_items: [],
@@ -361,7 +359,6 @@ export function normalizeExchangeRecord(record: any): DrugExchangeRecord {
       } else if (itType.includes("replace")) {
         rawReplacement.push(it);
       } else {
-        // If unspecified, treat as returned
         rawReturned.push(it);
       }
     }
@@ -375,7 +372,7 @@ export function normalizeExchangeRecord(record: any): DrugExchangeRecord {
       const unitPrice = Number(it.returned_unit_price ?? it.unit_price ?? it.unit_amount ?? it.price ?? 0);
       const subtotal = Number(it.return_subtotal ?? it.total_price ?? it.amount ?? (unitPrice * quantity));
       const reason = it.return_reason || it.reason || "Adverse drug reaction";
-      const condition = it.drug_condition || it.condition || "sealed";
+      const condition = it.drug_condition || it.condition || "good";
       const restock = it.restock_to_inventory ?? it.restock_inventory ?? it.is_restocked ?? true;
 
       return {
@@ -435,19 +432,33 @@ export function normalizeExchangeRecord(record: any): DrugExchangeRecord {
   const statusRaw = String(record.status || record.settlement_status || "").toLowerCase();
   const settlementStatus = statusRaw || (netAmount === 0 ? "completed" : netAmount > 0 ? "pending_payment" : "pending_refund");
 
+  const refundAmt = Number(record.refund_amount ?? (netAmount < 0 ? Math.abs(netAmount) : 0));
+  const refundBal = Number(record.refund_balance ?? (settlementStatus === "pending_refund" ? (netAmount < 0 ? Math.abs(netAmount) : 0) : 0));
+
   return {
     ...record,
     id: record.id || record._id || record.exchange_code || Math.random().toString(),
-    exchange_code: record.exchange_code || record.reference_code || record.code || "DEX-RECORD",
+    exchange_code: record.exchange_code || record.reference_code || record.code || "7NP7E8LZ",
     patient_id: record.patient_id || "",
     patient_name: record.patient_name || record.patient?.name || "Patient",
     phone_number: record.phone_number || record.patient?.phone || "",
+    pharmacy_unit_id: record.pharmacy_unit_id || "",
+    pharmacy_unit_name: record.pharmacy_unit_name || "",
+    pharmacist_id: record.pharmacist_id || "",
+    pharmacist_name: record.pharmacist_name || "",
     total_returned_amount: totalReturned,
     total_returned_value: totalReturned,
     total_replacement_amount: totalReplacement,
     total_replacement_cost: totalReplacement,
     net_amount: netAmount,
     balance_difference: netAmount,
+    refund_amount: refundAmt,
+    refund_balance: refundBal,
+    refund_approved_by: record.refund_approved_by || null,
+    refund_approved_by_name: record.refund_approved_by_name || null,
+    refund_approved_at: record.refund_approved_at || null,
+    refund_approval_remarks: record.refund_approval_remarks || record.remarks || null,
+    status: settlementStatus,
     settlement_status: settlementStatus,
     returned_items: returnedItems,
     replacement_items: replacementItems,
@@ -461,7 +472,7 @@ export function generateExchangeCode(): string {
   for (let i = 0; i < 8; i++) {
     random += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `DEX-${random}`;
+  return random;
 }
 
 export const generateExchangeReference = generateExchangeCode;
@@ -509,12 +520,13 @@ export async function searchDrugExchangePatients(
 }
 
 /**
- * 2. Get Patient's Previously Dispensed Drugs
+ * 2. Get Patient's Previously Dispensed Drugs (With 24-Hour Eligibility Status)
  * GET /api/pharmacy/drug-exchange/dispensed-drugs?patient_id={patientId}
  */
 export async function getPatientDispensedDrugs(
   patientId?: string,
-  billingCode?: string
+  billingCode?: string,
+  eligibleOnly?: boolean
 ): Promise<{
   status: string | number;
   message?: string;
@@ -523,6 +535,7 @@ export async function getPatientDispensedDrugs(
   const query = new URLSearchParams();
   if (patientId?.trim()) query.set("patient_id", patientId.trim());
   if (billingCode?.trim()) query.set("billing_code", billingCode.trim());
+  if (eligibleOnly) query.set("eligible_only", "true");
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
 
@@ -544,34 +557,50 @@ export async function getPatientDispensedDrugs(
         message: res?.message,
         data: {
           total_items: rawData?.total_items ?? rawItems.length,
-          items: rawItems.map((item: any) => ({
-            request_id: item.request_id || item.pharmacy_request_id || item.id,
-            billing_code: item.billing_code || item.receipt_no || item.invoice_no || "",
-            dispensed_at: item.dispensed_at || item.created_at || new Date().toISOString(),
-            patient_id: item.patient_id || patientId || "",
-            patient_name: item.patient_name || "",
-            phone_number: item.phone_number || "",
-            pharmacy_unit_id: item.pharmacy_unit_id || "",
-            pharmacy_unit_name: item.pharmacy_unit_name || "",
-            pharmacy_request_item_id: item.pharmacy_request_item_id || item.request_item_id || item.id,
-            pharmacy_item_id: item.pharmacy_item_id || item.item_id || item.drug_id,
-            drug_name: item.drug_name || item.item_name || item.name || "Medication",
-            generic_name: item.generic_name || "",
-            batch_number: item.batch_number || item.batch || "N/A",
-            expiry_date: item.expiry_date || item.expiry || "",
-            quantity_dispensed: Number(item.quantity_dispensed ?? item.quantity ?? 1),
-            quantity_returned: Number(item.quantity_returned ?? 0),
-            available_to_return: Number(
+          items: rawItems.map((item: any) => {
+            const available = Number(
               item.available_to_return ??
                 (Number(item.quantity_dispensed ?? item.quantity ?? 1) - Number(item.quantity_returned ?? 0))
-            ),
-            unit_price: Number(item.unit_price ?? item.unit_amount ?? item.price ?? 0),
-            total_price: Number(
-              item.total_price ??
-                item.amount ??
-                (Number(item.unit_price ?? 0) * Number(item.quantity_dispensed ?? item.quantity ?? 1))
-            ),
-          })),
+            );
+            const isWithin24 = item.is_within_24_hours !== undefined ? Boolean(item.is_within_24_hours) : true;
+            const isEligible = item.is_eligible_for_exchange !== undefined
+              ? Boolean(item.is_eligible_for_exchange)
+              : (available > 0 && isWithin24);
+
+            return {
+              request_id: item.request_id || item.pharmacy_request_id || item.id,
+              billing_code: item.billing_code || item.receipt_no || item.invoice_no || "",
+              created_at: item.created_at || undefined,
+              paid_at: item.paid_at || undefined,
+              dispensed_at: item.dispensed_at || item.created_at || new Date().toISOString(),
+              patient_id: item.patient_id || patientId || "",
+              patient_name: item.patient_name || "",
+              phone_number: item.phone_number || "",
+              pharmacy_unit_id: item.pharmacy_unit_id || "",
+              pharmacy_unit_name: item.pharmacy_unit_name || "",
+              pharmacy_request_item_id: item.pharmacy_request_item_id || item.request_item_id || item.id,
+              pharmacy_item_id: item.pharmacy_item_id || item.item_id || item.drug_id,
+              drug_name: item.drug_name || item.item_name || item.name || "Medication",
+              generic_name: item.generic_name || "",
+              batch_number: item.batch_number || item.batch || "N/A",
+              expiry_date: item.expiry_date || item.expiry || "",
+              quantity_dispensed: Number(item.quantity_dispensed ?? item.quantity ?? 1),
+              quantity_returned: Number(item.quantity_returned ?? 0),
+              available_to_return: available,
+              unit_price: Number(item.unit_price ?? item.unit_amount ?? item.price ?? 0),
+              total_price: Number(
+                item.total_price ??
+                  item.amount ??
+                  (Number(item.unit_price ?? 0) * Number(item.quantity_dispensed ?? item.quantity ?? 1))
+              ),
+              hours_since_payment: item.hours_since_payment != null ? Number(item.hours_since_payment) : undefined,
+              is_within_24_hours: isWithin24,
+              is_eligible_for_exchange: isEligible,
+              exchange_ineligible_reason: item.exchange_ineligible_reason || (
+                !isWithin24 ? "Prescription was paid more than 24 hours ago. Exchanges are only allowed within 24 hours of payment." : available <= 0 ? "Medication has already been fully returned." : null
+              ),
+            };
+          }),
         },
       };
     } catch {
@@ -600,9 +629,9 @@ export async function submitDrugExchange(
       pharmacy_item_id: it.pharmacy_item_id,
       quantity: Number(it.quantity),
       reason: it.reason,
-      condition: it.condition || "sealed",
+      condition: "good", // Strictly "good" per backend validation
       unit_price: it.unit_price != null ? Number(it.unit_price) : undefined,
-      restock_inventory: it.restock_inventory !== false,
+      restock_inventory: true,
     })),
     replacement_items: (payload.replacement_items || []).map((it) => ({
       pharmacy_item_id: it.pharmacy_item_id,
@@ -674,8 +703,6 @@ export async function getDrugExchangesList(params?: {
       const res = await getJson<any>(`/api/pharmacy/drug-exchange${queryString}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-
-      console.log("[getDrugExchangesList] response:", res);
 
       const rawData = res?.data ?? res;
       let rawItems: any[] = [];
@@ -786,4 +813,133 @@ export async function getDrugExchangeReports(params?: {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
   );
+}
+
+/**
+ * 7. Retrieve Pharmacy Store Awaiting & Processed Refunds
+ * GET /api/pharmacy-store/refunds?status={status}&page={page}&limit={limit}
+ * Role: PHARMACY_STORE with module "approve-refund"
+ */
+export async function getPharmacyStoreRefunds(params?: {
+  status?: string; // "pending" | "approved" | "all"
+  pharmacy_unit_id?: string;
+  pharmacist_id?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{
+  status: string | number;
+  message?: string;
+  data: PharmacyStoreRefundsResponse;
+}> {
+  const query = new URLSearchParams();
+  if (params?.status && params.status !== "all") query.set("status", params.status);
+  if (params?.pharmacy_unit_id) query.set("pharmacy_unit_id", params.pharmacy_unit_id);
+  if (params?.pharmacist_id) query.set("pharmacist_id", params.pharmacist_id);
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.search?.trim()) query.set("search", params.search.trim());
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      const res = await getJson<any>(`/api/pharmacy-store/refunds${queryString}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      const rawData = res?.data ?? res;
+      let rawRefunds: any[] = [];
+      if (Array.isArray(rawData?.refunds)) {
+        rawRefunds = rawData.refunds;
+      } else if (Array.isArray(rawData?.items)) {
+        rawRefunds = rawData.items;
+      } else if (Array.isArray(rawData)) {
+        rawRefunds = rawData;
+      }
+
+      const normalizedRefunds = rawRefunds.map(normalizeExchangeRecord);
+
+      return {
+        status: res?.status ?? "success",
+        message: res?.message,
+        data: {
+          summary: rawData?.summary || {
+            total_pending_refund_count: normalizedRefunds.filter((r) => (r.refund_balance || 0) > 0).length,
+            total_pending_refund_amount: normalizedRefunds
+              .filter((r) => (r.refund_balance || 0) > 0)
+              .reduce((sum, r) => sum + (r.refund_balance || 0), 0),
+            total_approved_refund_count: normalizedRefunds.filter((r) => r.refund_approved_at || (r.refund_balance === 0 && r.refund_amount)).length,
+            total_approved_refund_amount: normalizedRefunds
+              .filter((r) => r.refund_approved_at || (r.refund_balance === 0 && r.refund_amount))
+              .reduce((sum, r) => sum + (r.refund_amount || 0), 0),
+          },
+          total_items: rawData?.total_items ?? normalizedRefunds.length,
+          page: rawData?.page || 1,
+          limit: rawData?.limit || 20,
+          total_pages: rawData?.total_pages || 1,
+          refunds: normalizedRefunds,
+        },
+      };
+    } catch (err) {
+      console.error("[getPharmacyStoreRefunds] error:", err);
+      return {
+        status: "error",
+        data: {
+          summary: {
+            total_pending_refund_count: 0,
+            total_pending_refund_amount: 0,
+            total_approved_refund_count: 0,
+            total_approved_refund_amount: 0,
+          },
+          total_items: 0,
+          page: 1,
+          limit: 20,
+          total_pages: 1,
+          refunds: [],
+        },
+      };
+    }
+  });
+}
+
+/**
+ * 8. Approve and Clear Offline Refund
+ * POST /api/pharmacy-store/refunds/approve
+ * Role: PHARMACY_STORE with module "approve-refund"
+ */
+export async function approvePharmacyStoreRefund(payload: {
+  exchange_code?: string;
+  exchange_id?: string;
+  remarks?: string;
+}): Promise<{ status: string; message: string; data: any }> {
+  return withPharmacySessionRetry(async (accessToken) => {
+    return postJson<{ status: string; message: string; data: any }>(
+      "/api/pharmacy-store/refunds/approve",
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+  });
+}
+
+/**
+ * 9. Cashier Pay Additional Balance for an Exchange
+ * POST /api/payments/drug-exchange/process
+ * Role: AGENT / Cashier with module "transactions"
+ */
+export async function processDrugExchangeCashierPayment(payload: {
+  exchange_code: string;
+  payment_type: "cash" | "pos" | "transfer" | string;
+}): Promise<{ status: string; message: string; data: any }> {
+  return withPharmacySessionRetry(async (accessToken) => {
+    return postJson<{ status: string; message: string; data: any }>(
+      "/api/payments/drug-exchange/process",
+      payload,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+  });
 }

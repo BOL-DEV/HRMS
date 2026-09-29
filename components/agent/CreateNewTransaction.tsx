@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import { formatCurrency } from "@/libs/helper";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import toast from "react-hot-toast";
 import type {
   AgentBillItem,
   AgentIncomeHead,
@@ -172,13 +173,13 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                   <label className="flex-1 block">
                     <span className="mb-2 block text-xs font-semibold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
-                      Billing Code / Exchange Reference (e.g. EL3DZ671 or DEX-...)
+                      Billing Code / Exchange Code (e.g. 7NP7E8LZ, K9X2W7MP)
                     </span>
                     <input
                       type="text"
                       value={pharmacyCode}
                       onChange={(e) => setPharmacyCode(e.target.value)}
-                      placeholder="Enter billing code or DEX- reference code..."
+                      placeholder="Enter 8-character billing code or exchange code..."
                       className="w-full rounded-xl border border-gray-200 px-4 py-3.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
                     />
                   </label>
@@ -203,7 +204,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                           Drug Return & Exchange Settlement
                         </h4>
                         <p className="text-xs font-mono font-bold text-brand-700 dark:text-brand-400">
-                          Ref: {drugExchangeBill.exchangeCode}
+                          Code: {drugExchangeBill.exchangeCode}
                         </p>
                       </div>
                       <span
@@ -216,10 +217,10 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                         }`}
                       >
                         {drugExchangeBill.netAmount > 0
-                          ? "Pending Payment"
+                          ? "Pending Additional Payment"
                           : drugExchangeBill.netAmount < 0
-                          ? "Pending Refund"
-                          : "Even Exchange"}
+                          ? "Store Refund Required"
+                          : "Even Exchange (Completed)"}
                       </span>
                     </div>
 
@@ -257,7 +258,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                             <div>
                               <p className="font-semibold text-slate-900 dark:text-slate-100">{it.name}</p>
                               <p className="text-[11px] text-gray-500">
-                                {it.quantity} x {formatCurrency(it.unitPrice)}
+                                {it.quantity} x {formatCurrency(it.unitPrice)} &bull; Cond: <span className="font-medium text-emerald-600">good (restocked)</span>
                                 {it.reason && ` • ${it.reason}`}
                               </p>
                             </div>
@@ -298,28 +299,39 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                   <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900 flex flex-col justify-between">
                     <div className="space-y-4">
                       <h4 className="text-base font-bold text-slate-950 dark:text-white">
-                        {drugExchangeBill.netAmount < 0 ? "Disburse Refund" : "Collect Payment"}
+                        {drugExchangeBill.netAmount < 0 ? "Pharmacy Store Refund" : "Collect Additional Payment"}
                       </h4>
 
-                      <label className="space-y-2 block">
-                        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
-                          Payment / Disbursement Type
-                        </span>
-                        <select
-                          value={form.paymentType}
-                          onChange={(event) =>
-                            setForm((current) => ({
-                              ...current,
-                              paymentType: event.target.value as NewTransactionForm["paymentType"],
-                            }))
-                          }
-                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
-                        >
-                          {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
-                          {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
-                          {allowedPaymentMethods.pos && <option value="pos">POS</option>}
-                        </select>
-                      </label>
+                      {drugExchangeBill.netAmount < 0 ? (
+                        <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-xs text-purple-900 dark:border-purple-900/40 dark:bg-purple-950/30 dark:text-purple-200 space-y-2">
+                          <p className="font-bold text-sm text-purple-950 dark:text-purple-100">
+                            Refund Due: {formatCurrency(Math.abs(drugExchangeBill.netAmount))}
+                          </p>
+                          <p className="leading-relaxed">
+                            Per hospital policy, patient refunds are <strong>not disbursed from cashier wallets</strong>. Please direct the patient to the <strong>Pharmacy Store</strong> with code <strong>{drugExchangeBill.exchangeCode}</strong> for administrative offline settlement.
+                          </p>
+                        </div>
+                      ) : (
+                        <label className="space-y-2 block">
+                          <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                            Payment Method
+                          </span>
+                          <select
+                            value={form.paymentType}
+                            onChange={(event) =>
+                              setForm((current) => ({
+                                ...current,
+                                paymentType: event.target.value as NewTransactionForm["paymentType"],
+                              }))
+                            }
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
+                          >
+                            {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
+                            {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
+                            {allowedPaymentMethods.pos && <option value="pos">POS</option>}
+                          </select>
+                        </label>
+                      )}
 
                       <div className="border-t border-gray-100 pt-3 space-y-1.5 dark:border-slate-800 text-xs">
                         <div className="flex justify-between text-gray-500">
@@ -348,22 +360,40 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
                     </div>
 
                     <div className="flex flex-col gap-2 mt-6">
-                      <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={paymentMutation.isPending}
-                        className={`w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 ${
-                          drugExchangeBill.netAmount < 0
-                            ? "bg-purple-700 hover:bg-purple-600"
-                            : "bg-brand-700 hover:bg-brand-600"
-                        }`}
-                      >
-                        {paymentMutation.isPending
-                          ? "Processing..."
-                          : drugExchangeBill.netAmount < 0
-                          ? "Disburse Refund & Print Voucher"
-                          : "Process Payment & Dispense Replacement"}
-                      </button>
+                      {drugExchangeBill.netAmount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={paymentMutation.isPending}
+                          className="w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 bg-brand-700 hover:bg-brand-600"
+                        >
+                          {paymentMutation.isPending
+                            ? "Processing..."
+                            : `Collect ${formatCurrency(drugExchangeBill.netAmount)} & Dispense`}
+                        </button>
+                      ) : drugExchangeBill.netAmount < 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toast(
+                              `Direct patient to Pharmacy Store with exchange code ${drugExchangeBill.exchangeCode}.`,
+                              { icon: "ℹ️" }
+                            );
+                            closeModal();
+                          }}
+                          className="w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 bg-purple-700 hover:bg-purple-600"
+                        >
+                          Acknowledge & Direct to Store
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={closeModal}
+                          className="w-full rounded-xl py-3.5 text-sm font-semibold text-white shadow-sm flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-600"
+                        >
+                          Completed Even Exchange
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={closeModal}

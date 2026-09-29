@@ -805,114 +805,121 @@ export function useCreateTransactionState({
     try {
       const cleanCode = code.trim().toUpperCase();
 
-      // 1. Check if this is a Drug Return & Exchange Code (DEX-...)
-      if (cleanCode.startsWith("DEX") || cleanCode.includes("DEX")) {
-        try {
-          const exRes = await getPendingDrugExchanges(cleanCode);
-          const rawData = exRes.data;
-          const exList: any[] = Array.isArray(rawData)
-            ? rawData
-            : rawData?.items
-            ? rawData.items
-            : rawData
-            ? [rawData]
-            : [];
-          const matchedEx =
-            exList.find(
-              (ex: any) =>
-                ex.exchange_code?.toUpperCase() === cleanCode ||
-                ex.id?.toUpperCase() === cleanCode
-            ) || exList[0];
+      // 1. Try Drug Return & Exchange Lookup first
+      try {
+        const exRes = await getPendingDrugExchanges(cleanCode);
+        const rawData = exRes.data;
+        const exList: any[] = Array.isArray(rawData)
+          ? rawData
+          : rawData?.items
+          ? rawData.items
+          : rawData?.refunds
+          ? rawData.refunds
+          : rawData
+          ? [rawData]
+          : [];
+        const matchedEx =
+          exList.find(
+            (ex: any) =>
+              ex.exchange_code?.toUpperCase() === cleanCode ||
+              ex.id?.toUpperCase() === cleanCode
+          ) || (cleanCode.startsWith("DEX") ? exList[0] : null);
 
-          if (matchedEx) {
-            const rawItems: any[] = matchedEx.items || [];
-            const returnedItems: DrugExchangeBillItem[] = (
-              matchedEx.returned_items ||
-              rawItems.filter((i) => i.item_type === "returned")
-            ).map((it: any) => ({
-              name: it.drug_name || it.returned_drug_name || it.name || "Returned Drug",
-              quantity: Number(it.quantity || it.returned_quantity || 1),
-              unitPrice: Number(it.unit_price || it.returned_unit_price || 0),
-              amount: Number(
-                it.total_price || (it.unit_price || 0) * (it.quantity || 1)
-              ),
-              reason: it.reason || it.return_reason,
-              condition: it.condition || it.drug_condition,
-            }));
+        if (matchedEx) {
+          const rawItems: any[] = matchedEx.items || [];
+          const returnedItems: DrugExchangeBillItem[] = (
+            matchedEx.returned_items ||
+            rawItems.filter((i) => i.item_type === "returned")
+          ).map((it: any) => ({
+            name: it.drug_name || it.returned_drug_name || it.name || "Returned Drug",
+            quantity: Number(it.quantity || it.returned_quantity || 1),
+            unitPrice: Number(it.unit_price || it.returned_unit_price || 0),
+            amount: Number(
+              it.total_price || (it.unit_price || 0) * (it.quantity || 1)
+            ),
+            reason: it.reason || it.return_reason,
+            condition: it.condition || it.drug_condition,
+          }));
 
-            const replacementItems: DrugExchangeBillItem[] = (
-              matchedEx.replacement_items ||
-              rawItems.filter((i) => i.item_type === "replacement")
-            ).map((it: any) => ({
-              name: it.drug_name || it.replacement_drug_name || it.name || "Replacement Drug",
-              quantity: Number(it.quantity || it.replacement_quantity || 1),
-              unitPrice: Number(it.unit_price || it.replacement_unit_price || 0),
-              amount: Number(
-                it.total_price || (it.unit_price || 0) * (it.quantity || 1)
-              ),
-            }));
+          const replacementItems: DrugExchangeBillItem[] = (
+            matchedEx.replacement_items ||
+            rawItems.filter((i) => i.item_type === "replacement")
+          ).map((it: any) => ({
+            name: it.drug_name || it.replacement_drug_name || it.name || "Replacement Drug",
+            quantity: Number(it.quantity || it.replacement_quantity || 1),
+            unitPrice: Number(it.unit_price || it.replacement_unit_price || 0),
+            amount: Number(
+              it.total_price || (it.unit_price || 0) * (it.quantity || 1)
+            ),
+          }));
 
-            const totalReturned =
-              matchedEx.total_returned_amount ??
-              returnedItems.reduce((s, i) => s + i.amount, 0);
-            const totalReplacement =
-              matchedEx.total_replacement_amount ??
-              replacementItems.reduce((s, i) => s + i.amount, 0);
-            const netAmount =
-              matchedEx.net_amount ?? (totalReplacement - totalReturned);
+          const totalReturned =
+            matchedEx.total_returned_amount ??
+            returnedItems.reduce((s, i) => s + i.amount, 0);
+          const totalReplacement =
+            matchedEx.total_replacement_amount ??
+            replacementItems.reduce((s, i) => s + i.amount, 0);
+          const netAmount =
+            matchedEx.net_amount ?? (totalReplacement - totalReturned);
 
-            const mappedExchangeBill: DrugExchangeBill = {
-              id: matchedEx.id || cleanCode,
-              exchangeCode: matchedEx.exchange_code || cleanCode,
-              patientId: matchedEx.patient_id || "WALK_IN",
-              patientName: matchedEx.patient_name || "Patient",
-              phoneNumber: matchedEx.phone_number || "",
-              netAmount,
-              totalReturnedAmount: totalReturned,
-              totalReplacementAmount: totalReplacement,
-              status:
-                matchedEx.status ||
-                (netAmount > 0
-                  ? "pending_payment"
-                  : netAmount < 0
-                  ? "pending_refund"
-                  : "completed"),
-              returnedItems,
-              replacementItems,
-              remarks: matchedEx.remarks,
-              createdAt: matchedEx.created_at,
-            };
+          const mappedExchangeBill: DrugExchangeBill = {
+            id: matchedEx.id || cleanCode,
+            exchangeCode: matchedEx.exchange_code || cleanCode,
+            patientId: matchedEx.patient_id || "WALK_IN",
+            patientName: matchedEx.patient_name || "Patient",
+            phoneNumber: matchedEx.phone_number || "",
+            netAmount,
+            totalReturnedAmount: totalReturned,
+            totalReplacementAmount: totalReplacement,
+            status:
+              matchedEx.status ||
+              (netAmount > 0
+                ? "pending_payment"
+                : netAmount < 0
+                ? "pending_refund"
+                : "completed"),
+            returnedItems,
+            replacementItems,
+            remarks: matchedEx.remarks,
+            createdAt: matchedEx.created_at,
+          };
 
-            setPharmacyBill(null);
-            setDrugExchangeBill(mappedExchangeBill);
+          setPharmacyBill(null);
+          setDrugExchangeBill(mappedExchangeBill);
 
-            // Default allowed payment method
-            const config = paymentConfigQuery.data?.data;
-            let allowedDefault: "cash" | "pos" | "transfer" = "cash";
-            if (config) {
-              const isCashAllowed =
-                config.allow_payment_cash !== false &&
-                (config as any).allowPaymentCash !== false;
-              const isTransferAllowed =
-                config.allow_payment_transfer !== false &&
-                (config as any).allowPaymentTransfer !== false;
-              const isPosAllowed =
-                config.allow_payment_pos !== false &&
-                (config as any).allowPaymentPos !== false;
-              if (isCashAllowed) allowedDefault = "cash";
-              else if (isTransferAllowed) allowedDefault = "transfer";
-              else if (isPosAllowed) allowedDefault = "pos";
-            }
-            setForm((cur) => ({ ...cur, paymentType: allowedDefault }));
-
-            toast.success(
-              `Drug Exchange ${mappedExchangeBill.exchangeCode} loaded for ${mappedExchangeBill.patientName}.`
-            );
-            return;
+          // Default allowed payment method
+          const config = paymentConfigQuery.data?.data;
+          let allowedDefault: "cash" | "pos" | "transfer" = "cash";
+          if (config) {
+            const isCashAllowed =
+              config.allow_payment_cash !== false &&
+              (config as any).allowPaymentCash !== false;
+            const isTransferAllowed =
+              config.allow_payment_transfer !== false &&
+              (config as any).allowPaymentTransfer !== false;
+            const isPosAllowed =
+              config.allow_payment_pos !== false &&
+              (config as any).allowPaymentPos !== false;
+            if (isCashAllowed) allowedDefault = "cash";
+            else if (isTransferAllowed) allowedDefault = "transfer";
+            else if (isPosAllowed) allowedDefault = "pos";
           }
-        } catch {
-          // continue fallback
+          setForm((cur) => ({ ...cur, paymentType: allowedDefault }));
+
+          if (mappedExchangeBill.status === "pending_refund" || mappedExchangeBill.netAmount < 0) {
+            toast(
+              `Exchange ${mappedExchangeBill.exchangeCode} loaded: Refund of ₦${Math.abs(mappedExchangeBill.netAmount).toLocaleString()} is due. Direct patient to Pharmacy Store for settlement.`,
+              { icon: "ℹ️" }
+            );
+          } else {
+            toast.success(
+              `Drug Exchange ${mappedExchangeBill.exchangeCode} loaded for ${mappedExchangeBill.patientName}. Balance due: ₦${mappedExchangeBill.netAmount.toLocaleString()}`
+            );
+          }
+          return;
         }
+      } catch {
+        // continue fallback
       }
 
       // 2. Standard Prescription Bill Request Lookup
@@ -937,6 +944,16 @@ export function useCreateTransactionState({
       }
 
       if (matchedRequest) {
+        if (
+          matchedRequest.status === "cancelled" ||
+          (matchedRequest as any).status === "expired"
+        ) {
+          toast.error(
+            "Payment window expired: This prescription was billed over 24 hours ago and has expired. A new prescription is required."
+          );
+          return;
+        }
+
         const mappedBill = mapPharmacyRequestToBill(matchedRequest);
 
         if (!mappedBill.code) {
@@ -973,7 +990,7 @@ export function useCreateTransactionState({
           paymentType: allowedDefault,
         }));
       } else {
-        toast.error(`No pending pharmacy requests or exchanges found for code "${code}".`);
+        toast.error(`No pending prescription bill or exchange found for code "${code}".`);
         setPharmacyBill(null);
         setDrugExchangeBill(null);
       }

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { FaRegChartBar } from "react-icons/fa";
-import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw, FiRepeat } from "react-icons/fi";
+import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw, FiRepeat, FiDollarSign } from "react-icons/fi";
 import Sidebar from "@/components/shared/Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
 import { useEffect, useMemo, useState } from "react";
@@ -33,6 +33,12 @@ const sidebarData = {
       name: "Exchanges",
       link: "/pharmacy/exchanges",
       label: <FiRepeat className="inline" />,
+      active: false,
+    },
+    {
+      name: "Refunds",
+      link: "/pharmacy/refunds",
+      label: <FiDollarSign className="inline" />,
       active: false,
     },
     {
@@ -107,7 +113,12 @@ const PharmacySidebar = () => {
   const links = useMemo(() => {
     return sidebarData.links
       .filter((link) => {
-        // Hide retail dispensing, prescriptions, and exchanges for Central Store Managers
+        const isPlatformAdmin =
+          (profileResponse?.data?.role as string) === "PLATFORM_ADMIN" ||
+          (decoded?.role as string) === "PLATFORM_ADMIN";
+        if (isPlatformAdmin) return true;
+
+        // Central Store Manager (PHARMACY_STORE): Hide retail dispensing, prescriptions, and exchanges
         if (userRole === "PHARMACY_STORE") {
           if (
             link.link === "/pharmacy/dispense" ||
@@ -116,12 +127,27 @@ const PharmacySidebar = () => {
           ) {
             return false;
           }
+          // Allow store manager to access Refunds and Transfers
+          if (link.link === "/pharmacy/refunds") {
+            if (!activeModules || activeModules.includes("approve-refund") || activeModules.includes("refunds") || activeModules.length <= 7) {
+              return true;
+            }
+          }
+          if (link.link === "/pharmacy/transfers") {
+            if (!activeModules || activeModules.includes("transfers") || activeModules.includes("transfer-history") || activeModules.length <= 7) {
+              return true;
+            }
+          }
+        } else {
+          // Pharmacy Point Pharmacist: Hide Transfers and Refunds
+          if (link.link === "/pharmacy/transfers") {
+            return false;
+          }
+          if (link.link === "/pharmacy/refunds") {
+            const hasApproveRefund = Array.isArray(activeModules) && (activeModules.includes("approve-refund") || activeModules.includes("refunds"));
+            if (!hasApproveRefund) return false;
+          }
         }
-
-        const isPlatformAdmin =
-          (profileResponse?.data?.role as string) === "PLATFORM_ADMIN" ||
-          (decoded?.role as string) === "PLATFORM_ADMIN";
-        if (isPlatformAdmin) return true;
 
         // If modules array is not yet loaded, grant default access if store, or check modules if point
         if (!activeModules || !Array.isArray(activeModules) || activeModules.length === 0) {
@@ -132,7 +158,9 @@ const PharmacySidebar = () => {
           "/pharmacy/dashboard": "dashboard",
           "/pharmacy/dispense": "dispense",
           "/pharmacy/prescriptions": "prescriptions",
-          "/pharmacy/exchanges": ["dispense", "prescriptions", "dashboard"],
+          "/pharmacy/exchanges": ["drug-exchange", "dispense", "prescriptions", "dashboard"],
+          "/pharmacy/refunds": ["approve-refund", "refunds"],
+          "/pharmacy/transfers": ["transfers", "transfer-history"],
           "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
           "/pharmacy/reports": [
             "reports",

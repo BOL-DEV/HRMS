@@ -46,6 +46,9 @@ export default function PharmacyLayout({ children }: Props) {
     if (pathname.startsWith("/pharmacy/exchanges")) {
       return { key: "dispense", name: "Exchanges" };
     }
+    if (pathname.startsWith("/pharmacy/refunds")) {
+      return { key: "approve-refund", name: "Refunds" };
+    }
     if (pathname.startsWith("/pharmacy/inventory")) {
       return { key: "inventory", name: "Inventory" };
     }
@@ -90,6 +93,12 @@ export default function PharmacyLayout({ children }: Props) {
     }
     if (moduleInfo.key === "transfers") {
       return activeModules.includes("transfers") || activeModules.includes("transfer-history");
+    }
+    if (moduleInfo.key === "approve-refund") {
+      return (
+        userRole === "PHARMACY_STORE" ||
+        activeModules.includes("approve-refund")
+      );
     }
     if (moduleInfo.key === "reports") {
       return (
