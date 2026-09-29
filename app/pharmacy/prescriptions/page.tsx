@@ -685,7 +685,43 @@ export default function PharmacyPrescriptionsPage() {
                           {formatCurrency(bill.total_amount)}
                         </td>
                         <td className="p-4">
-                          <StatusPill status={bill.status === "dispensed" ? "Paid" : bill.status === "cancelled" ? "Cancelled" : "Pending"} />
+                          {(() => {
+                            const hoursSince = bill.created_at
+                              ? (Date.now() - new Date(bill.created_at).getTime()) / (1000 * 60 * 60)
+                              : 0;
+                            const isExpired = bill.status === "cancelled" && hoursSince >= 24;
+
+                            if (bill.status === "dispensed") {
+                              return <StatusPill status="Paid" />;
+                            }
+                            if (bill.status === "cancelled") {
+                              return (
+                                <div>
+                                  <span className="inline-block rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+                                    {isExpired ? "Expired (>24h)" : "Cancelled"}
+                                  </span>
+                                  {isExpired && (
+                                    <p className="text-[10px] text-gray-400 mt-0.5">
+                                      Auto-cancelled after 24h
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+                            const hoursLeft = Math.max(0, Math.round(24 - hoursSince));
+                            return (
+                              <div>
+                                <StatusPill status="Pending" />
+                                <p className={`text-[10px] mt-0.5 font-medium ${
+                                  hoursLeft <= 3
+                                    ? "text-rose-600 dark:text-rose-400 font-bold"
+                                    : "text-amber-600 dark:text-amber-400"
+                                }`}>
+                                  {hoursLeft > 0 ? `${hoursLeft}h to payment expiry` : "Expiring soon"}
+                                </p>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-4 text-xs text-gray-400">
                           {formatDateTime(bill.created_at)}

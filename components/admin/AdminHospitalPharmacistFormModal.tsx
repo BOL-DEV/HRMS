@@ -40,11 +40,11 @@ const POINT_ROLE_MODULES = [
   "dashboard",
   "dispense",
   "prescriptions",
+  "drug-exchange",
   "inventory",
   "inventory-edit",
   "inventory-history",
   "reports",
-  "transfers",
 ];
 
 const STORE_ROLE_MODULES = [
@@ -54,17 +54,18 @@ const STORE_ROLE_MODULES = [
   "inventory-history",
   "reports",
   "transfers",
+  "approve-refund",
 ];
 
 const POINT_MODULE_DEFINITIONS = [
   { key: "dashboard", label: "Dashboard", desc: "Overview & daily KPIs" },
   { key: "dispense", label: "Patient Dispensing", desc: "Dispense drugs & collect payment" },
   { key: "prescriptions", label: "Prescriptions", desc: "Manage billing requests" },
+  { key: "drug-exchange", label: "Drug Exchanges", desc: "Process patient returns & exchanges" },
   { key: "inventory", label: "Drug Inventory", desc: "View catalog, stock levels & batches" },
   { key: "inventory-edit", label: "Edit Inventory", desc: "Add/edit items at unit level" },
   { key: "inventory-history", label: "Drug Timeline", desc: "Audit logs & movement history" },
   { key: "reports", label: "Financial Reports", desc: "Sales, dispense & addition logs" },
-  { key: "transfers", label: "Restock Requests", desc: "Request stock transfers from Central Store" },
 ];
 
 const STORE_MODULE_DEFINITIONS = [
@@ -74,6 +75,7 @@ const STORE_MODULE_DEFINITIONS = [
   { key: "inventory-history", label: "Stock Movement History", desc: "Supplier restock & dispatch logs" },
   { key: "reports", label: "Warehouse Reports", desc: "Stock valuation & movement reports" },
   { key: "transfers", label: "Transfer Dispatch", desc: "Review, approve & dispatch stock" },
+  { key: "approve-refund", label: "Approve Return Refunds", desc: "Offline return & exchange settlements" },
 ];
 
 function getDefaultModulesForRole(role: "PHARMACY" | "PHARMACY_STORE") {

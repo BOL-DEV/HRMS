@@ -99,10 +99,45 @@ export default function DrugExchangeReceiptModal({ exchange, onClose }: Props) {
             <p className="text-xs font-semibold text-brand-700 dark:text-brand-400">
               DRUG RETURN & EXCHANGE VOUCHER
             </p>
-            <div className="mt-2 inline-block rounded-lg border border-gray-200 bg-gray-50/80 px-3 py-1 font-mono text-xs font-bold text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              Ref: {exchange.exchange_code}
+            <div className="mt-2 inline-flex items-center gap-2 rounded-xl border border-brand-300 bg-brand-50/80 px-4 py-1.5 dark:border-brand-500/30 dark:bg-brand-500/10">
+              <span className="text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Exchange Code:</span>
+              <span className="font-mono text-sm font-black text-brand-800 dark:text-brand-200 tracking-wider">
+                {exchange.exchange_code}
+              </span>
             </div>
           </div>
+
+          {/* Dynamic Guidance Banner */}
+          {statusKey === "pending_payment" && balanceDiff > 0 && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+              <p className="font-bold flex items-center gap-1.5">
+                <span>⚠️</span> Action Required at Cashier
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed">
+                Outstanding balance of <strong>{formatCurrency(balanceDiff)}</strong> must be paid at the Cashier counter using exchange code <strong className="font-mono">{exchange.exchange_code}</strong> before replacement medications are released.
+              </p>
+            </div>
+          )}
+
+          {statusKey === "pending_refund" && (
+            <div className="rounded-xl border border-purple-300 bg-purple-50 p-3 text-xs text-purple-900 dark:border-purple-900/40 dark:bg-purple-950/30 dark:text-purple-200">
+              <p className="font-bold flex items-center gap-1.5">
+                <span>ℹ️</span> Action Required at Pharmacy Store
+              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed">
+                A refund balance of <strong>{formatCurrency(Math.abs(balanceDiff || exchange.refund_balance || exchange.refund_amount || 0))}</strong> is due to the patient. Please present this voucher with code <strong className="font-mono">{exchange.exchange_code}</strong> to the Pharmacy Store for administrative offline settlement.
+              </p>
+            </div>
+          )}
+
+          {statusKey === "completed" && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5 text-xs text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300 flex items-center gap-2">
+              <FiCheckCircle className="text-emerald-600 shrink-0" />
+              <span className="text-[11px] font-medium">
+                Exchange finalized and settled. Returned items restocked to inventory.
+              </span>
+            </div>
+          )}
 
           {/* Transaction Metadata */}
           <div className="grid grid-cols-2 gap-2.5 rounded-xl border border-gray-100 bg-gray-50/50 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40 sm:grid-cols-4">

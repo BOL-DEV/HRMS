@@ -841,10 +841,11 @@ export default function DrugExchangeModal({
                         <thead className="bg-gray-50 dark:bg-slate-800 text-gray-500 font-semibold border-b border-gray-200 dark:border-slate-700 sticky top-0">
                           <tr>
                             <th className="p-3">Drug Name</th>
-                            <th className="p-3">Bill & Date</th>
+                            <th className="p-3">Bill & Paid Date</th>
                             <th className="p-3 text-center">Dispensed</th>
                             <th className="p-3 text-center">Available Return</th>
                             <th className="p-3 text-right">Unit Price</th>
+                            <th className="p-3 text-center">24h Eligibility</th>
                             <th className="p-3 text-center">Action</th>
                           </tr>
                         </thead>
@@ -856,7 +857,7 @@ export default function DrugExchangeModal({
                                 it.pharmacy_item_id === item.pharmacy_item_id
                             );
                             const available = item.available_to_return ?? item.quantity_dispensed ?? 0;
-                            const isEligible = available > 0 && !isAdded;
+                            const isEligible = item.is_eligible_for_exchange !== false && item.is_within_24_hours !== false && available > 0 && !isAdded;
 
                             return (
                               <tr key={item.pharmacy_request_item_id || item.pharmacy_item_id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/40">
@@ -894,6 +895,20 @@ export default function DrugExchangeModal({
                                   {formatCurrency(item.unit_price)}
                                 </td>
                                 <td className="p-3 text-center">
+                                  {item.is_within_24_hours === false || item.is_eligible_for_exchange === false ? (
+                                    <span
+                                      className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 cursor-help"
+                                      title={item.exchange_ineligible_reason || "Payment was made more than 24 hours ago"}
+                                    >
+                                      &gt;24h (Ineligible)
+                                    </span>
+                                  ) : (
+                                    <span className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                      Eligible (≤24h)
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-3 text-center">
                                   {isAdded ? (
                                     <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500 dark:bg-slate-800 dark:text-slate-400">
                                       Added
@@ -901,6 +916,13 @@ export default function DrugExchangeModal({
                                   ) : available <= 0 ? (
                                     <span className="text-gray-400 italic text-[11px]">
                                       Fully Returned
+                                    </span>
+                                  ) : !isEligible ? (
+                                    <span
+                                      className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500"
+                                      title={item.exchange_ineligible_reason || "Drug not eligible for exchange"}
+                                    >
+                                      Ineligible
                                     </span>
                                   ) : (
                                     <button
@@ -995,12 +1017,11 @@ export default function DrugExchangeModal({
                         onChange={(e) => setManualCondition(e.target.value as DrugCondition)}
                         className="w-full rounded-lg border border-gray-200 bg-white p-2 text-xs outline-none dark:bg-slate-800 dark:border-slate-700"
                       >
-                        <option value="sealed">Sealed / Intact (Restock back to inventory)</option>
-                        <option value="good">Good Condition (Restock back to inventory)</option>
-                        <option value="opened">Opened / Broken Seal (Quarantine for disposal)</option>
-                        <option value="damaged">Damaged / Compromised (Quarantine for disposal)</option>
-                        <option value="expired">Expired Formulation (Destroy audit log)</option>
+                        <option value="good">Good Condition (Clean, intact strip / Restock to inventory)</option>
                       </select>
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        Note: Only unbroken, intact items in good condition are eligible for exchange and automatically restocked.
+                      </p>
                     </div>
                     <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
                       <button
@@ -1091,19 +1112,9 @@ export default function DrugExchangeModal({
                               </select>
                             </td>
                             <td className="p-3">
-                              <select
-                                value={item.drug_condition}
-                                onChange={(e) =>
-                                  handleUpdateReturnedItem(idx, "drug_condition", e.target.value)
-                                }
-                                className="rounded border border-gray-200 bg-white p-1 text-xs dark:bg-slate-800"
-                              >
-                                <option value="sealed">Sealed (Restock)</option>
-                                <option value="good">Good (Restock)</option>
-                                <option value="opened">Opened (Quarantine)</option>
-                                <option value="damaged">Damaged (Quarantine)</option>
-                                <option value="expired">Expired (Destruction)</option>
-                              </select>
+                              <span className="inline-block rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                Good (Auto-Restocked)
+                              </span>
                             </td>
                             <td className="p-3 text-right font-bold text-slate-900 dark:text-slate-100">
                               {formatCurrency(item.return_subtotal ?? 0)}
