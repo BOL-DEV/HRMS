@@ -578,8 +578,17 @@ export async function getPatientDispensedDrugs(
               phone_number: item.phone_number || "",
               pharmacy_unit_id: item.pharmacy_unit_id || "",
               pharmacy_unit_name: item.pharmacy_unit_name || "",
-              pharmacy_request_item_id: item.pharmacy_request_item_id || item.request_item_id || item.id,
-              pharmacy_item_id: item.pharmacy_item_id || item.item_id || item.drug_id,
+              pharmacy_request_item_id:
+                item.pharmacy_request_item_id ||
+                item.request_item_id ||
+                item.prescription_item_id ||
+                item.pharmacy_request_item ||
+                item.id ||
+                item.pharmacy_item_id ||
+                item.item_id ||
+                item.drug_id ||
+                "",
+              pharmacy_item_id: item.pharmacy_item_id || item.item_id || item.drug_id || item.id || "",
               drug_name: item.drug_name || item.item_name || item.name || "Medication",
               generic_name: item.generic_name || "",
               batch_number: item.batch_number || item.batch || "N/A",
@@ -624,15 +633,22 @@ export async function submitDrugExchange(
     patient_name: payload.patient_name,
     phone_number: payload.phone_number || undefined,
     remarks: payload.remarks || undefined,
-    returned_items: payload.returned_items.map((it) => ({
-      pharmacy_request_item_id: it.pharmacy_request_item_id || undefined,
-      pharmacy_item_id: it.pharmacy_item_id,
-      quantity: Number(it.quantity),
-      reason: it.reason,
-      condition: "good", // Strictly "good" per backend validation
-      unit_price: it.unit_price != null ? Number(it.unit_price) : undefined,
-      restock_inventory: true,
-    })),
+    returned_items: payload.returned_items.map((it) => {
+      const requestItemId =
+        it.pharmacy_request_item_id ||
+        (it as any).request_item_id ||
+        (it as any).prescription_item_id ||
+        (it as any).id;
+      return {
+        pharmacy_request_item_id: requestItemId,
+        pharmacy_item_id: it.pharmacy_item_id,
+        quantity: Number(it.quantity),
+        reason: it.reason || "Patient returned drug",
+        condition: "good", // Strictly "good" per backend validation
+        unit_price: it.unit_price != null ? Number(it.unit_price) : undefined,
+        restock_inventory: true,
+      };
+    }),
     replacement_items: (payload.replacement_items || []).map((it) => ({
       pharmacy_item_id: it.pharmacy_item_id,
       quantity: Number(it.quantity),
