@@ -1091,14 +1091,14 @@ export async function updatePharmacyTransferStatus(
   transferId: string,
   payload:
     | {
-        action: "completed" | "cancelled" | "approve" | "reject" | string;
+        action: "completed" | "cancelled" | "approve" | "reject" | "accept" | "decline" | string;
         remarks?: string;
       }
     | string
 ) {
   const rawAction = typeof payload === "string" ? payload : payload.action;
-  const actionNormalized =
-    rawAction === "approve" ? "completed" : rawAction === "reject" ? "cancelled" : rawAction;
+  const isAccept = rawAction === "approve" || rawAction === "completed" || rawAction === "accept";
+  const actionNormalized = isAccept ? "accept" : "decline";
   const body = {
     action: actionNormalized,
     remarks: typeof payload === "object" ? payload.remarks : undefined,
@@ -1537,25 +1537,32 @@ export async function updatePharmacyStoreTransferStatus(
   transferId: string,
   payload:
     | {
-        action: "approve" | "reject";
+        action: "approve" | "reject" | "completed" | "cancelled" | "accept" | "decline" | string;
         quantity?: number;
-        items?: Array<{ transfer_item_id?: string; id?: string; quantity: number }>;
+        items?: Array<{ transfer_item_id?: string; id?: string; quantity?: number; approved_quantity?: number }>;
+        remarks?: string;
       }
     | "approve"
     | "reject"
+    | string
 ) {
+  const rawAction = typeof payload === "string" ? payload : payload.action;
+  const isApprove = rawAction === "approve" || rawAction === "completed" || rawAction === "accept";
+  const actionNormalized = isApprove ? "approve" : "reject";
+
   let body: Record<string, unknown>;
   if (typeof payload === "string") {
-    body = { action: payload };
+    body = { action: actionNormalized };
   } else {
     body = {
-      action: payload.action,
+      action: actionNormalized,
+      remarks: payload.remarks,
       ...(payload.quantity !== undefined ? { quantity: payload.quantity } : {}),
       ...(payload.items
         ? {
             items: payload.items.map((it) => ({
               transfer_item_id: it.transfer_item_id || it.id,
-              quantity: it.quantity,
+              quantity: it.approved_quantity ?? it.quantity ?? 1,
             })),
           }
         : {}),
