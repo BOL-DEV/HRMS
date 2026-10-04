@@ -383,34 +383,9 @@ function Page() {
             setEditingItem(item);
             setModalDepartmentId(item.department_id);
           }}
+          pagination={pagination}
+          onPageChange={setPage}
         />
-
-        {pagination ? (
-          <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
-            <p className="text-sm text-gray-600 dark:text-slate-300">
-              Page {pagination.page} of {pagination.total_pages}
-            </p>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                disabled={!pagination.has_previous_page}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                disabled={!pagination.has_next_page}
-                onClick={() => setPage((current) => current + 1)}
-                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
 
       {isCreateOpen ? (

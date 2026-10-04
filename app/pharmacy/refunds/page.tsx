@@ -468,6 +468,32 @@ export default function PharmacyStoreRefundsPage() {
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-slate-800">
+              <span className="text-xs text-gray-500">
+                Page {currentPage} of {totalPages} ({refundsData?.data?.total_items ?? refundsList.length} total)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || isLoading}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(refundsData?.data?.total_pages ?? 1, p + 1))}
+                  disabled={currentPage >= (refundsData?.data?.total_pages ?? 1) || isLoading}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -150,40 +150,9 @@ function Page() {
           rows={transactions}
           isLoading={transactionsQuery.isLoading}
           toMethodLabel={toMethodLabel}
+          pagination={pagination}
+          onPageChange={setPage}
         />
-
-        {!transactionsQuery.isLoading &&
-        transactions.length > 0 &&
-        pagination ? (
-          <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.05)] dark:border-line-subtle dark:bg-panel">
-            <p className="text-sm text-gray-600 dark:text-slate-300">
-              Page {pagination.current_page} of {pagination.total_pages}
-            </p>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                disabled={!pagination.has_previous}
-                onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                disabled={!pagination.has_next}
-                onClick={() =>
-                  setPage((current) =>
-                    Math.min(current + 1, pagination.total_pages),
-                  )
-                }
-                className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:text-slate-200 dark:hover:bg-panel-strong"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );
