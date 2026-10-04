@@ -31,6 +31,13 @@ type Props = {
   isLoading?: boolean;
   emptyMessage?: string;
   onRefresh?: () => void;
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    has_previous: boolean;
+    has_next: boolean;
+  } | null;
+  onPageChange?: (page: number) => void;
 };
 
 function printReceiptHtml(receiptHTML: string, receiptCount?: number) {
@@ -63,6 +70,8 @@ function ReceiptLists({
   totalCount,
   isLoading = false,
   emptyMessage = "No receipts found for the selected filters.",
+  pagination,
+  onPageChange,
 }: Props) {
   const queryClient = useQueryClient();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -285,6 +294,33 @@ function ReceiptLists({
           </tbody>
         </table>
       </div>
+
+      {pagination && pagination.total_pages > 0 ? (
+        <div className="flex flex-col gap-3 border-t border-gray-200 px-6 py-4 text-sm dark:border-line-subtle md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-gray-600 dark:text-slate-300">
+            Page {pagination.current_page} of {pagination.total_pages}
+          </p>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={!pagination.has_previous}
+              onClick={() => onPageChange?.(Math.max(pagination.current_page - 1, 1))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={!pagination.has_next}
+              onClick={() => onPageChange?.(pagination.current_page + 1)}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {requesting ? (
         <div

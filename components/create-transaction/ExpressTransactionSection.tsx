@@ -100,7 +100,7 @@ function ExpressTransactionSection({
                 Payment Type
               </span>
               <select
-                value={expressForm.paymentType}
+                value={expressForm.paymentType || ""}
                 onChange={(event) =>
                   setExpressForm((current) => ({
                     ...current,
@@ -109,6 +109,7 @@ function ExpressTransactionSection({
                 }
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
               >
+                <option value="">Select payment type</option>
                 {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
                 {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
                 {allowedPaymentMethods.pos && <option value="pos">POS</option>}

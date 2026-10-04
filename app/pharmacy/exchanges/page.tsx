@@ -59,6 +59,7 @@ export default function DrugExchangesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [page, setPage] = useState(1);
 
   // Modals
   const [isNewExchangeOpen, setIsNewExchangeOpen] = useState(false);
@@ -70,13 +71,15 @@ export default function DrugExchangesPage() {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["pharmacy-drug-exchanges", search, statusFilter, startDate, endDate],
+    queryKey: ["pharmacy-drug-exchanges", search, statusFilter, startDate, endDate, page],
     queryFn: () =>
       getDrugExchangesList({
         search,
         status: statusFilter,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
+        page,
+        limit: 20,
       }),
     enabled: Boolean(accessToken),
   });
@@ -469,6 +472,32 @@ export default function DrugExchangesPage() {
               </tbody>
             </table>
           </div>
+
+          {(exchangesData?.data?.total_pages ?? 1) > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-100 p-4 dark:border-slate-800">
+              <span className="text-xs text-gray-500">
+                Page {page} of {exchangesData?.data?.total_pages ?? 1} ({exchangesData?.data?.total_items ?? records.length} total)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1 || isLoading}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(exchangesData?.data?.total_pages ?? 1, p + 1))}
+                  disabled={page >= (exchangesData?.data?.total_pages ?? 1) || isLoading}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-gray-50 disabled:opacity-50 dark:border-slate-800 dark:text-slate-300"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
