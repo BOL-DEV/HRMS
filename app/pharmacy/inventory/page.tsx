@@ -423,13 +423,17 @@ export default function PharmacyInventoryPage() {
 
     transferMutation.mutate({
       to_unit_id: selectedUnitFilter,
-      remarks: transferRemarks.trim() || undefined,
+      remarks: transferRemarks.trim() || "Stock replenishment from Central Store",
       items: [
         {
           source_pharmacy_item_id: transferStoreItem?.id || transferDrugItem.id,
           quantity: qty,
         },
       ],
+      ...({
+        transfer_type: "dispatch",
+        is_dispatch: true,
+      } as any),
     });
   };
 
