@@ -139,17 +139,14 @@ const PharmacySidebar = () => {
             }
           }
         } else {
-          // Pharmacy Point Pharmacist: Hide Transfers and Refunds
-          if (link.link === "/pharmacy/transfers") {
-            return false;
-          }
+          // Pharmacy Point Pharmacist: Hide Refunds unless role has approve-refund
           if (link.link === "/pharmacy/refunds") {
             const hasApproveRefund = Array.isArray(activeModules) && (activeModules.includes("approve-refund") || activeModules.includes("refunds"));
             if (!hasApproveRefund) return false;
           }
         }
 
-        // If modules array is not yet loaded, grant default access if store, or check modules if point
+        // If modules array is not yet loaded, grant default access
         if (!activeModules || !Array.isArray(activeModules) || activeModules.length === 0) {
           return true;
         }
@@ -158,10 +155,10 @@ const PharmacySidebar = () => {
           "/pharmacy/dashboard": "dashboard",
           "/pharmacy/dispense": "dispense",
           "/pharmacy/prescriptions": "prescriptions",
-          "/pharmacy/exchanges": ["drug-exchange", "dispense", "prescriptions", "dashboard"],
+          "/pharmacy/exchanges": "drug-exchange",
           "/pharmacy/refunds": ["approve-refund", "refunds"],
           "/pharmacy/transfers": ["transfers", "transfer-history"],
-          "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
+          "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history", "stock-edit"],
           "/pharmacy/reports": [
             "reports",
             "drug-report",

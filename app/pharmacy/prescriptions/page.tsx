@@ -29,6 +29,7 @@ import {
   updatePharmacyRequest,
   payPharmacyRequestSelf,
   getPharmacyInventory,
+  searchPharmacyInventoryFast,
   cancelPharmacyRequest,
   lookupPatientForPharmacy,
   getPharmacyProfile,
@@ -36,6 +37,7 @@ import {
   GetPharmacyRequestsResponse,
   PharmacyBillingRequest,
   PharmacyRequestUpdatePayload,
+  BackendDrugItem,
   unwrapPharmacyData,
 } from "@/libs/pharmacy-api";
 
@@ -159,7 +161,7 @@ export default function PharmacyPrescriptionsPage() {
   const [editItems, setEditItems] = useState<LocalPharmacyBillItem[]>([]);
 
   // Add Item inside Edit Modal state
-  const [selectedDrugId, setSelectedDrugId] = useState("");
+  const [selectedDrug, setSelectedDrug] = useState<BackendDrugItem | null>(null);
   const [dispenseQty, setDispenseQty] = useState("1");
   const [cancellingBill, setCancellingBill] = useState<{ id: string; code: string } | null>(null);
 
@@ -294,7 +296,9 @@ export default function PharmacyPrescriptionsPage() {
 
   // Helper stock limit lookup
   const getAvailableStockForEdit = (drugId: string) => {
-    const drug = inventory.find((d) => d.id === drugId);
+    const drug =
+      inventory.find((d) => d.id === drugId) ||
+      (selectedDrug?.id === drugId ? selectedDrug : null);
     if (!drug) return 0;
 
     const originalItem = editingBill?.items?.find(
@@ -302,7 +306,7 @@ export default function PharmacyPrescriptionsPage() {
     );
     const originalQty = originalItem ? originalItem.quantity : 0;
 
-    return drug.stock + originalQty;
+    return Number(drug.stock || 0) + originalQty;
   };
 
   const handleOpenEditModal = (bill: PharmacyBillingRequest) => {
@@ -319,7 +323,7 @@ export default function PharmacyPrescriptionsPage() {
         amount: it.amount || it.unit_price * it.quantity,
       }))
     );
-    setSelectedDrugId("");
+    setSelectedDrug(null);
     setDispenseQty("1");
   };
 
@@ -349,13 +353,10 @@ export default function PharmacyPrescriptionsPage() {
   };
 
   const handleAddEditItem = () => {
-    if (!selectedDrugId) {
+    if (!selectedDrug) {
       toast.error("Select a formulation first.");
       return;
     }
-
-    const drug = inventory.find((d) => d.id === selectedDrugId);
-    if (!drug) return;
 
     const qty = Number(dispenseQty);
     if (isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) {
@@ -363,28 +364,28 @@ export default function PharmacyPrescriptionsPage() {
       return;
     }
 
-    const maxStock = getAvailableStockForEdit(selectedDrugId);
+    const maxStock = getAvailableStockForEdit(selectedDrug.id);
     if (qty > maxStock) {
       toast.error(`Insufficient stock. Only ${maxStock} units available.`);
       return;
     }
 
-    if (editItems.some((item) => item.drugId === selectedDrugId)) {
+    if (editItems.some((item) => item.drugId === selectedDrug.id)) {
       toast.error("This formulation is already added.");
       return;
     }
 
-    const unitPrice = drug.unit_price ?? 0;
+    const unitPrice = selectedDrug.unit_price ?? 0;
     const newItem: LocalPharmacyBillItem = {
-      drugId: drug.id,
-      name: drug.name,
+      drugId: selectedDrug.id,
+      name: selectedDrug.name,
       quantity: qty,
       unitPrice: unitPrice,
       amount: unitPrice * qty,
     };
 
     setEditItems((prev) => [...prev, newItem]);
-    setSelectedDrugId("");
+    setSelectedDrug(null);
     setDispenseQty("1");
   };
 
@@ -419,10 +420,6 @@ export default function PharmacyPrescriptionsPage() {
   const editGrandTotal = useMemo(() => {
     return editItems.reduce((sum, item) => sum + item.amount, 0);
   }, [editItems]);
-
-  const activeSelectedDrug = useMemo(() => {
-    return inventory.find((d) => d.id === selectedDrugId) ?? null;
-  }, [selectedDrugId, inventory]);
 
   const prescriptionsPayload = useMemo(() => {
     const dataObj = unwrapPharmacyData<unknown>(prescriptionsData, []);
@@ -1065,33 +1062,25 @@ export default function PharmacyPrescriptionsPage() {
               {/* Formulation Add Section inside edit */}
               <div className="border border-gray-200 rounded-2xl p-4 space-y-3 dark:border-slate-800">
                 <p className="text-xs font-bold text-gray-600 uppercase dark:text-slate-300 tracking-wider">
-                  Add New Formulation
+                  Add Formulation Item
                 </p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                  <label className="flex-1 block">
-                    <select
-                      value={selectedDrugId}
-                      onChange={(e) => setSelectedDrugId(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
-                    >
-                      <option value="">Select Drug formulation...</option>
-                      {inventory
-                        .filter(
-                          (d) =>
-                            d.stock > 0 &&
-                            d.status.toLowerCase() !== "expired" &&
-                            !editItems.some((it) => it.drugId === d.id)
-                        )
-                        .map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name} (Stock: {getAvailableStockForEdit(d.id)}) -{" "}
-                            {d.unit_price != null ? formatCurrency(d.unit_price) : "—"}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
+                      Search Drug Catalog
+                    </label>
+                    <PrescriptionDrugSearchCombobox
+                      selectedDrug={selectedDrug}
+                      onSelectDrug={setSelectedDrug}
+                      excludeDrugIds={editItems.map((it) => it.drugId)}
+                      defaultInventory={inventory}
+                    />
+                  </div>
 
                   <label className="block sm:w-24">
+                    <span className="block text-xs font-semibold text-gray-600 dark:text-slate-400 mb-1">
+                      Qty
+                    </span>
                     <input
                       type="number"
                       value={dispenseQty}
@@ -1105,17 +1094,22 @@ export default function PharmacyPrescriptionsPage() {
                   <button
                     type="button"
                     onClick={handleAddEditItem}
-                    className="rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center gap-1 shadow-sm shrink-0"
+                    className="rounded-xl bg-slate-900 text-white px-5 py-2.5 text-sm font-semibold hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center gap-1.5 shadow-sm shrink-0"
                   >
                     <FiPlus />
                     Add
                   </button>
                 </div>
-                {activeSelectedDrug ? (
-                  <p className="text-[11px] text-brand-600 font-medium">
-                    Available stock: {getAvailableStockForEdit(activeSelectedDrug.id)} | price:{" "}
-                    {activeSelectedDrug.unit_price != null ? formatCurrency(activeSelectedDrug.unit_price) : "—"}
-                  </p>
+                {selectedDrug ? (
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-brand-700 bg-brand-50/70 border border-brand-100 p-2.5 rounded-xl dark:bg-brand-950/30 dark:border-brand-900/50 dark:text-brand-300">
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {selectedDrug.name}
+                    </span>
+                    <span>•</span>
+                    <span>Available stock: <strong>{getAvailableStockForEdit(selectedDrug.id)}</strong></span>
+                    <span>•</span>
+                    <span>Unit price: <strong>{selectedDrug.unit_price != null ? formatCurrency(selectedDrug.unit_price) : "—"}</strong></span>
+                  </div>
                 ) : null}
               </div>
 
@@ -1294,3 +1288,143 @@ export default function PharmacyPrescriptionsPage() {
     </div>
   );
 }
+
+// Subcomponent: Live Search Combobox for Drug Formulations (Point Inventory & Remote Fast Autocomplete)
+function PrescriptionDrugSearchCombobox({
+  selectedDrug,
+  onSelectDrug,
+  excludeDrugIds = [],
+  defaultInventory = [],
+}: {
+  selectedDrug: BackendDrugItem | null;
+  onSelectDrug: (drug: BackendDrugItem | null) => void;
+  excludeDrugIds?: string[];
+  defaultInventory?: BackendDrugItem[];
+}) {
+  const [query, setQuery] = useState(selectedDrug ? selectedDrug.name : "");
+  const [results, setResults] = useState<BackendDrugItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedDrug) {
+      setQuery(selectedDrug.name);
+    } else {
+      setQuery("");
+    }
+  }, [selectedDrug]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const excludedSet = useMemo(() => new Set(excludeDrugIds), [excludeDrugIds]);
+
+  useEffect(() => {
+    if (!query || (selectedDrug && selectedDrug.name === query)) {
+      const availableDefaults = defaultInventory.filter(
+        (d) => Number(d.stock) > 0 && d.status?.toLowerCase() !== "expired" && !excludedSet.has(d.id)
+      );
+      setResults(availableDefaults.slice(0, 10));
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await searchPharmacyInventoryFast({ q: query, in_stock: true, limit: 12 });
+        const unwrapped = unwrapPharmacyData<any>(res, { items: [] });
+        const rawItems = Array.isArray(unwrapped)
+          ? unwrapped
+          : Array.isArray(unwrapped.items)
+          ? unwrapped.items
+          : [];
+        const filtered = rawItems.filter(
+          (d: BackendDrugItem) => !excludedSet.has(d.id)
+        );
+        setResults(filtered);
+        setIsOpen(true);
+      } catch (err) {
+        console.error("Failed to search inventory formulations", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [query, selectedDrug, defaultInventory, excludedSet]);
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative">
+        <FiSearch className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!e.target.value) {
+              onSelectDrug(null);
+            }
+          }}
+          onFocus={() => {
+            if (results.length > 0) setIsOpen(true);
+          }}
+          placeholder="Type formulation name or generic to search catalog..."
+          className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-10 py-2.5 text-sm text-slate-950 outline-none transition focus:border-brand-500 dark:border-slate-700 dark:bg-canvas dark:text-white"
+        />
+        {isSearching && (
+          <span className="absolute right-3 top-3 text-[10px] font-semibold text-gray-400">
+            Searching...
+          </span>
+        )}
+      </div>
+
+      {isOpen && results.length > 0 && (
+        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+          {results.map((drug) => (
+            <li
+              key={drug.id}
+              onClick={() => {
+                onSelectDrug(drug);
+                setQuery(drug.name);
+                setIsOpen(false);
+              }}
+              className="flex cursor-pointer items-center justify-between gap-3 rounded-xl p-2.5 text-xs transition hover:bg-brand-50 dark:hover:bg-slate-800/70"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-slate-900 dark:text-slate-100 truncate">{drug.name}</p>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate">
+                  {drug.generic_name ? `${drug.generic_name} • ` : ""}Batch: {drug.batch_number || "—"}
+                  {drug.expiry_date ? ` • Exp: ${formatDateTime(drug.expiry_date)}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                    Number(drug.stock) > 0
+                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                  }`}
+                >
+                  Stock: {drug.stock}
+                </span>
+                <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                  {drug.unit_price != null ? formatCurrency(drug.unit_price) : "—"}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+

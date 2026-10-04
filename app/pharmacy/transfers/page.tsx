@@ -173,6 +173,9 @@ export default function PharmacyTransfersPage() {
       return await getPharmacyTransfers({
         status: activeTab === "all" ? undefined : activeTab,
         unit_id: isPlatformAdmin ? undefined : activeUnitId || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+        search: searchQuery.trim() || undefined,
       });
     },
     enabled: Boolean(accessToken),
@@ -231,7 +234,7 @@ export default function PharmacyTransfersPage() {
     },
   });
 
-  // Mutation: Action (approve/reject)
+  // Mutation: Action (accept/decline/approve)
   const updateStatusMutation = useMutation({
     mutationFn: async ({
       id,
@@ -240,28 +243,30 @@ export default function PharmacyTransfersPage() {
       id: string;
       payload:
         | {
-            action: "approve" | "reject";
+            action: "completed" | "cancelled" | "approve" | "reject" | string;
+            remarks?: string;
             quantity?: number;
-            items?: Array<{ transfer_item_id?: string; id?: string; quantity: number }>;
+            items?: Array<{ transfer_item_id?: string; id?: string; quantity?: number; approved_quantity?: number }>;
           }
-        | "approve"
-        | "reject";
+        | string;
     }): Promise<any> => {
       if (isStoreManager) {
-        return await updatePharmacyStoreTransferStatus(id, payload);
+        return await updatePharmacyStoreTransferStatus(id, payload as any);
       }
-      const action = typeof payload === "string" ? payload : payload.action;
-      return await updatePharmacyTransferStatus(id, action);
+      return await updatePharmacyTransferStatus(id, payload as any);
     },
     onSuccess: (_, variables) => {
-      const isApprove =
+      const rawAction =
         typeof variables.payload === "string"
-          ? variables.payload === "approve"
-          : variables.payload.action === "approve";
+          ? variables.payload
+          : variables.payload.action;
+      const isApproved = rawAction === "completed" || rawAction === "approve";
       toast.success(
-        isApprove
-          ? "Transfer request approved and stock dispatched."
-          : "Transfer request rejected."
+        isApproved
+          ? isStoreManager
+            ? "Restock request approved and stock dispatched."
+            : "Incoming transfer accepted into dispensary shelf."
+          : "Transfer cancelled/declined."
       );
       setApprovingTransfer(null);
       setApprovalQuantities({});
@@ -358,16 +363,18 @@ export default function PharmacyTransfersPage() {
 
     const itemsPayload = (approvingTransfer.items || []).map((it: any) => {
       const q = approvalQuantities[it.id] !== undefined ? approvalQuantities[it.id] : (it.quantity ?? it.qty ?? 1);
+      const cleanQty = Math.max(1, Number(q));
       return {
         transfer_item_id: it.id,
-        quantity: Math.max(1, Number(q)),
+        quantity: cleanQty,
+        approved_quantity: cleanQty,
       };
     });
 
     updateStatusMutation.mutate({
       id: approvingTransfer.id,
       payload: {
-        action: "approve",
+        action: "completed",
         items: itemsPayload.length > 0 ? itemsPayload : undefined,
       },
     });
@@ -537,7 +544,7 @@ export default function PharmacyTransfersPage() {
                     <th className="p-4 font-semibold">Transferred Formulations</th>
                     <th className="p-4 font-semibold text-center">Status</th>
                     <th className="p-4 font-semibold">Created At</th>
-                    {(isStoreManager || isPlatformAdmin) && <th className="p-4 font-semibold text-right">Actions</th>}
+                    <th className="p-4 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -583,7 +590,7 @@ export default function PharmacyTransfersPage() {
                           className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                             trf.status === "completed"
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400"
-                              : trf.status === "rejected"
+                              : trf.status === "rejected" || trf.status === "cancelled"
                               ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400"
                               : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400"
                           }`}
@@ -594,30 +601,64 @@ export default function PharmacyTransfersPage() {
                       <td className="p-4 text-xs text-gray-500">
                         {formatDateTime(trf.created_at)}
                       </td>
-                      {(isStoreManager || isPlatformAdmin) && (
-                        <td className="p-4 text-right">
-                          {trf.status === "pending" && (
-                            <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => handleOpenApproval(trf)}
-                                className="rounded-lg p-2 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
-                                title="Approve Request"
-                                disabled={updateStatusMutation.isPending}
-                              >
-                                <FiCheck className="h-4.5 w-4.5" />
-                              </button>
-                              <button
-                                onClick={() => handleReject(trf.id)}
-                                className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
-                                title="Reject Request"
-                                disabled={updateStatusMutation.isPending}
-                              >
-                                <FiX className="h-4.5 w-4.5" />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      )}
+                      <td className="p-4 text-right">
+                        {trf.status === "pending" && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Point Pharmacist: Accept / Decline Incoming Store Dispatches */}
+                            {!isStoreManager && (
+                              <>
+                                <button
+                                  onClick={() =>
+                                    updateStatusMutation.mutate({
+                                      id: trf.id,
+                                      payload: { action: "completed", remarks: "Received in good condition" },
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 transition"
+                                  title="Accept incoming dispatch into dispensary shelf"
+                                  disabled={updateStatusMutation.isPending}
+                                >
+                                  <FiCheck className="h-3.5 w-3.5" />
+                                  <span>Accept</span>
+                                </button>
+                                <button
+                                  onClick={() => handleReject(trf.id)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300 transition"
+                                  title="Decline incoming dispatch"
+                                  disabled={updateStatusMutation.isPending}
+                                >
+                                  <FiX className="h-3.5 w-3.5" />
+                                  <span>Decline</span>
+                                </button>
+                              </>
+                            )}
+
+                            {/* Store Manager / Platform Admin: Approve Point Restock Request with adjustable quantity */}
+                            {(isStoreManager || isPlatformAdmin) && (
+                              <>
+                                <button
+                                  onClick={() => handleOpenApproval(trf)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 transition"
+                                  title="Approve restock request with custom/exact quantity"
+                                  disabled={updateStatusMutation.isPending}
+                                >
+                                  <FiCheck className="h-3.5 w-3.5" />
+                                  <span>Approve</span>
+                                </button>
+                                <button
+                                  onClick={() => handleReject(trf.id)}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300 transition"
+                                  title="Decline restock request"
+                                  disabled={updateStatusMutation.isPending}
+                                >
+                                  <FiX className="h-3.5 w-3.5" />
+                                  <span>Decline</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

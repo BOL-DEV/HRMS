@@ -365,6 +365,73 @@ export async function deletePharmacyDrug(itemId: string) {
   );
 }
 
+/**
+ * Reduce Pharmacy Balance Stock (Module: stock-edit)
+ * PATCH /api/pharmacy/inventory/:itemId/bal-stock
+ * Constraint: stock <= current_stock
+ */
+export async function reducePharmacyBalanceStock(
+  itemId: string,
+  payload: { stock: number; reason: string }
+) {
+  return withPharmacySessionRetry((accessToken) =>
+    patchJson<{
+      status: string;
+      message: string;
+      data: {
+        id: string;
+        name: string;
+        old_stock: number;
+        new_stock: number;
+        quantity_reduced: number;
+        action_type: string;
+        reason: string;
+        updated_by: string;
+        updated_at: string;
+      };
+    }>(`/api/pharmacy/inventory/${itemId}/bal-stock`, payload, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+/**
+ * Fast Search for Pharmacy Inventory Formulations (Prescription Autocomplete)
+ * GET /api/pharmacy/inventory/search?q={searchTerm}&in_stock=true
+ */
+export async function searchPharmacyInventoryFast(params: {
+  search?: string;
+  q?: string;
+  in_stock?: boolean;
+  limit?: number | string;
+}) {
+  const queryTerm = (params.q || params.search || "").trim();
+  const searchParams = new URLSearchParams();
+  if (queryTerm) {
+    searchParams.append("q", queryTerm);
+    searchParams.append("search", queryTerm);
+  }
+  if (params.in_stock) searchParams.append("in_stock", "true");
+  if (params.limit) searchParams.append("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/api/pharmacy/inventory/search${queryStr ? `?${queryStr}` : ""}`;
+
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<any>(endpoint, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch {
+      // Fallback to standard inventory query with search and in_stock
+      const fallbackEndpoint = `/api/pharmacy/inventory${queryStr ? `?${queryStr}` : ""}`;
+      return await getJson<any>(fallbackEndpoint, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    }
+  });
+}
+
 // --- Patient Match API ---
 
 export async function searchPatientsForPharmacy(query: string) {
@@ -964,7 +1031,7 @@ export interface PharmacyTransferItem {
   id: string;
   from_unit_name: string;
   to_unit_name: string;
-  status: "pending" | "completed" | "rejected";
+  status: "pending" | "completed" | "rejected" | "cancelled" | string;
   remarks: string;
   created_at: string;
   items_count: number;
@@ -988,37 +1055,64 @@ export async function createPharmacyTransfer(payload: CreateTransferPayload) {
   );
 }
 
-export async function getPharmacyTransfers(params?: { status?: string; unit_id?: string }) {
-  let query = "";
-  if (params) {
-    const parts = [];
-    if (params.status) parts.push(`status=${encodeURIComponent(params.status)}`);
-    if (params.unit_id) parts.push(`unit_id=${encodeURIComponent(params.unit_id)}`);
-    if (parts.length > 0) {
-      query = "?" + parts.join("&");
-    }
-  }
+export async function getPharmacyTransfers(params?: {
+  status?: string;
+  unit_id?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.status && params.status !== "all") searchParams.append("status", params.status);
+  if (params?.unit_id && params.unit_id !== "all") searchParams.append("unit_id", params.unit_id);
+  if (params?.start_date) searchParams.append("start_date", params.start_date);
+  if (params?.end_date) searchParams.append("end_date", params.end_date);
+  if (params?.search?.trim()) searchParams.append("search", params.search.trim());
+  if (params?.page) searchParams.append("page", String(params.page));
+  if (params?.limit) searchParams.append("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/api/pharmacy/transfers${queryStr ? `?${queryStr}` : ""}`;
+
   return withPharmacySessionRetry((accessToken) =>
     getJson<{
-      status: number;
+      status: number | string;
       message: string;
       data: PharmacyTransferItem[];
-    }>(`/api/pharmacy/transfers${query}`, {
+    }>(endpoint, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
 }
 
-export async function updatePharmacyTransferStatus(transferId: string, action: "approve" | "reject") {
+export async function updatePharmacyTransferStatus(
+  transferId: string,
+  payload:
+    | {
+        action: "completed" | "cancelled" | "approve" | "reject" | string;
+        remarks?: string;
+      }
+    | string
+) {
+  const rawAction = typeof payload === "string" ? payload : payload.action;
+  const actionNormalized =
+    rawAction === "approve" ? "completed" : rawAction === "reject" ? "cancelled" : rawAction;
+  const body = {
+    action: actionNormalized,
+    remarks: typeof payload === "object" ? payload.remarks : undefined,
+  };
+
   return withPharmacySessionRetry((accessToken) =>
     patchJson<{
-      status: number;
+      status: number | string;
       message: string;
       data: {
         id: string;
-        status: "completed" | "rejected";
+        status: "completed" | "cancelled" | "rejected";
       };
-    }>(`/api/pharmacy/transfers/${transferId}`, { action }, {
+    }>(`/api/pharmacy/transfers/${transferId}`, body, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
