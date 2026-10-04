@@ -141,7 +141,7 @@ export interface NewTransactionForm {
   billItemUnitAmount: string;
   billName: string;
   amount: string;
-  paymentType: AgentPaymentType;
+  paymentType: AgentPaymentType | "";
 }
 
 export type AgentTokens = {

@@ -11,6 +11,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import type {
+  AgentPaymentType,
   AgentPendingPharmacyRequest,
   AgentPendingPharmacyRequestItem,
   AgentBillItem,
@@ -112,7 +113,7 @@ function getInitialForm(): NewTransactionForm {
     billItemUnitAmount: "",
     billName: "",
     amount: "",
-    paymentType: "cash",
+    paymentType: "",
   };
 }
 
@@ -123,7 +124,7 @@ function getInitialExpressForm(): ExpressPaymentForm {
     phoneNumber: "",
     service: "",
     amount: "",
-    paymentType: "cash",
+    paymentType: "",
   };
 }
 
@@ -684,17 +685,18 @@ export function useCreateTransactionState({
 
   const paymentMutation = useMutation({
     mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
+      const selectedPaymentType = (form.paymentType || "cash") as AgentPaymentType;
       if (isPharmacyMode && drugExchangeBill) {
         if (drugExchangeBill.netAmount < 0 || drugExchangeBill.status === "pending_refund") {
           return refundDrugExchange({
             exchange_code: drugExchangeBill.exchangeCode,
-            payment_type: form.paymentType,
+            payment_type: selectedPaymentType,
             remarks: "Cashier refund disbursement",
           });
         }
         return processDrugExchangePayment({
           exchange_code: drugExchangeBill.exchangeCode,
-          payment_type: form.paymentType,
+          payment_type: selectedPaymentType,
         });
       }
 
@@ -705,7 +707,7 @@ export function useCreateTransactionState({
 
         const payload = {
           billing_code: pharmacyBill.code.trim().toUpperCase(),
-          payment_type: form.paymentType,
+          payment_type: selectedPaymentType,
           request_id: (pharmacyBill as any).id,
           code: pharmacyBill.code.trim().toUpperCase(),
         };
@@ -722,7 +724,7 @@ export function useCreateTransactionState({
           response.data.receipt.receiptHTML = buildDrugExchangeReceiptHtml(
             drugExchangeBill,
             response,
-            form.paymentType,
+            form.paymentType || "cash",
           );
         }
       } else if (isPharmacyMode && pharmacyBill) {
@@ -1035,6 +1037,11 @@ export function useCreateTransactionState({
       return;
     }
 
+    if (!expressForm.paymentType) {
+      toast.error("Please select a payment type (Cash, Transfer, or POS).");
+      return;
+    }
+
     expressPaymentMutation.mutate({
       department_id: departmentId,
       patient_name: fullName,
@@ -1042,7 +1049,7 @@ export function useCreateTransactionState({
       service_name: service,
       bill_name: service,
       amount,
-      payment_type: expressForm.paymentType,
+      payment_type: expressForm.paymentType as AgentPaymentType,
     });
   };
 
@@ -1062,6 +1069,7 @@ export function useCreateTransactionState({
     Boolean(expressForm.departmentId) &&
     Boolean(expressForm.fullName.trim()) &&
     Boolean(expressForm.service.trim()) &&
+    Boolean(expressForm.paymentType) &&
     isValidPhoneNumber(expressForm.phoneNumber) &&
     Number.isFinite(Number(expressForm.amount)) &&
     Number(expressForm.amount) > 0;
@@ -1325,6 +1333,18 @@ export function useCreateTransactionState({
   }, [open, patientSearchInput, showBillItemList, showPatientSuggestions]);
 
   const handleSubmit = () => {
+    if (isExpressMode) {
+      handleExpressSubmit();
+      return;
+    }
+
+    if (!form.paymentType) {
+      toast.error("Please select a payment type (Cash, Transfer, or POS).");
+      return;
+    }
+
+    const paymentType = form.paymentType as AgentPaymentType;
+
     if (isPharmacyMode) {
       if (drugExchangeBill) {
         paymentMutation.mutate({
@@ -1332,7 +1352,7 @@ export function useCreateTransactionState({
           department_id: "Pharmacy",
           patient_name: drugExchangeBill.patientName,
           phone_number: drugExchangeBill.phoneNumber,
-          payment_type: form.paymentType,
+          payment_type: paymentType,
           pharmacy_code: drugExchangeBill.exchangeCode,
         });
         return;
@@ -1347,14 +1367,9 @@ export function useCreateTransactionState({
         department_id: pharmacyBill.departmentId,
         patient_name: pharmacyBill.patientName,
         phone_number: pharmacyBill.phoneNumber,
-        payment_type: form.paymentType,
+        payment_type: paymentType,
         pharmacy_code: pharmacyBill.code,
       });
-      return;
-    }
-
-    if (isExpressMode) {
-      handleExpressSubmit();
       return;
     }
 
@@ -1409,7 +1424,7 @@ export function useCreateTransactionState({
           bill_item_id: item.billItemId,
           quantity: item.quantity,
         })),
-        payment_type: form.paymentType,
+        payment_type: paymentType,
       });
       return;
     }
@@ -1429,7 +1444,7 @@ export function useCreateTransactionState({
         bill_name: item.billName,
         amount: item.amount,
       })),
-      payment_type: form.paymentType,
+      payment_type: paymentType,
     });
   };
 

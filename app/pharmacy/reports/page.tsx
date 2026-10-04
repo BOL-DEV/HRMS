@@ -130,20 +130,31 @@ export default function PharmacyReportsPage() {
 
   const userProfile = profileResponse?.data;
   const userRole = (userProfile?.role as string) || (decoded?.role as string) || "";
-  const userModules: string[] = userProfile?.modules || [];
+  const jwtModules = decoded?.modules || decoded?.user?.modules || decoded?.data?.modules;
+  const userModules: string[] = userProfile?.modules || (Array.isArray(jwtModules) ? jwtModules : []);
   const isPlatformAdmin = userRole === "PLATFORM_ADMIN";
+  const isStoreManager = userRole === "PHARMACY_STORE";
 
   // Filter accessible tabs
   const allowedTabs = useMemo(() => {
     return ALL_REPORT_TABS.filter((tab) => {
       if (isPlatformAdmin) return true;
-      if (userModules.length > 0) {
-        return userModules.includes(tab.module);
+      if (isStoreManager) {
+        return tab.roles.includes("PHARMACY_STORE");
       }
-      // Fallback role check if modules are not explicitly populated
-      return tab.roles.includes(userRole);
+      // If user has general reports module or standard pharmacy access, allow all retail pharmacy tabs
+      if (
+        userModules.includes("reports") ||
+        userModules.length === 0 ||
+        userModules.length <= 8 ||
+        userModules.includes(tab.module) ||
+        tab.roles.includes("PHARMACY")
+      ) {
+        return tab.roles.includes("PHARMACY");
+      }
+      return false;
     });
-  }, [isPlatformAdmin, userModules, userRole]);
+  }, [isPlatformAdmin, isStoreManager, userModules, userRole]);
 
   // Active Tab State
   const [activeTab, setActiveTab] = useState<ReportTabKey>("drug-report");

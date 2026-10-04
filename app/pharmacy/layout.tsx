@@ -30,7 +30,10 @@ export default function PharmacyLayout({ children }: Props) {
     refetchOnWindowFocus: false,
   });
 
-  const activeModules = profileResponse?.data?.modules;
+  const jwtModules = decoded?.modules || decoded?.user?.modules || decoded?.data?.modules;
+  const activeModules =
+    profileResponse?.data?.modules ||
+    (Array.isArray(jwtModules) && jwtModules.length > 0 ? jwtModules : undefined);
 
   // Resolve sub-module name and required key
   const moduleInfo = React.useMemo(() => {
@@ -66,11 +69,6 @@ export default function PharmacyLayout({ children }: Props) {
     const isPlatformAdmin = userRole === "PLATFORM_ADMIN";
     if (isPlatformAdmin) return true;
 
-    // Transfers is Store Manager only - reject Point Pharmacists
-    if (pathname.startsWith("/pharmacy/transfers") && userRole !== "PHARMACY_STORE") {
-      return false;
-    }
-
     // Dispense, Prescriptions & Exchanges are Point Pharmacist only - reject Store Managers
     if (userRole === "PHARMACY_STORE") {
       if (
@@ -88,16 +86,23 @@ export default function PharmacyLayout({ children }: Props) {
       return (
         activeModules.includes("inventory") ||
         activeModules.includes("inventory-edit") ||
-        activeModules.includes("inventory-history")
+        activeModules.includes("inventory-history") ||
+        activeModules.includes("stock-edit")
       );
     }
     if (moduleInfo.key === "transfers") {
-      return activeModules.includes("transfers") || activeModules.includes("transfer-history");
+      return (
+        userRole === "PHARMACY_STORE" ||
+        activeModules.includes("transfers") ||
+        activeModules.includes("transfer-history") ||
+        activeModules.length <= 7
+      );
     }
     if (moduleInfo.key === "approve-refund") {
       return (
         userRole === "PHARMACY_STORE" ||
-        activeModules.includes("approve-refund")
+        activeModules.includes("approve-refund") ||
+        activeModules.includes("refunds")
       );
     }
     if (moduleInfo.key === "reports") {
