@@ -429,7 +429,7 @@ export default function PharmacyTransfersPage() {
     updateStatusMutation.mutate({
       id: approvingTransfer.id,
       payload: {
-        action: "completed",
+        action: "approve",
         items: itemsPayload.length > 0 ? itemsPayload : undefined,
       },
     });
