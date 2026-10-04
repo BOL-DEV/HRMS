@@ -48,6 +48,57 @@ interface DispatchRowItem {
   quantity: string;
 }
 
+type TransferActionState =
+  | "point_accept"
+  | "store_approve"
+  | "awaiting_store"
+  | "awaiting_point"
+  | "none";
+
+function getTransferActionState(
+  trf: PharmacyTransferItem,
+  isStoreManager: boolean,
+  activeUnitId?: string
+): TransferActionState {
+  if (trf.status !== "pending") return "none";
+
+  const trfAny = trf as any;
+  const remarks = (trf.remarks || "").toLowerCase();
+
+  // 1. Is this transfer a Store Dispatch (Store sent stock to Pharmacy Point)?
+  const isStoreDispatch =
+    trfAny.is_dispatch === true ||
+    trfAny.transfer_type === "dispatch" ||
+    trfAny.type === "dispatch" ||
+    trfAny.direction === "outbound" ||
+    trfAny.created_by_role === "PHARMACY_STORE" ||
+    remarks.includes("replenishment") ||
+    remarks.includes("dispatched") ||
+    remarks.includes("transferred to") ||
+    remarks.includes("transferred from store") ||
+    remarks.includes("stock replenishment") ||
+    remarks.includes("central store") ||
+    remarks.includes("direct transfer");
+
+  // --- STORE VIEW ---
+  if (isStoreManager) {
+    // If Store sent stock to Pharmacy Point -> Store shows Awaiting message (NO approve/reject buttons)
+    if (isStoreDispatch) {
+      return "awaiting_point";
+    }
+    // If Pharmacy Point requested stock from Store -> Store shows Approve and Reject buttons
+    return "store_approve";
+  }
+
+  // --- PHARMACY VIEW ---
+  // If Store sent stock to Pharmacy Point -> Pharmacy shows Accept and Reject buttons
+  if (isStoreDispatch) {
+    return "point_accept";
+  }
+  // If Pharmacy Point requested stock from Store -> Pharmacy shows Awaiting message (NO accept/reject buttons)
+  return "awaiting_store";
+}
+
 export default function PharmacyTransfersPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -332,11 +383,15 @@ export default function PharmacyTransfersPage() {
 
     const payload = {
       to_unit_id: activeUnitId,
-      remarks: remarks.trim() || undefined,
+      remarks: remarks.trim() || "Restock request from pharmacy point",
       items: validItems.map((row) => ({
         source_pharmacy_item_id: row.drug!.id,
         quantity: Number(row.quantity),
       })),
+      ...({
+        transfer_type: "request",
+        is_request: true,
+      } as any),
     };
 
     createTransferMutation.mutate(payload);
@@ -602,11 +657,11 @@ export default function PharmacyTransfersPage() {
                         {formatDateTime(trf.created_at)}
                       </td>
                       <td className="p-4 text-right">
-                        {trf.status === "pending" && (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Point Pharmacist: Accept / Decline Incoming Store Dispatches */}
-                            {!isStoreManager && (
-                              <>
+                        {(() => {
+                          const actionState = getTransferActionState(trf, isStoreManager, activeUnitId);
+                          if (actionState === "point_accept") {
+                            return (
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   onClick={() =>
                                     updateStatusMutation.mutate({
@@ -624,18 +679,18 @@ export default function PharmacyTransfersPage() {
                                 <button
                                   onClick={() => handleReject(trf.id)}
                                   className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300 transition"
-                                  title="Decline incoming dispatch"
+                                  title="Reject incoming dispatch"
                                   disabled={updateStatusMutation.isPending}
                                 >
                                   <FiX className="h-3.5 w-3.5" />
-                                  <span>Decline</span>
+                                  <span>Reject</span>
                                 </button>
-                              </>
-                            )}
-
-                            {/* Store Manager / Platform Admin: Approve Point Restock Request with adjustable quantity */}
-                            {(isStoreManager || isPlatformAdmin) && (
-                              <>
+                              </div>
+                            );
+                          }
+                          if (actionState === "store_approve") {
+                            return (
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   onClick={() => handleOpenApproval(trf)}
                                   className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300 transition"
@@ -648,16 +703,31 @@ export default function PharmacyTransfersPage() {
                                 <button
                                   onClick={() => handleReject(trf.id)}
                                   className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300 transition"
-                                  title="Decline restock request"
+                                  title="Reject restock request"
                                   disabled={updateStatusMutation.isPending}
                                 >
                                   <FiX className="h-3.5 w-3.5" />
-                                  <span>Decline</span>
+                                  <span>Reject</span>
                                 </button>
-                              </>
-                            )}
-                          </div>
-                        )}
+                              </div>
+                            );
+                          }
+                          if (actionState === "awaiting_store") {
+                            return (
+                              <span className="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                Awaiting Store Approval
+                              </span>
+                            );
+                          }
+                          if (actionState === "awaiting_point") {
+                            return (
+                              <span className="inline-flex items-center rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
+                                Awaiting Point Receipt
+                              </span>
+                            );
+                          }
+                          return <span className="text-xs text-gray-400">--</span>;
+                        })()}
                       </td>
                     </tr>
                   ))}
