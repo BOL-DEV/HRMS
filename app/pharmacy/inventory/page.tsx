@@ -31,6 +31,7 @@ import {
   createPharmacyTransfer,
   dispatchPharmacyStoreTransfer,
   getPharmacyUnits,
+  reducePharmacyBalanceStock,
   BackendDrugItem,
   PharmacyCategory,
   PharmacyDrugPayload,
@@ -61,6 +62,60 @@ export default function PharmacyInventoryPage() {
   const activeModules = profile?.modules ?? decoded?.modules ?? [];
   const hasEditAccess = true; // Point can update retail price; Store can edit catalog details
   const hasHistoryAccess = true; // Every authenticated pharmacist can inspect formulation audit history
+  const hasStockEditAccess = isPlatformAdmin || activeModules.includes("stock-edit") || activeModules.includes("*");
+
+  // Stock Reduction States (Module: stock-edit)
+  const [isBalStockModalOpen, setIsBalStockModalOpen] = useState(false);
+  const [balStockItem, setBalStockItem] = useState<BackendDrugItem | null>(null);
+  const [balStockCount, setBalStockCount] = useState("");
+  const [balStockReason, setBalStockReason] = useState("");
+
+  const reduceStockMutation = useMutation({
+    mutationFn: (params: { id: string; stock: number; reason: string }) =>
+      reducePharmacyBalanceStock(params.id, { stock: params.stock, reason: params.reason }),
+    onSuccess: (res) => {
+      toast.success(res?.message || "Stock balance updated successfully.");
+      setIsBalStockModalOpen(false);
+      setBalStockItem(null);
+      setBalStockCount("");
+      setBalStockReason("");
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["pharmacy-drug-history"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to reduce stock balance.");
+    },
+  });
+
+  const handleOpenBalStockModal = (item: BackendDrugItem) => {
+    setBalStockItem(item);
+    setBalStockCount(String(item.stock));
+    setBalStockReason("");
+    setIsBalStockModalOpen(true);
+  };
+
+  const handleBalStockSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!balStockItem) return;
+    const newStock = Number(balStockCount);
+    if (isNaN(newStock) || newStock < 0) {
+      toast.error("Please enter a valid non-negative stock count.");
+      return;
+    }
+    if (newStock > balStockItem.stock) {
+      toast.error(`Invalid stock count (${newStock}). You cannot set stock greater than current available stock (${balStockItem.stock}).`);
+      return;
+    }
+    if (!balStockReason.trim()) {
+      toast.error("Please provide a reason for the stock reduction (e.g. physical count adjustment, damage, or breakage).");
+      return;
+    }
+    reduceStockMutation.mutate({
+      id: balStockItem.id,
+      stock: newStock,
+      reason: balStockReason.trim(),
+    });
+  };
 
   // Request Restock States (Point -> Store)
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
@@ -394,6 +449,7 @@ export default function PharmacyInventoryPage() {
     isHistoryOpen ||
     isRequestModalOpen ||
     isTransferModalOpen ||
+    isBalStockModalOpen ||
     deletingDrugItem ||
     deletingCategoryItem
   );
@@ -410,6 +466,7 @@ export default function PharmacyInventoryPage() {
         setIsHistoryOpen(false);
         setIsRequestModalOpen(false);
         setIsTransferModalOpen(false);
+        setIsBalStockModalOpen(false);
         setDeletingDrugItem(null);
         setDeletingCategoryItem(null);
       }
@@ -975,6 +1032,17 @@ export default function PharmacyInventoryPage() {
                               >
                                 <FiSend className="h-3.5 w-3.5" />
                                 <span>Request</span>
+                              </button>
+                            )}
+
+                            {/* Point Pharmacist Balance Stock Reduction (stock-edit) */}
+                            {!isStoreManager && hasStockEditAccess && (
+                              <button
+                                onClick={() => handleOpenBalStockModal(item)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50/70 px-2.5 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/50 transition"
+                                title="Reduce shelf stock balance (stock-edit)"
+                              >
+                                <span>Reduce Stock</span>
                               </button>
                             )}
 
@@ -1944,6 +2012,131 @@ export default function PharmacyInventoryPage() {
                 >
                   <FiSend className="h-4 w-4" />
                   {transferMutation.isPending ? "Transferring..." : "Confirm & Transfer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Balance Stock Reduction Modal (Module: stock-edit) */}
+      {isBalStockModalOpen && balStockItem && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !reduceStockMutation.isPending) {
+              setIsBalStockModalOpen(false);
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 animate-fade-in"
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
+                  <FiActivity className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    Reduce Shelf Stock Balance
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Module: <code className="font-mono text-purple-600 dark:text-purple-400">stock-edit</code>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsBalStockModalOpen(false)}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-slate-800"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleBalStockSubmit} className="mt-5 space-y-4">
+              {/* Item Info Summary */}
+              <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40 space-y-2">
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {balStockItem.name}
+                </p>
+                {balStockItem.generic_name && (
+                  <p className="text-xs text-gray-500">{balStockItem.generic_name}</p>
+                )}
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-gray-200/60 dark:border-slate-700">
+                  <span className="text-gray-500">Current Shelf Stock:</span>
+                  <span className="font-bold text-base text-slate-900 dark:text-slate-100">
+                    {balStockItem.stock} units
+                  </span>
+                </div>
+              </div>
+
+              {/* New Stock Input */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider mb-1.5">
+                  New Adjusted Stock Count <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={balStockItem.stock}
+                  value={balStockCount}
+                  onChange={(e) => setBalStockCount(e.target.value)}
+                  placeholder={`Enter 0 to ${balStockItem.stock}`}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 font-bold"
+                  required
+                />
+                {Number(balStockCount) > balStockItem.stock && (
+                  <p className="mt-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                    ⚠️ Cannot set stock greater than current available stock ({balStockItem.stock}).
+                  </p>
+                )}
+                {Number(balStockCount) <= balStockItem.stock && balStockCount !== "" && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Quantity reduced:{" "}
+                    <strong className="text-purple-600 dark:text-purple-400">
+                      {Math.max(0, balStockItem.stock - Number(balStockCount))} units
+                    </strong>
+                  </p>
+                )}
+              </div>
+
+              {/* Reason Input */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider mb-1.5">
+                  Reason for Reduction <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  value={balStockReason}
+                  onChange={(e) => setBalStockReason(e.target.value)}
+                  placeholder="e.g. Physical count adjustment / damaged units removed / packaging breakage..."
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsBalStockModalOpen(false)}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    reduceStockMutation.isPending ||
+                    Number(balStockCount) > balStockItem.stock ||
+                    Number(balStockCount) < 0 ||
+                    balStockCount === "" ||
+                    !balStockReason.trim()
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-600 shadow-sm disabled:opacity-50 transition"
+                >
+                  {reduceStockMutation.isPending ? "Updating Balance..." : "Confirm Reduction"}
                 </button>
               </div>
             </form>

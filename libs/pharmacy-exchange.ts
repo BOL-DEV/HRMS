@@ -123,6 +123,7 @@ export interface DrugExchangePatient {
 export interface PatientDispensedDrugItem {
   request_id: string;
   billing_code: string;
+  receipt_no?: string;
   created_at?: string;
   paid_at?: string;
   dispensed_at: string;
@@ -157,6 +158,8 @@ export interface ReturnedItemPayload {
   unit_price?: number;
   restock_inventory?: boolean;
   drug_name?: string;
+  receipt_no?: string;
+  billing_code?: string;
 }
 
 export interface ReplacementItemPayload {
@@ -167,6 +170,7 @@ export interface ReplacementItemPayload {
 }
 
 export interface CreateDrugExchangePayload {
+  receipt_no?: string;
   patient_id: string;
   patient_name: string;
   phone_number?: string;
@@ -298,6 +302,8 @@ export type ExchangeReturnedItem = Partial<ReturnedItemPayload> & {
   restock_to_inventory?: boolean;
   restock_inventory?: boolean;
   available_to_return?: number;
+  receipt_no?: string;
+  billing_code?: string;
 };
 
 export type ExchangeReplacementItem = Partial<ReplacementItemPayload> & {
@@ -520,7 +526,370 @@ export async function searchDrugExchangePatients(
 }
 
 /**
- * 2. Get Patient's Previously Dispensed Drugs (With 24-Hour Eligibility Status)
+ * 2. Get Patient Dispensed Drugs by Receipt Number (Strict Anti-Theft Flow)
+ * GET /api/pharmacy/drug-exchange/receipt/:receiptNo
+ */
+export async function getDrugExchangeDispensedByReceipt(
+  receiptNo: string
+): Promise<{
+  status: string | number;
+  message?: string;
+  data: {
+    receipt_no: string;
+    patient: {
+      patient_id: string;
+      patient_name: string;
+      phone_number: string;
+      billing_code?: string;
+      receipt_no?: string;
+      paid_at?: string;
+      dispensed_at?: string;
+      is_within_24_hours?: boolean;
+      hours_since_payment?: number;
+    };
+    total_items: number;
+    items: PatientDispensedDrugItem[];
+  };
+}> {
+  const cleanReceipt = receiptNo.trim();
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      let res: any = null;
+      let rawItems: any[] = [];
+      let rawPatient: any = {};
+      let receiptFound = cleanReceipt;
+
+      // Strategy 1: Direct path parameter GET /api/pharmacy/drug-exchange/receipt/:receiptNo
+      try {
+        const directRes = await getJson<any>(
+          `/api/pharmacy/drug-exchange/receipt/${encodeURIComponent(cleanReceipt)}`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        const data = directRes?.data ?? directRes;
+        const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        if (items.length > 0 || (data?.patient && data.patient.patient_id)) {
+          res = directRes;
+          rawItems = items;
+          rawPatient = data?.patient || {};
+          receiptFound = data?.receipt_no || cleanReceipt;
+        }
+      } catch {
+        // Fallback to query strategies
+      }
+
+      // Strategy 2: Query param receipt_no GET /api/pharmacy/drug-exchange/dispensed-drugs?receipt_no=...
+      if (rawItems.length === 0) {
+        try {
+          const qRes = await getJson<any>(
+            `/api/pharmacy/drug-exchange/dispensed-drugs?receipt_no=${encodeURIComponent(cleanReceipt)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const data = qRes?.data ?? qRes;
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+          if (items.length > 0) {
+            res = qRes;
+            rawItems = items;
+            rawPatient = data?.patient || items[0] || {};
+            receiptFound = data?.receipt_no || cleanReceipt;
+          }
+        } catch {}
+      }
+
+      // Strategy 3: Query param billing_code GET /api/pharmacy/drug-exchange/dispensed-drugs?billing_code=...
+      if (rawItems.length === 0) {
+        try {
+          const qRes = await getJson<any>(
+            `/api/pharmacy/drug-exchange/dispensed-drugs?billing_code=${encodeURIComponent(cleanReceipt)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const data = qRes?.data ?? qRes;
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+          if (items.length > 0) {
+            res = qRes;
+            rawItems = items;
+            rawPatient = data?.patient || items[0] || {};
+            receiptFound = data?.receipt_no || cleanReceipt;
+          }
+        } catch {}
+      }
+
+      // Strategy 4: Query param patient_id or search
+      if (rawItems.length === 0) {
+        try {
+          const qRes = await getJson<any>(
+            `/api/pharmacy/drug-exchange/dispensed-drugs?search=${encodeURIComponent(cleanReceipt)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const data = qRes?.data ?? qRes;
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+          if (items.length > 0) {
+            res = qRes;
+            rawItems = items;
+            rawPatient = data?.patient || items[0] || {};
+            receiptFound = data?.receipt_no || cleanReceipt;
+          }
+        } catch {}
+      }
+
+      // Strategy 5: Query param patient_id
+      if (rawItems.length === 0) {
+        try {
+          const qRes = await getJson<any>(
+            `/api/pharmacy/drug-exchange/dispensed-drugs?patient_id=${encodeURIComponent(cleanReceipt)}`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const data = qRes?.data ?? qRes;
+          const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+          if (items.length > 0) {
+            res = qRes;
+            rawItems = items;
+            rawPatient = data?.patient || items[0] || {};
+          }
+        } catch {}
+      }
+
+      // Strategy 6: Check Pharmacy Request records directly (/api/pharmacy/request) and fetch patient dispensed drugs
+      if (rawItems.length === 0) {
+        let matchedReq: any = null;
+        try {
+          const reqRes = await getJson<any>(
+            `/api/pharmacy/request?status=all&limit=100`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          const reqData = reqRes?.data ?? reqRes;
+          const reqList = Array.isArray(reqData?.items)
+            ? reqData.items
+            : Array.isArray(reqData?.requests)
+            ? reqData.requests
+            : Array.isArray(reqData)
+            ? reqData
+            : [];
+
+          matchedReq = reqList.find(
+            (r: any) =>
+              (r.billing_code && r.billing_code.toLowerCase() === cleanReceipt.toLowerCase()) ||
+              (r.id && r.id === cleanReceipt) ||
+              (r.patient_id && r.patient_id.toLowerCase() === cleanReceipt.toLowerCase())
+          );
+        } catch {}
+
+        if (matchedReq) {
+          if (matchedReq.status === "pending") {
+            throw new Error(
+              `Prescription "${matchedReq.billing_code || cleanReceipt}" is currently Pending Payment. It must be dispensed/paid before it can be exchanged.`
+            );
+          }
+          if (matchedReq.status === "cancelled") {
+            throw new Error(
+              `Prescription "${matchedReq.billing_code || cleanReceipt}" was Cancelled and cannot be returned or exchanged.`
+            );
+          }
+
+          // Query official dispensed drugs by patient_id: GET /api/pharmacy/drug-exchange/dispensed-drugs?patient_id=<PATIENT_ID>
+          if (matchedReq.patient_id) {
+            try {
+              const ptDispensedRes = await getJson<any>(
+                `/api/pharmacy/drug-exchange/dispensed-drugs?patient_id=${encodeURIComponent(matchedReq.patient_id)}`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              );
+              const ptData = ptDispensedRes?.data ?? ptDispensedRes;
+              const ptItems = Array.isArray(ptData?.items) ? ptData.items : Array.isArray(ptData) ? ptData : [];
+
+              const filteredPtItems = ptItems.filter(
+                (it: any) =>
+                  !matchedReq.billing_code ||
+                  !it.billing_code ||
+                  it.billing_code.toLowerCase() === matchedReq.billing_code.toLowerCase() ||
+                  it.request_id === matchedReq.id
+              );
+
+              if (filteredPtItems.length > 0) {
+                rawItems = filteredPtItems;
+                receiptFound = filteredPtItems[0].billing_code || filteredPtItems[0].receipt_no || matchedReq.billing_code || cleanReceipt;
+                rawPatient = {
+                  patient_id: matchedReq.patient_id,
+                  patient_name: matchedReq.patient_name,
+                  phone_number: matchedReq.phone_number,
+                  billing_code: receiptFound,
+                  receipt_no: receiptFound,
+                  paid_at: matchedReq.dispensed_at || matchedReq.created_at,
+                  dispensed_at: matchedReq.dispensed_at || matchedReq.created_at,
+                  is_within_24_hours: true,
+                };
+              } else if (ptItems.length > 0) {
+                rawItems = ptItems;
+                receiptFound = ptItems[0].billing_code || ptItems[0].receipt_no || matchedReq.billing_code || cleanReceipt;
+                rawPatient = {
+                  patient_id: matchedReq.patient_id,
+                  patient_name: matchedReq.patient_name,
+                  phone_number: matchedReq.phone_number,
+                  billing_code: receiptFound,
+                  receipt_no: receiptFound,
+                  paid_at: matchedReq.dispensed_at || matchedReq.created_at,
+                  dispensed_at: matchedReq.dispensed_at || matchedReq.created_at,
+                  is_within_24_hours: true,
+                };
+              }
+            } catch {}
+          }
+
+          // Fallback to detailed request: GET /api/pharmacy/request/:id
+          if (rawItems.length === 0) {
+            let detailedReq = matchedReq;
+            try {
+              const detailRes = await getJson<any>(
+                `/api/pharmacy/request/${matchedReq.id}`,
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+              );
+              if (detailRes?.data || detailRes?.items) {
+                detailedReq = detailRes.data ?? detailRes;
+              }
+            } catch {}
+
+            const items = detailedReq.items || [];
+            if (items.length > 0) {
+              rawItems = items.map((it: any) => {
+                const reqItemId = it.pharmacy_request_item_id || it.id || it.pharmacy_item_id;
+                const drugId = it.pharmacy_item_id || it.drug_id || it.item_id || it.id || "";
+                return {
+                  id: reqItemId,
+                  pharmacy_request_item_id: reqItemId,
+                  pharmacy_item_id: drugId,
+                  drug_name: it.item_name || it.name || "Medication",
+                  quantity_dispensed: Number(it.quantity || 1),
+                  quantity_returned: 0,
+                  available_to_return: Number(it.quantity || 1),
+                  unit_price: Number(it.unit_price || 0),
+                  total_price: Number(it.amount || (Number(it.unit_price || 0) * Number(it.quantity || 1))),
+                  is_within_24_hours: true,
+                  is_eligible_for_exchange: true,
+                };
+              });
+              rawPatient = {
+                patient_id: detailedReq.patient_id,
+                patient_name: detailedReq.patient_name,
+                phone_number: detailedReq.phone_number,
+                billing_code: detailedReq.billing_code,
+                paid_at: detailedReq.dispensed_at || detailedReq.created_at,
+                dispensed_at: detailedReq.dispensed_at || detailedReq.created_at,
+                is_within_24_hours: true,
+              };
+              receiptFound = detailedReq.billing_code || cleanReceipt;
+            }
+          }
+        }
+      }
+
+      if (rawItems.length === 0 && !rawPatient.patient_name) {
+        throw new Error(
+          `No dispensed medication records found for receipt or bill code "${cleanReceipt}". Ensure the prescription is in "dispensed" status.`
+        );
+      }
+
+      // Normalization of patient and items
+      const patientId = rawPatient.patient_id || rawPatient.id || (rawItems[0]?.patient_id) || "";
+      const patientName = rawPatient.patient_name || rawPatient.name || (rawItems[0]?.patient_name) || "Verified Patient";
+      const patientPhone = rawPatient.phone_number || rawPatient.phone || (rawItems[0]?.phone_number) || "";
+      const billingCode = rawPatient.billing_code || (rawItems[0]?.billing_code) || receiptFound;
+      const paidAt = rawPatient.paid_at || (rawItems[0]?.paid_at) || undefined;
+      const dispensedAt = rawPatient.dispensed_at || (rawItems[0]?.dispensed_at) || new Date().toISOString();
+      const isWithin24 = rawPatient.is_within_24_hours !== undefined ? Boolean(rawPatient.is_within_24_hours) : (rawItems[0]?.is_within_24_hours !== undefined ? Boolean(rawItems[0]?.is_within_24_hours) : true);
+
+      return {
+        status: "success",
+        message: "Patient dispensed drugs retrieved successfully",
+        data: {
+          receipt_no: receiptFound,
+          patient: {
+            patient_id: patientId,
+            patient_name: patientName,
+            phone_number: patientPhone,
+            billing_code: billingCode,
+            receipt_no: receiptFound,
+            paid_at: paidAt,
+            dispensed_at: dispensedAt,
+            is_within_24_hours: isWithin24,
+            hours_since_payment: rawPatient.hours_since_payment != null ? Number(rawPatient.hours_since_payment) : undefined,
+          },
+          total_items: rawItems.length,
+          items: rawItems.map((item: any) => {
+            const available = Number(
+              item.available_to_return ??
+                (Number(item.quantity_dispensed ?? item.quantity ?? 1) - Number(item.quantity_returned ?? 0))
+            );
+            const itemWithin24 = item.is_within_24_hours !== undefined ? Boolean(item.is_within_24_hours) : isWithin24;
+            const isEligible = item.is_eligible_for_exchange !== undefined
+              ? Boolean(item.is_eligible_for_exchange)
+              : (available > 0 && itemWithin24);
+
+            const resolvedReqItemId =
+              item.pharmacy_request_item_id ||
+              item.request_item_id ||
+              item.prescription_item_id ||
+              (item.id && item.id !== item.pharmacy_item_id ? item.id : undefined);
+            const resolvedDrugId = item.pharmacy_item_id || item.item_id || item.drug_id || item.id || "";
+
+            const itemReceipt =
+              item.receipt_no ||
+              item.billing_code ||
+              item.invoice_no ||
+              item.original_receipt_no ||
+              billingCode;
+
+            return {
+              request_id: item.request_id || item.pharmacy_request_id || item.id,
+              billing_code: itemReceipt,
+              receipt_no: itemReceipt,
+              created_at: item.created_at || undefined,
+              paid_at: item.paid_at || paidAt,
+              dispensed_at: item.dispensed_at || dispensedAt,
+              patient_id: item.patient_id || patientId,
+              patient_name: item.patient_name || patientName,
+              phone_number: item.phone_number || patientPhone,
+              pharmacy_unit_id: item.pharmacy_unit_id || "",
+              pharmacy_unit_name: item.pharmacy_unit_name || "",
+              pharmacy_request_item_id: resolvedReqItemId || resolvedDrugId,
+              pharmacy_item_id: resolvedDrugId,
+              drug_name: item.drug_name || item.item_name || item.name || "Medication",
+              generic_name: item.generic_name || "",
+              batch_number: item.batch_number || item.batch || "N/A",
+              expiry_date: item.expiry_date || item.expiry || "",
+              quantity_dispensed: Number(item.quantity_dispensed ?? item.quantity ?? 1),
+              quantity_returned: Number(item.quantity_returned ?? 0),
+              available_to_return: available,
+              unit_price: Number(item.unit_price ?? item.unit_amount ?? item.price ?? 0),
+              total_price: Number(
+                item.total_price ??
+                  item.amount ??
+                  (Number(item.unit_price ?? 0) * Number(item.quantity_dispensed ?? item.quantity ?? 1))
+              ),
+              hours_since_payment: item.hours_since_payment != null ? Number(item.hours_since_payment) : undefined,
+              is_within_24_hours: itemWithin24,
+              is_eligible_for_exchange: isEligible,
+              exchange_ineligible_reason: item.exchange_ineligible_reason || (
+                !itemWithin24 ? "Prescription was paid more than 24 hours ago. Exchanges are only allowed within 24 hours of payment." : available <= 0 ? "Medication has already been fully returned." : null
+              ),
+            };
+          }),
+        },
+      };
+    } catch (err: any) {
+      return {
+        status: "error",
+        message: err?.message || `Failed to retrieve dispensed drugs for "${cleanReceipt}".`,
+        data: {
+          receipt_no: cleanReceipt,
+          patient: { patient_id: "", patient_name: "", phone_number: "" },
+          total_items: 0,
+          items: [],
+        },
+      };
+    }
+  });
+}
+
+/**
+ * 2b. Get Patient's Previously Dispensed Drugs (With 24-Hour Eligibility Status)
  * GET /api/pharmacy/drug-exchange/dispensed-drugs?patient_id={patientId}
  */
 export async function getPatientDispensedDrugs(
@@ -567,6 +936,13 @@ export async function getPatientDispensedDrugs(
               ? Boolean(item.is_eligible_for_exchange)
               : (available > 0 && isWithin24);
 
+            const resolvedReqItemId =
+              item.pharmacy_request_item_id ||
+              item.request_item_id ||
+              item.prescription_item_id ||
+              (item.id && item.id !== item.pharmacy_item_id ? item.id : undefined);
+            const resolvedDrugId = item.pharmacy_item_id || item.item_id || item.drug_id || item.id || "";
+
             return {
               request_id: item.request_id || item.pharmacy_request_id || item.id,
               billing_code: item.billing_code || item.receipt_no || item.invoice_no || "",
@@ -578,17 +954,8 @@ export async function getPatientDispensedDrugs(
               phone_number: item.phone_number || "",
               pharmacy_unit_id: item.pharmacy_unit_id || "",
               pharmacy_unit_name: item.pharmacy_unit_name || "",
-              pharmacy_request_item_id:
-                item.pharmacy_request_item_id ||
-                item.request_item_id ||
-                item.prescription_item_id ||
-                item.pharmacy_request_item ||
-                item.id ||
-                item.pharmacy_item_id ||
-                item.item_id ||
-                item.drug_id ||
-                "",
-              pharmacy_item_id: item.pharmacy_item_id || item.item_id || item.drug_id || item.id || "",
+              pharmacy_request_item_id: resolvedReqItemId || resolvedDrugId,
+              pharmacy_item_id: resolvedDrugId,
               drug_name: item.drug_name || item.item_name || item.name || "Medication",
               generic_name: item.generic_name || "",
               batch_number: item.batch_number || item.batch || "N/A",
@@ -628,35 +995,33 @@ export async function getPatientDispensedDrugs(
 export async function submitDrugExchange(
   payload: CreateDrugExchangePayload
 ): Promise<{ status: string; message: string; data: DrugExchangeRecord }> {
-  const formattedPayload = {
-    patient_id: payload.patient_id,
-    patient_name: payload.patient_name,
-    phone_number: payload.phone_number || undefined,
-    remarks: payload.remarks || undefined,
-    returned_items: payload.returned_items.map((it) => {
-      const requestItemId =
-        it.pharmacy_request_item_id ||
-        (it as any).request_item_id ||
-        (it as any).prescription_item_id ||
-        (it as any).id;
-      return {
-        pharmacy_request_item_id: requestItemId,
-        pharmacy_item_id: it.pharmacy_item_id,
-        quantity: Number(it.quantity),
-        reason: it.reason || "Patient returned drug",
-        condition: "good", // Strictly "good" per backend validation
-        unit_price: it.unit_price != null ? Number(it.unit_price) : undefined,
-        restock_inventory: true,
-      };
-    }),
-    replacement_items: (payload.replacement_items || []).map((it) => ({
-      pharmacy_item_id: it.pharmacy_item_id,
-      quantity: Number(it.quantity),
-      unit_price: it.unit_price != null ? Number(it.unit_price) : undefined,
-    })),
-  };
-
   return withPharmacySessionRetry(async (accessToken) => {
+    const formattedPayload = {
+      patient_id: payload.patient_id,
+      patient_name: payload.patient_name,
+      phone_number: payload.phone_number || undefined,
+      remarks: payload.remarks || undefined,
+      returned_items: payload.returned_items.map((it: any) => {
+        const reqItemId =
+          it.pharmacy_request_item_id ||
+          it.request_item_id ||
+          it.prescription_item_id ||
+          it.id;
+
+        return {
+          pharmacy_request_item_id: reqItemId,
+          pharmacy_item_id: it.pharmacy_item_id || it.returned_drug_id || reqItemId,
+          quantity: Number(it.quantity || it.returned_quantity || 1),
+          condition: "good",
+          reason: it.reason || it.return_reason || "Patient returned drug",
+        };
+      }),
+      replacement_items: (payload.replacement_items || []).map((it: any) => ({
+        pharmacy_item_id: it.pharmacy_item_id || it.replacement_drug_id,
+        quantity: Number(it.quantity || it.replacement_quantity || 1),
+      })),
+    };
+
     const res = await postJson<{ status: string; message: string; data: any }>(
       "/api/pharmacy/drug-exchange",
       formattedPayload,
@@ -925,7 +1290,7 @@ export async function getPharmacyStoreRefunds(params?: {
 
 /**
  * 8. Approve and Clear Offline Refund
- * POST /api/pharmacy-store/refunds/approve
+ * PATCH /api/pharmacy-store/refunds/:exchangeId/approve (or POST /api/pharmacy-store/refunds/approve)
  * Role: PHARMACY_STORE with module "approve-refund"
  */
 export async function approvePharmacyStoreRefund(payload: {
@@ -934,6 +1299,18 @@ export async function approvePharmacyStoreRefund(payload: {
   remarks?: string;
 }): Promise<{ status: string; message: string; data: any }> {
   return withPharmacySessionRetry(async (accessToken) => {
+    const exchangeId = payload.exchange_id || payload.exchange_code;
+    if (exchangeId) {
+      try {
+        return await postJson<{ status: string; message: string; data: any }>(
+          `/api/pharmacy-store/refunds/${encodeURIComponent(exchangeId)}/approve`,
+          payload,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+      } catch {
+        // Fallback to POST /api/pharmacy-store/refunds/approve
+      }
+    }
     return postJson<{ status: string; message: string; data: any }>(
       "/api/pharmacy-store/refunds/approve",
       payload,

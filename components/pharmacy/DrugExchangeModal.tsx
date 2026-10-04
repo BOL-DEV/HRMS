@@ -43,6 +43,7 @@ import {
   submitDrugExchange,
   searchDrugExchangePatients,
   getPatientDispensedDrugs,
+  getDrugExchangeDispensedByReceipt,
   DrugExchangePatient,
   PatientDispensedDrugItem,
   RETURN_REASON_LABELS,
@@ -87,15 +88,20 @@ export default function DrugExchangeModal({
   // Step State: 1 = Patient & Return Selection, 2 = Replacement & Calculation, 3 = Settlement & Review
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Patient Lookup State
-  const [patientQuery, setPatientQuery] = useState("");
-  const [isSearchingPatient, setIsSearchingPatient] = useState(false);
-  const [patientSearchResults, setPatientSearchResults] = useState<DrugExchangePatient[]>([]);
+  // Receipt & Patient Lookup State (Anti-theft receipt verification)
+  const [receiptQuery, setReceiptQuery] = useState("");
+  const [isSearchingReceipt, setIsSearchingReceipt] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<{
     id: string;
     name: string;
     phone: string;
     hospital_number?: string;
+    billing_code?: string;
+    receipt_no?: string;
+    paid_at?: string;
+    dispensed_at?: string;
+    is_within_24_hours?: boolean;
+    hours_since_payment?: number;
   } | null>(null);
 
   // Dispensed Drugs State
@@ -161,9 +167,8 @@ export default function DrugExchangeModal({
   useEffect(() => {
     if (isOpen) {
       setStep(1);
-      setPatientQuery("");
+      setReceiptQuery("");
       setSelectedPatient(null);
-      setPatientSearchResults([]);
       setDispensedDrugs([]);
       setSelectedBillCode("");
       setReturnedItems([]);
@@ -174,254 +179,51 @@ export default function DrugExchangeModal({
     }
   }, [isOpen]);
 
-  // Fetch dispensed drugs whenever a patient is selected
-  const loadPatientDispensedHistory = async (patientId: string) => {
-    setIsLoadingDispenses(true);
-    try {
-      const res = await getPatientDispensedDrugs(patientId);
-      const items = res.data?.items ?? [];
-      setDispensedDrugs(items);
-      if (items.length > 0 && items[0].billing_code) {
-        setSelectedBillCode(items[0].billing_code);
-      }
-    } catch {
-      setDispensedDrugs([]);
-    } finally {
-      setIsLoadingDispenses(false);
-    }
-  };
-
-  const handleSelectPatient = (patient: { id: string; name: string; phone: string; hospital_number?: string }) => {
-    setSelectedPatient(patient);
-    setPatientSearchResults([]);
-    loadPatientDispensedHistory(patient.id);
-    toast.success(`Selected patient: ${patient.name}`);
-  };
-
-  // Handle Patient Search (PID, Hospital Number, Name, Phone, or Billing Code)
-  const handleSearchPatient = async (e?: React.FormEvent) => {
+  // Strict Anti-Theft Receipt Lookup (GET /api/pharmacy/drug-exchange/receipt/:receiptNo)
+  const handleLookupReceipt = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const q = patientQuery.trim();
+    const q = receiptQuery.trim();
     if (!q) {
-      toast.error("Please enter a Patient ID, Hospital Number, Phone, or Billing Code.");
+      toast.error("Please enter the Payment Receipt Number (e.g. REC-20261004-001).");
       return;
     }
 
-    setIsSearchingPatient(true);
-    setPatientSearchResults([]);
-
+    setIsSearchingReceipt(true);
     try {
-      // Step A: Check if query matches a Billing Code or Dispense Request Code
-      try {
-        const dispensedRes = await getPatientDispensedDrugs("", q);
-        const items = dispensedRes.data?.items ?? [];
-        if (items.length > 0) {
-          const first = items[0];
-          const detectedPatient = {
-            id: first.patient_id || q,
-            name: first.patient_name || `Patient (${first.patient_id || q})`,
-            phone: first.phone_number || "",
-          };
-          setSelectedPatient(detectedPatient);
-          setDispensedDrugs(items);
-          setSelectedBillCode(first.billing_code || q);
-          toast.success(`Found ${items.length} dispensed medication(s) for bill ${q}`);
-          setIsSearchingPatient(false);
-          return;
-        }
-      } catch {
-        // continue
-      }
-
-      // Check Pharmacy Requests by Billing Code or ID
-      try {
-        let matchedReq: any = null;
-        try {
-          const directReq = await getPharmacyRequestById(q);
-          matchedReq = (directReq as any)?.data || directReq;
-        } catch {
-          const listReq = await getPharmacyRequests({ limit: 50 });
-          const rawList: any[] = (listReq as any)?.data?.requests || (listReq as any)?.data?.items || (listReq as any)?.requests || (Array.isArray(listReq) ? listReq : []);
-          matchedReq = rawList.find(
-            (r) =>
-              r.billing_code?.toUpperCase() === q.toUpperCase() ||
-              r.id === q ||
-              r.patient_id === q
-          );
-        }
-
-        if (matchedReq && matchedReq.patient_name) {
-          const detectedPatient = {
-            id: matchedReq.patient_id || q,
-            name: matchedReq.patient_name,
-            phone: matchedReq.phone_number || "",
-          };
-          setSelectedPatient(detectedPatient);
-          setSelectedBillCode(matchedReq.billing_code || q);
-
-          // Query the official dispensed drugs endpoint for this patient to retrieve legitimate pharmacy_request_item_id
-          const patientIdToQuery = matchedReq.patient_id || q;
-          const dispensedRes = await getPatientDispensedDrugs(patientIdToQuery, matchedReq.billing_code || q);
-          const dispensedItems = dispensedRes.data?.items ?? [];
-
-          if (dispensedItems.length > 0) {
-            setDispensedDrugs(dispensedItems);
-            toast.success(`Found ${dispensedItems.length} dispensed medication(s) for ${matchedReq.patient_name}`);
-          } else {
-            // If the patient dispensed endpoint has no items, try by patient ID alone
-            const allPatientDispensed = await getPatientDispensedDrugs(patientIdToQuery);
-            const allItems = allPatientDispensed.data?.items ?? [];
-            if (allItems.length > 0) {
-              setDispensedDrugs(allItems);
-              toast.success(`Found ${allItems.length} dispensed medication(s) for ${matchedReq.patient_name}`);
-            } else {
-              setDispensedDrugs([]);
-              toast("No eligible paid prescription items found within 24 hours for this bill.");
-            }
-          }
-
-          setIsSearchingPatient(false);
-          return;
-        }
-      } catch {
-        // continue
-      }
-
-      // Step B: Search Drug Exchange Patients API
-      let exchangePatients: DrugExchangePatient[] = [];
-      try {
-        const searchRes = await searchDrugExchangePatients(q, 10);
-        exchangePatients = searchRes.data ?? [];
-      } catch {
-        // continue
-      }
-
-      if (exchangePatients.length > 0) {
-        setPatientSearchResults(exchangePatients);
-        if (exchangePatients.length === 1) {
-          const first = exchangePatients[0];
-          handleSelectPatient({
-            id: first.patient_id,
-            name: first.patient_name,
-            phone: first.phone_number,
-          });
-        }
-        setIsSearchingPatient(false);
+      const res = await getDrugExchangeDispensedByReceipt(q);
+      if (res.status === "error" || !res.data || res.data.items.length === 0) {
+        toast.error(
+          res.message || `No dispensed medication records found for "${q}". Ensure the prescription is in "dispensed" status.`
+        );
+        setDispensedDrugs([]);
+        setSelectedPatient(null);
         return;
       }
 
-      // Step C: Fallback to Hospital Patients search
-      if (hospitalId) {
-        try {
-          const hospRes = await searchPharmacyHospitalPatients(hospitalId, { query: q, limit: 10 });
-          const hospPatients = hospRes.data?.patients ?? [];
-          if (hospPatients.length > 0) {
-            const mapped = hospPatients.map((p) => ({
-              patient_id: p.patient_id,
-              patient_name: p.patient_name,
-              phone_number: p.phone_number,
-            }));
-            setPatientSearchResults(mapped);
-            if (mapped.length === 1) {
-              const first = mapped[0];
-              handleSelectPatient({
-                id: first.patient_id,
-                name: first.patient_name,
-                phone: first.phone_number,
-              });
-            }
-            setIsSearchingPatient(false);
-            return;
-          }
-        } catch {
-          // continue
-        }
-      }
+      const data = res.data;
+      const items = data.items;
+      const pt = data.patient;
 
-      // Step D: Fallback to Pharmacy Patient Lookup by ID
-      try {
-        const lookupRes = await lookupPatientForPharmacy(q);
-        const patientObj = (lookupRes as any)?.patient || (lookupRes as any)?.data?.patient;
-        if (lookupRes?.exists && patientObj && patientObj.patient_name) {
-          handleSelectPatient({
-            id: patientObj.patient_id || q,
-            name: patientObj.patient_name,
-            phone: patientObj.phone_number || "",
-          });
-          setIsSearchingPatient(false);
-          return;
-        }
-      } catch {
-        // continue
-      }
-
-      // Step E: Fallback to Walk-In if numeric phone
-      if (/^\d{8,14}$/.test(q)) {
-        try {
-          const walkRes = await getPharmacyWalkInPatient(q);
-          const walkData = (walkRes as any)?.data || walkRes;
-          if (walkData?.patient_name) {
-            handleSelectPatient({
-              id: "WALK_IN",
-              name: walkData.patient_name,
-              phone: q,
-            });
-            setIsSearchingPatient(false);
-            return;
-          }
-        } catch {
-          // continue
-        }
-      }
-
-      // Step F: Check if query matches dispensed history directly
-      try {
-        const directDispense = await getPatientDispensedDrugs(q);
-        const directItems = directDispense.data?.items ?? [];
-        if (directItems.length > 0) {
-          const first = directItems[0];
-          const detected = {
-            id: first.patient_id || q,
-            name: first.patient_name || (isDigitsOnly(q) ? `Patient (${q})` : q),
-            phone: first.phone_number || "",
-          };
-          setSelectedPatient(detected);
-          setDispensedDrugs(directItems);
-          if (first.billing_code) setSelectedBillCode(first.billing_code);
-          toast.success(`Found ${directItems.length} dispensed item(s)`);
-          setIsSearchingPatient(false);
-          return;
-        }
-      } catch {
-        // continue
-      }
-
-      // Step G: If no patient record found in database, initialize manual patient entry gracefully
-      const fallbackPatient = {
-        id: /^[a-zA-Z0-9_-]{3,20}$/.test(q) ? q : "WALK_IN",
-        name: isDigitsOnly(q) ? `Patient (${q})` : q,
-        phone: isDigitsOnly(q) ? q : "",
-      };
-      setSelectedPatient(fallbackPatient);
-      loadPatientDispensedHistory(fallbackPatient.id);
-      toast("No registered patient record found. You can enter return items manually below.");
-    } catch {
-      const fallbackPatient = {
-        id: q || "WALK_IN",
-        name: isDigitsOnly(q) ? `Patient (${q})` : q,
-        phone: isDigitsOnly(q) ? q : "",
-      };
-      setSelectedPatient(fallbackPatient);
-      loadPatientDispensedHistory(fallbackPatient.id);
-      toast("Ready for manual return entry.");
+      setSelectedPatient({
+        id: pt.patient_id || q,
+        name: pt.patient_name || "Verified Patient",
+        phone: pt.phone_number || "",
+        billing_code: pt.billing_code || data.receipt_no || q,
+        receipt_no: data.receipt_no || q,
+        paid_at: pt.paid_at,
+        dispensed_at: pt.dispensed_at,
+        is_within_24_hours: pt.is_within_24_hours !== false,
+        hours_since_payment: pt.hours_since_payment,
+      });
+      setDispensedDrugs(items);
+      setSelectedBillCode(data.receipt_no || pt.billing_code || q);
+      toast.success(`Verified: Found ${items.length} dispensed line item(s) for ${data.receipt_no || q}`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to lookup payment receipt.");
     } finally {
-      setIsSearchingPatient(false);
+      setIsSearchingReceipt(false);
     }
   };
-
-  function isDigitsOnly(val: string) {
-    return /^\d+$/.test(val);
-  }
 
   // Add Item from Previous Dispense History
   const handleSelectDispensedDrugToReturn = (item: PatientDispensedDrugItem) => {
@@ -452,6 +254,19 @@ export default function DrugExchangeModal({
       return;
     }
 
+    const itemReceipt = (item as any).receipt_no || item.billing_code || selectedBillCode;
+
+    // Check if user already added items from a different receipt
+    if (returnedItems.length > 0) {
+      const existingReceipt = (returnedItems[0] as any).receipt_no || (returnedItems[0] as any).billing_code;
+      if (existingReceipt && itemReceipt && existingReceipt !== itemReceipt) {
+        toast.error(
+          `Cannot mix items from different receipts in one return. Current items are from receipt "${existingReceipt}", but "${item.drug_name}" is from receipt "${itemReceipt}". Please process separate returns.`
+        );
+        return;
+      }
+    }
+
     const unitPrice = Number(item.unit_price) || 0;
     const qty = 1;
     const newItem: ExchangeReturnedItem = {
@@ -467,11 +282,14 @@ export default function DrugExchangeModal({
       drug_condition: "good",
       restock_to_inventory: true,
       restock_inventory: true,
+      receipt_no: itemReceipt,
+      billing_code: item.billing_code || itemReceipt,
     };
 
     setReturnedItems((prev) => [...prev, newItem]);
-    if (item.billing_code) {
-      setSelectedBillCode(item.billing_code);
+    if (itemReceipt) {
+      setSelectedBillCode(itemReceipt);
+      setSelectedPatient((prev) => (prev ? { ...prev, receipt_no: itemReceipt, billing_code: itemReceipt } : prev));
     }
     toast.success(`Added "${newItem.returned_drug_name}" to return list.`);
   };
@@ -560,32 +378,43 @@ export default function DrugExchangeModal({
 
     setIsSubmitting(true);
 
+    const firstReturned = returnedItems[0] as any;
+    const resolvedReceipt =
+      firstReturned?.receipt_no ||
+      firstReturned?.billing_code ||
+      selectedPatient.receipt_no ||
+      selectedBillCode ||
+      receiptQuery.trim() ||
+      undefined;
+
     const payload: CreateDrugExchangePayload = {
+      receipt_no: resolvedReceipt,
       patient_id: selectedPatient.id,
       patient_name: selectedPatient.name,
       phone_number: selectedPatient.phone,
       hospital_number: selectedPatient.hospital_number,
-      original_billing_code: selectedBillCode || undefined,
+      original_billing_code: resolvedReceipt,
       remarks: generalRemarks.trim() || undefined,
-      returned_items: returnedItems.map((it) => {
+      returned_items: returnedItems.map((it: any) => {
         const reqItemId =
           it.pharmacy_request_item_id ||
-          (it as any).request_item_id ||
-          (it as any).prescription_item_id ||
-          (it as any).pharmacy_request_item ||
+          it.request_item_id ||
+          it.prescription_item_id ||
+          it.id ||
           it.pharmacy_item_id ||
-          it.returned_drug_id ||
-          (it as any).id ||
-          "";
+          it.returned_drug_id;
+        const drugId = it.pharmacy_item_id || it.returned_drug_id || reqItemId;
         return {
           pharmacy_request_item_id: reqItemId,
-          pharmacy_item_id: it.pharmacy_item_id || it.returned_drug_id || reqItemId,
+          pharmacy_item_id: drugId,
           quantity: Number(it.returned_quantity || 1),
           reason: it.return_reason || it.reason_notes || "Patient returned drug",
           condition: "good",
           unit_price: it.returned_unit_price != null ? Number(it.returned_unit_price) : undefined,
           restock_inventory: true,
           drug_name: it.returned_drug_name,
+          receipt_no: it.receipt_no || it.billing_code || resolvedReceipt,
+          billing_code: it.billing_code || it.receipt_no || resolvedReceipt,
         };
       }),
       replacement_items: exchangeType === "exchange" ? replacementItems.map((it) => ({
@@ -636,7 +465,7 @@ export default function DrugExchangeModal({
                 Drug Return & Exchange
               </h2>
               <p className="text-xs text-gray-500">
-                Process patient returned medication, select replacements, and calculate balance settlement
+                Verify physical payment receipt, select returned line items with partial quantity, and calculate balance settlement
               </p>
             </div>
           </div>
@@ -660,7 +489,7 @@ export default function DrugExchangeModal({
             <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
               step === 1 ? "bg-brand-700 text-white" : "bg-gray-200 text-gray-700 dark:bg-slate-700 dark:text-slate-200"
             }`}>1</span>
-            Patient & Returned Drugs
+            Receipt Verification & Returned Drugs
           </button>
 
           <span className="mx-3 text-gray-300">/</span>
@@ -698,103 +527,85 @@ export default function DrugExchangeModal({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* ================= STEP 1: PATIENT & RETURNED DRUGS ================= */}
+          {/* ================= STEP 1: RECEIPT & RETURNED DRUGS ================= */}
           {step === 1 && (
             <div className="space-y-6">
-              {/* Patient Lookup Card */}
+              {/* Receipt Verification Lookup Card */}
               <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <FiUser className="text-brand-600" />
-                  Step 1: Patient Search & Dispense History
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <FiFileText className="text-brand-600" />
+                    Step 1: Strict Anti-Theft Receipt Verification
+                  </h3>
+                  <span className="text-[11px] text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-full font-semibold border border-brand-200 dark:bg-brand-500/10 dark:text-brand-300 dark:border-brand-500/30">
+                    Hospital Policy: Receipt Required
+                  </span>
+                </div>
 
-                <form onSubmit={handleSearchPatient} className="flex gap-2">
+                <form onSubmit={handleLookupReceipt} className="flex gap-2">
                   <div className="relative flex-1">
                     <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      value={patientQuery}
-                      onChange={(e) => setPatientQuery(e.target.value)}
-                      placeholder="Search by Patient ID (PID), Hospital Number, Phone, or Name..."
-                      className="w-full rounded-xl border border-gray-200 bg-canvas-alt py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:text-slate-100"
+                      value={receiptQuery}
+                      onChange={(e) => setReceiptQuery(e.target.value)}
+                      placeholder="Enter Payment Receipt Number (e.g. REC-20261004-001)..."
+                      className="w-full rounded-xl border border-gray-200 bg-canvas-alt py-2.5 pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:text-slate-100 font-mono"
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={isSearchingPatient}
+                    disabled={isSearchingReceipt}
                     className="inline-flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 shadow-xs disabled:opacity-50"
                   >
-                    {isSearchingPatient ? "Searching..." : "Lookup Patient"}
+                    {isSearchingReceipt ? "Verifying..." : "Verify Receipt"}
                   </button>
                 </form>
 
-                {/* Patient Multi-Search Autocomplete Results */}
-                {patientSearchResults.length > 1 && !selectedPatient && (
-                  <div className="rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-800 space-y-1">
-                    <p className="px-3 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Select Matching Patient ({patientSearchResults.length}):
-                    </p>
-                    {patientSearchResults.map((pt) => (
-                      <div
-                        key={pt.patient_id}
-                        onClick={() =>
-                          handleSelectPatient({
-                            id: pt.patient_id,
-                            name: pt.patient_name,
-                            phone: pt.phone_number,
-                          })
-                        }
-                        className="flex items-center justify-between rounded-lg p-3 text-xs hover:bg-brand-50 cursor-pointer dark:hover:bg-slate-700/60 transition"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-slate-100">{pt.patient_name}</p>
-                          <p className="text-gray-500">
-                            PID: <span className="font-mono text-brand-700 dark:text-brand-300">{pt.patient_id}</span>
-                            {pt.phone_number && ` • Phone: ${pt.phone_number}`}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          className="rounded-lg bg-brand-700 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-600 shadow-xs"
-                        >
-                          Select Patient &rarr;
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Patient Profile Card (If found/selected) */}
+                {/* Patient Profile Card (If found/verified) */}
                 {selectedPatient && (
-                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-200 bg-brand-50/50 p-4 dark:border-brand-500/30 dark:bg-brand-500/10">
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-600 text-white font-bold">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white font-bold">
                         {selectedPatient.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                          {selectedPatient.name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          PID / HN: <span className="font-mono font-semibold text-brand-700 dark:text-brand-300">{selectedPatient.id}</span>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            {selectedPatient.name}
+                          </p>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            Receipt Verified
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Receipt: <span className="font-mono font-bold text-brand-700 dark:text-brand-300">{selectedPatient.receipt_no || selectedBillCode}</span>
+                          {selectedPatient.id && ` • PID: ${selectedPatient.id}`}
                           {selectedPatient.phone && ` • Phone: ${selectedPatient.phone}`}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                        Patient Verified
-                      </span>
+                      {selectedPatient.is_within_24_hours !== false ? (
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          Within 24-Hour Return Window
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+                          Exceeds 24 Hours
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedPatient(null);
                           setDispensedDrugs([]);
                           setReturnedItems([]);
+                          setReceiptQuery("");
                         }}
                         className="rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                       >
-                        Change Patient
+                        Lookup Another Receipt
                       </button>
                     </div>
                   </div>

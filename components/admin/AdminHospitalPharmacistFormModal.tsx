@@ -41,15 +41,19 @@ const POINT_ROLE_MODULES = [
   "dispense",
   "prescriptions",
   "drug-exchange",
+  "transfers",
+  "stock-edit",
   "inventory",
   "inventory-edit",
   "inventory-history",
   "reports",
+  "stock-inventory-report",
 ];
 
 const STORE_ROLE_MODULES = [
   "dashboard",
   "inventory",
+  "stock-addition",
   "inventory-edit",
   "inventory-history",
   "reports",
@@ -62,15 +66,19 @@ const POINT_MODULE_DEFINITIONS = [
   { key: "dispense", label: "Patient Dispensing", desc: "Dispense drugs & collect payment" },
   { key: "prescriptions", label: "Prescriptions", desc: "Manage billing requests" },
   { key: "drug-exchange", label: "Drug Exchanges", desc: "Process patient returns & exchanges" },
+  { key: "transfers", label: "Unit Transfers", desc: "Accept/Decline store dispatches & request restock" },
+  { key: "stock-edit", label: "Stock Reduction (Bal Stock)", desc: "Reduce shelf stock count with audit reasons" },
   { key: "inventory", label: "Drug Inventory", desc: "View catalog, stock levels & batches" },
   { key: "inventory-edit", label: "Edit Inventory", desc: "Add/edit items at unit level" },
   { key: "inventory-history", label: "Drug Timeline", desc: "Audit logs & movement history" },
   { key: "reports", label: "Financial Reports", desc: "Sales, dispense & addition logs" },
+  { key: "stock-inventory-report", label: "Stock Valuation Report", desc: "Detailed unit inventory & valuation" },
 ];
 
 const STORE_MODULE_DEFINITIONS = [
   { key: "dashboard", label: "Warehouse Dashboard", desc: "Stock valuation & analytics" },
   { key: "inventory", label: "Store Inventory", desc: "Central catalog & supplier additions" },
+  { key: "stock-addition", label: "Supplier Stock Additions", desc: "Receive & log new shipments from vendors" },
   { key: "inventory-edit", label: "Edit Master Drugs", desc: "Create, edit or manage master catalog" },
   { key: "inventory-history", label: "Stock Movement History", desc: "Supplier restock & dispatch logs" },
   { key: "reports", label: "Warehouse Reports", desc: "Stock valuation & movement reports" },
