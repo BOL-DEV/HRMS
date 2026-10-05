@@ -166,27 +166,38 @@ export default function PharmacyReportsPage() {
     }
   }, [allowedTabs, activeTab]);
 
-  // Date Presets Helper (Africa/Lagos Today default)
+function formatLocalYMD(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+  // Date Presets Helper (Local time default)
   const todayStr = useMemo(() => {
-    return new Date().toISOString().split("T")[0];
+    return formatLocalYMD(new Date());
   }, []);
 
-  const [datePreset, setDatePreset] = useState<"today" | "yesterday" | "this_week" | "this_month" | "custom">("today");
+  const [datePreset, setDatePreset] = useState<
+    "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "all_time" | "custom"
+  >("today");
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
-  const applyDatePreset = (preset: "today" | "yesterday" | "this_week" | "this_month" | "custom") => {
+  const applyDatePreset = (
+    preset: "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "all_time" | "custom"
+  ) => {
     setDatePreset(preset);
     const now = new Date();
 
     if (preset === "today") {
-      const today = now.toISOString().split("T")[0];
+      const today = formatLocalYMD(now);
       setStartDate(today);
       setEndDate(today);
     } else if (preset === "yesterday") {
       const y = new Date(now);
       y.setDate(y.getDate() - 1);
-      const yStr = y.toISOString().split("T")[0];
+      const yStr = formatLocalYMD(y);
       setStartDate(yStr);
       setEndDate(yStr);
     } else if (preset === "this_week") {
@@ -194,12 +205,21 @@ export default function PharmacyReportsPage() {
       const day = start.getDay(); // 0 is Sunday
       const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Monday
       start.setDate(diff);
-      setStartDate(start.toISOString().split("T")[0]);
-      setEndDate(now.toISOString().split("T")[0]);
+      setStartDate(formatLocalYMD(start));
+      setEndDate(formatLocalYMD(now));
     } else if (preset === "this_month") {
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      setStartDate(start.toISOString().split("T")[0]);
-      setEndDate(now.toISOString().split("T")[0]);
+      setStartDate(formatLocalYMD(start));
+      setEndDate(formatLocalYMD(now));
+    } else if (preset === "last_30_days") {
+      const start = new Date(now);
+      start.setDate(start.getDate() - 30);
+      setStartDate(formatLocalYMD(start));
+      setEndDate(formatLocalYMD(now));
+    } else if (preset === "all_time") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      setStartDate(formatLocalYMD(start));
+      setEndDate(formatLocalYMD(now));
     }
   };
 
@@ -245,77 +265,65 @@ export default function PharmacyReportsPage() {
 
   // --- Live TanStack Queries ---
   const drugSalesQuery = useQuery({
-    queryKey: ["pharmacy-report-drug", startDate, endDate, debouncedSearch, page],
+    queryKey: ["pharmacy-report-drug", startDate, endDate, debouncedSearch],
     queryFn: () =>
       getDrugSalesReport({
         start_date: startDate,
         end_date: endDate,
         search: debouncedSearch,
-        page,
-        limit: 20,
       }),
     enabled: Boolean(accessToken && activeTab === "drug-report"),
   });
 
   const detailedDispenseQuery = useQuery({
-    queryKey: ["pharmacy-report-detailed", startDate, endDate, debouncedSearch, page],
+    queryKey: ["pharmacy-report-detailed", startDate, endDate, debouncedSearch],
     queryFn: () =>
       getDetailedDispenseReport({
         start_date: startDate,
         end_date: endDate,
         search: debouncedSearch,
-        page,
-        limit: 20,
       }),
     enabled: Boolean(accessToken && activeTab === "detailed-drug-report"),
   });
 
   const stockInventoryQuery = useQuery({
-    queryKey: ["pharmacy-report-stock", stockStatus, debouncedSearch, page],
+    queryKey: ["pharmacy-report-stock", stockStatus, debouncedSearch],
     queryFn: () =>
       getStockInventoryReport({
         stock_status: stockStatus,
         search: debouncedSearch,
-        page,
-        limit: 20,
       }),
     enabled: Boolean(accessToken && activeTab === "stock-inventory-report"),
   });
 
   const expiryQuery = useQuery({
-    queryKey: ["pharmacy-report-expiry", expiryTimeframe, debouncedSearch, page],
+    queryKey: ["pharmacy-report-expiry", expiryTimeframe, debouncedSearch],
     queryFn: () =>
       getExpiryReport({
         timeframe: expiryTimeframe,
         search: debouncedSearch,
-        page,
-        limit: 20,
       }),
     enabled: Boolean(accessToken && activeTab === "expiry-report"),
   });
 
   const pharmacistPerformanceQuery = useQuery({
-    queryKey: ["pharmacy-report-performance", startDate, endDate, page],
+    queryKey: ["pharmacy-report-performance", startDate, endDate],
     queryFn: () =>
       getPharmacistPerformanceReport({
         start_date: startDate,
         end_date: endDate,
-        page,
-        limit: 20,
       }),
     enabled: Boolean(accessToken && activeTab === "pharmacist-performance-report"),
   });
 
   const returnsExchangesQuery = useQuery({
-    queryKey: ["pharmacy-report-returns", startDate, endDate, exchangeStatus, debouncedSearch, page],
+    queryKey: ["pharmacy-report-returns", startDate, endDate, exchangeStatus, debouncedSearch],
     queryFn: () =>
       getReturnsExchangesReport({
         start_date: startDate,
         end_date: endDate,
         status: exchangeStatus,
         search: debouncedSearch,
-        page,
-        limit: 20,
       }),
     enabled: Boolean(accessToken && activeTab === "returns-exchanges-report"),
   });
@@ -469,6 +477,8 @@ export default function PharmacyReportsPage() {
                     { id: "yesterday", label: "Yesterday" },
                     { id: "this_week", label: "This Week" },
                     { id: "this_month", label: "This Month" },
+                    { id: "last_30_days", label: "Last 30 Days" },
+                    { id: "all_time", label: "This Year" },
                     { id: "custom", label: "Custom" },
                   ] as const
                 ).map((preset) => (
@@ -567,7 +577,7 @@ export default function PharmacyReportsPage() {
         {/* Tab Content Sub-views */}
         {activeTab === "drug-report" && (
           <DrugSalesReportTab
-            data={drugSalesQuery.data?.data}
+            data={(drugSalesQuery.data as any)?.data ?? drugSalesQuery.data}
             isLoading={drugSalesQuery.isLoading}
             page={page}
             onPageChange={setPage}
@@ -577,7 +587,7 @@ export default function PharmacyReportsPage() {
 
         {activeTab === "detailed-drug-report" && (
           <DetailedDispenseReportTab
-            data={detailedDispenseQuery.data?.data}
+            data={(detailedDispenseQuery.data as any)?.data ?? detailedDispenseQuery.data}
             isLoading={detailedDispenseQuery.isLoading}
             page={page}
             onPageChange={setPage}
@@ -587,7 +597,7 @@ export default function PharmacyReportsPage() {
 
         {activeTab === "stock-inventory-report" && (
           <StockInventoryReportTab
-            data={stockInventoryQuery.data?.data}
+            data={(stockInventoryQuery.data as any)?.data ?? stockInventoryQuery.data}
             isLoading={stockInventoryQuery.isLoading}
             page={page}
             stockStatus={stockStatus}
@@ -599,7 +609,7 @@ export default function PharmacyReportsPage() {
 
         {activeTab === "expiry-report" && (
           <ExpiryAlertsReportTab
-            data={expiryQuery.data?.data}
+            data={(expiryQuery.data as any)?.data ?? expiryQuery.data}
             isLoading={expiryQuery.isLoading}
             page={page}
             timeframe={expiryTimeframe}
@@ -611,7 +621,7 @@ export default function PharmacyReportsPage() {
 
         {activeTab === "pharmacist-performance-report" && (
           <PharmacistPerformanceReportTab
-            data={pharmacistPerformanceQuery.data?.data}
+            data={(pharmacistPerformanceQuery.data as any)?.data ?? pharmacistPerformanceQuery.data}
             isLoading={pharmacistPerformanceQuery.isLoading}
             page={page}
             onPageChange={setPage}
@@ -621,7 +631,7 @@ export default function PharmacyReportsPage() {
 
         {activeTab === "returns-exchanges-report" && (
           <ReturnsExchangesReportTab
-            data={returnsExchangesQuery.data?.data}
+            data={(returnsExchangesQuery.data as any)?.data ?? returnsExchangesQuery.data}
             isLoading={returnsExchangesQuery.isLoading}
             page={page}
             statusFilter={exchangeStatus}

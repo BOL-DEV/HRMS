@@ -12,7 +12,7 @@ import {
   FiChevronRight,
   FiInbox,
 } from "react-icons/fi";
-import { StockInventoryReportData } from "@/libs/pharmacy-reports";
+import { StockInventoryReportData, StockInventoryItem } from "@/libs/pharmacy-reports";
 
 interface Props {
   data?: StockInventoryReportData;
@@ -33,20 +33,82 @@ export default function StockInventoryReportTab({
   onPageChange,
   onResetFilters,
 }: Props) {
-  const summary = data?.summary || {
-    total_drugs: 0,
-    total_units_in_stock: 0,
-    total_inventory_valuation: 0,
-    out_of_stock_count: 0,
-    low_stock_count: 0,
-  };
-  const pagination = data?.pagination || {
-    total_items: 0,
-    page: 1,
-    limit: 20,
-    total_pages: 1,
-  };
-  const items = data?.items || [];
+  const items = React.useMemo<StockInventoryItem[]>(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data as StockInventoryItem[];
+    const rawObj = data as any;
+    if (Array.isArray(rawObj.items)) return rawObj.items;
+    if (Array.isArray(rawObj.drugs)) return rawObj.drugs;
+    if (Array.isArray(rawObj.records)) return rawObj.records;
+    if (Array.isArray(rawObj.data)) return rawObj.data;
+    if (rawObj.data && typeof rawObj.data === "object") {
+      if (Array.isArray(rawObj.data.items)) return rawObj.data.items;
+      if (Array.isArray(rawObj.data.drugs)) return rawObj.data.drugs;
+      if (Array.isArray(rawObj.data.records)) return rawObj.data.records;
+      if (Array.isArray(rawObj.data.data)) return rawObj.data.data;
+    }
+    return [];
+  }, [data]);
+
+  const summary = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const s = rawObj.summary || rawObj.data?.summary || {};
+    const total_drugs = s.total_drugs ?? (items.length > 0 ? items.length : 0);
+    const total_units_in_stock =
+      s.total_units_in_stock ??
+      items.reduce((acc: number, it: any) => acc + Number(it.current_stock || it.stock || 0), 0);
+    const total_inventory_valuation =
+      s.total_inventory_valuation ??
+      items.reduce(
+        (acc: number, it: any) =>
+          acc + Number(it.stock_valuation || (it.current_stock || 0) * (it.unit_price || 0) || 0),
+        0
+      );
+    const out_of_stock_count =
+      s.out_of_stock_count ??
+      items.filter((it: any) => Number(it.current_stock || it.stock || 0) <= 0).length;
+    const low_stock_count =
+      s.low_stock_count ??
+      items.filter(
+        (it: any) =>
+          Number(it.current_stock || it.stock || 0) > 0 &&
+          Number(it.current_stock || it.stock || 0) <= Number(it.reorder_level || 10)
+      ).length;
+
+    return {
+      total_drugs,
+      total_units_in_stock,
+      total_inventory_valuation,
+      out_of_stock_count,
+      low_stock_count,
+    };
+  }, [data, items]);
+
+  const pagination = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const p = rawObj.pagination || rawObj.data?.pagination;
+    return (
+      p || {
+        total_items: items.length,
+        page: 1,
+        limit: 20,
+        total_pages: Math.ceil(items.length / 20) || 1,
+      }
+    );
+  }, [data, items]);
+
+  const pageSize = pagination.limit || 20;
+  const isClientPaginated = items.length > pageSize;
+  const displayItems = React.useMemo(() => {
+    if (!isClientPaginated) return items;
+    const start = (page - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+  }, [items, page, pageSize, isClientPaginated]);
+
+  const totalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(items.length / pageSize))
+    : pagination.total_pages || 1;
+  const totalItems = isClientPaginated ? items.length : pagination.total_items;
 
   return (
     <div className="space-y-6">
@@ -109,19 +171,25 @@ export default function StockInventoryReportTab({
             </p>
           </div>
 
-          {/* Quick Stock Filter Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Stock Status:</span>
-            <select
-              value={stockStatus}
-              onChange={(e) => onStockStatusChange(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-brand-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"
-            >
-              <option value="all">All Inventory</option>
-              <option value="in_stock">In Stock Only</option>
-              <option value="low_stock">Low Stock Alerts</option>
-              <option value="out_of_stock">Out of Stock</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Showing {displayItems.length} of {totalItems} items (Page {page} of {totalPages})
+            </span>
+
+            {/* Quick Stock Filter Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Stock Status:</span>
+              <select
+                value={stockStatus}
+                onChange={(e) => onStockStatusChange(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-brand-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"
+              >
+                <option value="all">All Inventory</option>
+                <option value="in_stock">In Stock Only</option>
+                <option value="low_stock">Low Stock Alerts</option>
+                <option value="out_of_stock">Out of Stock</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -147,7 +215,7 @@ export default function StockInventoryReportTab({
                     <p className="mt-2 text-xs">Loading stock valuation records...</p>
                   </td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : displayItems.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
                     <FiInbox className="mx-auto h-8 w-8 text-slate-400 mb-2" />
@@ -164,8 +232,8 @@ export default function StockInventoryReportTab({
                   </td>
                 </tr>
               ) : (
-                items.map((it, index) => {
-                  const rowNum = (pagination.page - 1) * pagination.limit + index + 1;
+                displayItems.map((it, index) => {
+                  const rowNum = (page - 1) * pageSize + index + 1;
                   const isOut = it.stock <= 0 || it.stock_status?.toUpperCase().includes("OUT");
                   const isLow = it.stock > 0 && (it.stock <= it.reorder_level || it.stock_status?.toUpperCase().includes("LOW"));
 
@@ -234,22 +302,22 @@ export default function StockInventoryReportTab({
         </div>
 
         {/* Pagination Bar */}
-        {pagination.total_pages > 1 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Page {pagination.page} of {pagination.total_pages} ({pagination.total_items} items total)
+              Page {page} of {totalPages} ({totalItems} items total)
             </div>
             <div className="flex items-center gap-2">
               <button
-                disabled={pagination.page <= 1 || isLoading}
-                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={page <= 1 || isLoading}
+                onClick={() => onPageChange(page - 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 <FiChevronLeft /> Previous
               </button>
               <button
-                disabled={pagination.page >= pagination.total_pages || isLoading}
-                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={page >= totalPages || isLoading}
+                onClick={() => onPageChange(page + 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 Next <FiChevronRight />

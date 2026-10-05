@@ -13,7 +13,7 @@ import {
   FiInbox,
   FiCreditCard,
 } from "react-icons/fi";
-import { PharmacistPerformanceReportData } from "@/libs/pharmacy-reports";
+import { PharmacistPerformanceReportData, PharmacistPerformanceItem } from "@/libs/pharmacy-reports";
 
 interface Props {
   data?: PharmacistPerformanceReportData;
@@ -30,19 +30,76 @@ export default function PharmacistPerformanceReportTab({
   onPageChange,
   onResetFilters,
 }: Props) {
-  const summary = data?.summary || {
-    total_pharmacists: 0,
-    total_requests_processed: 0,
-    total_quantity_dispensed: 0,
-    total_revenue: 0,
-  };
-  const pagination = data?.pagination || {
-    total_items: 0,
-    page: 1,
-    limit: 20,
-    total_pages: 1,
-  };
-  const pharmacists = data?.pharmacists || [];
+  const pharmacists = React.useMemo<PharmacistPerformanceItem[]>(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data as PharmacistPerformanceItem[];
+    const rawObj = data as any;
+    if (Array.isArray(rawObj.pharmacists)) return rawObj.pharmacists;
+    if (Array.isArray(rawObj.items)) return rawObj.items;
+    if (Array.isArray(rawObj.records)) return rawObj.records;
+    if (Array.isArray(rawObj.data)) return rawObj.data;
+    if (rawObj.data && typeof rawObj.data === "object") {
+      if (Array.isArray(rawObj.data.pharmacists)) return rawObj.data.pharmacists;
+      if (Array.isArray(rawObj.data.items)) return rawObj.data.items;
+      if (Array.isArray(rawObj.data.records)) return rawObj.data.records;
+      if (Array.isArray(rawObj.data.data)) return rawObj.data.data;
+    }
+    return [];
+  }, [data]);
+
+  const summary = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const s = rawObj.summary || rawObj.data?.summary || {};
+    const total_pharmacists = s.total_pharmacists ?? (pharmacists.length > 0 ? pharmacists.length : 0);
+    const total_requests_processed =
+      s.total_requests_processed ??
+      pharmacists.reduce((acc: number, p: any) => acc + Number(p.requests_count || p.total_requests || 0), 0);
+    const total_quantity_dispensed =
+      s.total_quantity_dispensed ??
+      pharmacists.reduce(
+        (acc: number, p: any) => acc + Number(p.total_quantity_dispensed || p.quantity_dispensed || 0),
+        0
+      );
+    const total_revenue =
+      s.total_revenue ??
+      pharmacists.reduce(
+        (acc: number, p: any) => acc + Number(p.total_amount || p.total_revenue || p.amount || 0),
+        0
+      );
+
+    return {
+      total_pharmacists,
+      total_requests_processed,
+      total_quantity_dispensed,
+      total_revenue,
+    };
+  }, [data, pharmacists]);
+
+  const pagination = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const p = rawObj.pagination || rawObj.data?.pagination;
+    return (
+      p || {
+        total_items: pharmacists.length,
+        page: 1,
+        limit: 20,
+        total_pages: Math.ceil(pharmacists.length / 20) || 1,
+      }
+    );
+  }, [data, pharmacists]);
+
+  const pageSize = pagination.limit || 20;
+  const isClientPaginated = pharmacists.length > pageSize;
+  const displayPharmacists = React.useMemo(() => {
+    if (!isClientPaginated) return pharmacists;
+    const start = (page - 1) * pageSize;
+    return pharmacists.slice(start, start + pageSize);
+  }, [pharmacists, page, pageSize, isClientPaginated]);
+
+  const totalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(pharmacists.length / pageSize))
+    : pagination.total_pages || 1;
+  const totalItems = isClientPaginated ? pharmacists.length : pagination.total_items;
 
   return (
     <div className="space-y-6">
@@ -105,7 +162,7 @@ export default function PharmacistPerformanceReportTab({
             </p>
           </div>
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Showing {pharmacists.length} of {pagination.total_items} staff
+            Showing {displayPharmacists.length} of {totalItems} staff (Page {page} of {totalPages})
           </span>
         </div>
 
@@ -131,7 +188,7 @@ export default function PharmacistPerformanceReportTab({
                     <p className="mt-2 text-xs">Loading pharmacist performance records...</p>
                   </td>
                 </tr>
-              ) : pharmacists.length === 0 ? (
+              ) : displayPharmacists.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
                     <FiInbox className="mx-auto h-8 w-8 text-slate-400 mb-2" />
@@ -148,8 +205,8 @@ export default function PharmacistPerformanceReportTab({
                   </td>
                 </tr>
               ) : (
-                pharmacists.map((ph, index) => {
-                  const rowNum = (pagination.page - 1) * pagination.limit + index + 1;
+                displayPharmacists.map((ph, index) => {
+                  const rowNum = (page - 1) * pageSize + index + 1;
                   return (
                     <tr
                       key={ph.pharmacist_id || `${ph.pharmacist_name}-${index}`}
@@ -191,22 +248,22 @@ export default function PharmacistPerformanceReportTab({
         </div>
 
         {/* Pagination Bar */}
-        {pagination.total_pages > 1 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Page {pagination.page} of {pagination.total_pages} ({pagination.total_items} staff total)
+              Page {page} of {totalPages} ({totalItems} staff total)
             </div>
             <div className="flex items-center gap-2">
               <button
-                disabled={pagination.page <= 1 || isLoading}
-                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={page <= 1 || isLoading}
+                onClick={() => onPageChange(page - 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 <FiChevronLeft /> Previous
               </button>
               <button
-                disabled={pagination.page >= pagination.total_pages || isLoading}
-                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={page >= totalPages || isLoading}
+                onClick={() => onPageChange(page + 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 Next <FiChevronRight />
