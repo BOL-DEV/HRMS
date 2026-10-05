@@ -13,7 +13,7 @@ import {
   FiInbox,
   FiUser,
 } from "react-icons/fi";
-import { ReturnsExchangesReportData } from "@/libs/pharmacy-reports";
+import { ReturnsExchangesReportData, ReturnsExchangesReportItem } from "@/libs/pharmacy-reports";
 import { SETTLEMENT_STATUS_LABELS } from "@/libs/pharmacy-exchange";
 
 interface Props {
@@ -35,20 +35,74 @@ export default function ReturnsExchangesReportTab({
   onPageChange,
   onResetFilters,
 }: Props) {
-  const summary = data?.summary || {
-    total_exchanges: 0,
-    total_returned_amount: 0,
-    total_replacement_amount: 0,
-    total_additional_paid: 0,
-    total_refund_amount: 0,
-  };
-  const pagination = data?.pagination || {
-    total_items: 0,
-    page: 1,
-    limit: 20,
-    total_pages: 1,
-  };
-  const exchanges = data?.exchanges || [];
+  const exchanges = React.useMemo<ReturnsExchangesReportItem[]>(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data as ReturnsExchangesReportItem[];
+    const rawObj = data as any;
+    if (Array.isArray(rawObj.exchanges)) return rawObj.exchanges;
+    if (Array.isArray(rawObj.items)) return rawObj.items;
+    if (Array.isArray(rawObj.records)) return rawObj.records;
+    if (Array.isArray(rawObj.data)) return rawObj.data;
+    if (rawObj.data && typeof rawObj.data === "object") {
+      if (Array.isArray(rawObj.data.exchanges)) return rawObj.data.exchanges;
+      if (Array.isArray(rawObj.data.items)) return rawObj.data.items;
+      if (Array.isArray(rawObj.data.records)) return rawObj.data.records;
+      if (Array.isArray(rawObj.data.data)) return rawObj.data.data;
+    }
+    return [];
+  }, [data]);
+
+  const summary = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const s = rawObj.summary || rawObj.data?.summary || {};
+    const total_exchanges = s.total_exchanges ?? (exchanges.length > 0 ? exchanges.length : 0);
+    const total_returned_amount =
+      s.total_returned_amount ??
+      exchanges.reduce((acc: number, e: any) => acc + Number(e.total_returned_amount || 0), 0);
+    const total_replacement_amount =
+      s.total_replacement_amount ??
+      exchanges.reduce((acc: number, e: any) => acc + Number(e.total_replacement_amount || 0), 0);
+    const total_additional_paid =
+      s.total_additional_paid ??
+      exchanges.reduce((acc: number, e: any) => acc + Number(e.additional_amount_paid || 0), 0);
+    const total_refund_amount =
+      s.total_refund_amount ??
+      exchanges.reduce((acc: number, e: any) => acc + Number(e.refund_amount || 0), 0);
+
+    return {
+      total_exchanges,
+      total_returned_amount,
+      total_replacement_amount,
+      total_additional_paid,
+      total_refund_amount,
+    };
+  }, [data, exchanges]);
+
+  const pagination = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const p = rawObj.pagination || rawObj.data?.pagination;
+    return (
+      p || {
+        total_items: exchanges.length,
+        page: 1,
+        limit: 20,
+        total_pages: Math.ceil(exchanges.length / 20) || 1,
+      }
+    );
+  }, [data, exchanges]);
+
+  const pageSize = pagination.limit || 20;
+  const isClientPaginated = exchanges.length > pageSize;
+  const displayExchanges = React.useMemo(() => {
+    if (!isClientPaginated) return exchanges;
+    const start = (page - 1) * pageSize;
+    return exchanges.slice(start, start + pageSize);
+  }, [exchanges, page, pageSize, isClientPaginated]);
+
+  const totalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(exchanges.length / pageSize))
+    : pagination.total_pages || 1;
+  const totalItems = isClientPaginated ? exchanges.length : pagination.total_items;
 
   return (
     <div className="space-y-6">
@@ -115,20 +169,26 @@ export default function ReturnsExchangesReportTab({
             </p>
           </div>
 
-          {/* Status Filter Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => onStatusFilterChange(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-brand-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"
-            >
-              <option value="all">All Statuses</option>
-              <option value="completed">Completed</option>
-              <option value="pending_payment">Pending Payment</option>
-              <option value="pending_refund">Pending Refund</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Showing {displayExchanges.length} of {totalItems} records (Page {page} of {totalPages})
+            </span>
+
+            {/* Status Filter Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => onStatusFilterChange(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-brand-500 focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"
+              >
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="pending_payment">Pending Payment</option>
+                <option value="pending_refund">Pending Refund</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -154,7 +214,7 @@ export default function ReturnsExchangesReportTab({
                     <p className="mt-2 text-xs">Loading return & exchange records...</p>
                   </td>
                 </tr>
-              ) : exchanges.length === 0 ? (
+              ) : displayExchanges.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
                     <FiInbox className="mx-auto h-8 w-8 text-slate-400 mb-2" />
@@ -171,7 +231,7 @@ export default function ReturnsExchangesReportTab({
                   </td>
                 </tr>
               ) : (
-                exchanges.map((ex, index) => {
+                displayExchanges.map((ex, index) => {
                   const statusConfig = SETTLEMENT_STATUS_LABELS[ex.status] || {
                     label: ex.status,
                     badgeClass: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300",
@@ -239,22 +299,22 @@ export default function ReturnsExchangesReportTab({
         </div>
 
         {/* Pagination Bar */}
-        {pagination.total_pages > 1 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Page {pagination.page} of {pagination.total_pages} ({pagination.total_items} exchanges total)
+              Page {page} of {totalPages} ({totalItems} exchanges total)
             </div>
             <div className="flex items-center gap-2">
               <button
-                disabled={pagination.page <= 1 || isLoading}
-                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={page <= 1 || isLoading}
+                onClick={() => onPageChange(page - 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 <FiChevronLeft /> Previous
               </button>
               <button
-                disabled={pagination.page >= pagination.total_pages || isLoading}
-                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={page >= totalPages || isLoading}
+                onClick={() => onPageChange(page + 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 Next <FiChevronRight />

@@ -4,7 +4,7 @@ import React from "react";
 import StatCard from "@/components/shared/StatCard";
 import { formatCurrency } from "@/libs/helper";
 import { FiPackage, FiShoppingCart, FiDollarSign, FiChevronLeft, FiChevronRight, FiInbox } from "react-icons/fi";
-import { DrugSalesReportData } from "@/libs/pharmacy-reports";
+import { DrugSalesReportData, DrugSalesReportItem } from "@/libs/pharmacy-reports";
 
 interface Props {
   data?: DrugSalesReportData;
@@ -21,18 +21,70 @@ export default function DrugSalesReportTab({
   onPageChange,
   onResetFilters,
 }: Props) {
-  const summary = data?.summary || {
-    total_unique_drugs: 0,
-    total_quantity_sold: 0,
-    total_sales_amount: 0,
-  };
-  const pagination = data?.pagination || {
-    total_items: 0,
-    page: 1,
-    limit: 20,
-    total_pages: 1,
-  };
-  const drugs = data?.drugs || [];
+  const drugs: DrugSalesReportItem[] = React.useMemo(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    const rawObj = data as any;
+    if (Array.isArray(rawObj.drugs)) return rawObj.drugs;
+    if (Array.isArray(rawObj.items)) return rawObj.items;
+    if (Array.isArray(rawObj.records)) return rawObj.records;
+    if (Array.isArray(rawObj.data)) return rawObj.data;
+    if (rawObj.data && typeof rawObj.data === "object") {
+      if (Array.isArray(rawObj.data.drugs)) return rawObj.data.drugs;
+      if (Array.isArray(rawObj.data.items)) return rawObj.data.items;
+      if (Array.isArray(rawObj.data.records)) return rawObj.data.records;
+      if (Array.isArray(rawObj.data.data)) return rawObj.data.data;
+    }
+    return [];
+  }, [data]);
+
+  const summary = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const s = rawObj.summary || rawObj.data?.summary || {};
+    const total_unique_drugs =
+      s.total_unique_drugs ?? s.unique_drugs ?? (drugs.length > 0 ? drugs.length : 0);
+    const total_quantity_sold =
+      s.total_quantity_sold ??
+      s.total_quantity ??
+      drugs.reduce((acc, d: any) => acc + Number(d.quantity_sold || d.quantity || d.qty || 0), 0);
+    const total_sales_amount =
+      s.total_sales_amount ??
+      s.total_amount ??
+      s.total_revenue ??
+      drugs.reduce((acc, d: any) => acc + Number(d.total_price || d.total_amount || d.amount || 0), 0);
+
+    return {
+      total_unique_drugs,
+      total_quantity_sold,
+      total_sales_amount,
+    };
+  }, [data, drugs]);
+
+  const pagination = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const p = rawObj.pagination || rawObj.data?.pagination;
+    return (
+      p || {
+        total_items: drugs.length,
+        page: 1,
+        limit: 20,
+        total_pages: Math.ceil(drugs.length / 20) || 1,
+      }
+    );
+  }, [data, drugs]);
+
+  const pageSize = pagination.limit || 20;
+  const isClientPaginated = drugs.length > pageSize;
+  const displayDrugs = React.useMemo(() => {
+    if (!isClientPaginated) return drugs;
+    const start = (page - 1) * pageSize;
+    return drugs.slice(start, start + pageSize);
+  }, [drugs, page, pageSize, isClientPaginated]);
+
+  const totalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(drugs.length / pageSize))
+    : pagination.total_pages || 1;
+  const totalItems = isClientPaginated ? drugs.length : pagination.total_items;
 
   return (
     <div className="space-y-6">
@@ -84,7 +136,7 @@ export default function DrugSalesReportTab({
             </p>
           </div>
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Showing {drugs.length} of {pagination.total_items} items
+            Showing {displayDrugs.length} of {totalItems} items (Page {page} of {totalPages})
           </span>
         </div>
 
@@ -110,7 +162,7 @@ export default function DrugSalesReportTab({
                     <p className="mt-2 text-xs">Loading drug sales records...</p>
                   </td>
                 </tr>
-              ) : drugs.length === 0 ? (
+              ) : displayDrugs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
                     <FiInbox className="mx-auto h-8 w-8 text-slate-400 mb-2" />
@@ -127,8 +179,8 @@ export default function DrugSalesReportTab({
                   </td>
                 </tr>
               ) : (
-                drugs.map((drug, index) => {
-                  const rowNum = (pagination.page - 1) * pagination.limit + index + 1;
+                displayDrugs.map((drug, index) => {
+                  const rowNum = (page - 1) * pageSize + index + 1;
                   return (
                     <tr
                       key={drug.drug_id || `${drug.drug_name}-${index}`}
@@ -182,22 +234,22 @@ export default function DrugSalesReportTab({
         </div>
 
         {/* Pagination Bar */}
-        {pagination.total_pages > 1 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Page {pagination.page} of {pagination.total_pages} ({pagination.total_items} items total)
+              Page {page} of {totalPages} ({totalItems} items total)
             </div>
             <div className="flex items-center gap-2">
               <button
-                disabled={pagination.page <= 1 || isLoading}
-                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={page <= 1 || isLoading}
+                onClick={() => onPageChange(page - 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 <FiChevronLeft /> Previous
               </button>
               <button
-                disabled={pagination.page >= pagination.total_pages || isLoading}
-                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={page >= totalPages || isLoading}
+                onClick={() => onPageChange(page + 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 Next <FiChevronRight />

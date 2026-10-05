@@ -12,7 +12,7 @@ import {
   FiInbox,
   FiUser,
 } from "react-icons/fi";
-import { DetailedDispenseReportData } from "@/libs/pharmacy-reports";
+import { DetailedDispenseReportData, DetailedDispenseRecord } from "@/libs/pharmacy-reports";
 
 interface Props {
   data?: DetailedDispenseReportData;
@@ -29,18 +29,69 @@ export default function DetailedDispenseReportTab({
   onPageChange,
   onResetFilters,
 }: Props) {
-  const summary = data?.summary || {
-    total_dispense_records: 0,
-    total_quantity: 0,
-    total_amount: 0,
-  };
-  const pagination = data?.pagination || {
-    total_items: 0,
-    page: 1,
-    limit: 20,
-    total_pages: 1,
-  };
-  const records = data?.records || [];
+  const records = React.useMemo<DetailedDispenseRecord[]>(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data as DetailedDispenseRecord[];
+    const rawObj = data as any;
+    if (Array.isArray(rawObj.records)) return rawObj.records;
+    if (Array.isArray(rawObj.items)) return rawObj.items;
+    if (Array.isArray(rawObj.drugs)) return rawObj.drugs;
+    if (Array.isArray(rawObj.data)) return rawObj.data;
+    if (rawObj.data && typeof rawObj.data === "object") {
+      if (Array.isArray(rawObj.data.records)) return rawObj.data.records;
+      if (Array.isArray(rawObj.data.items)) return rawObj.data.items;
+      if (Array.isArray(rawObj.data.drugs)) return rawObj.data.drugs;
+      if (Array.isArray(rawObj.data.data)) return rawObj.data.data;
+    }
+    return [];
+  }, [data]);
+
+  const summary = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const s = rawObj.summary || rawObj.data?.summary || {};
+    const total_dispense_records =
+      s.total_dispense_records ?? s.total_records ?? (records.length > 0 ? records.length : 0);
+    const total_quantity =
+      s.total_quantity ??
+      records.reduce((acc: number, r: any) => acc + Number(r.quantity || r.qty || 0), 0);
+    const total_amount =
+      s.total_amount ??
+      s.total_sales_amount ??
+      s.total_revenue ??
+      records.reduce((acc: number, r: any) => acc + Number(r.amount_paid || r.total_price || r.amount || 0), 0);
+
+    return {
+      total_dispense_records,
+      total_quantity,
+      total_amount,
+    };
+  }, [data, records]);
+
+  const pagination = React.useMemo(() => {
+    const rawObj = (data as any) || {};
+    const p = rawObj.pagination || rawObj.data?.pagination;
+    return (
+      p || {
+        total_items: records.length,
+        page: 1,
+        limit: 20,
+        total_pages: Math.ceil(records.length / 20) || 1,
+      }
+    );
+  }, [data, records]);
+
+  const pageSize = pagination.limit || 20;
+  const isClientPaginated = records.length > pageSize;
+  const displayRecords = React.useMemo(() => {
+    if (!isClientPaginated) return records;
+    const start = (page - 1) * pageSize;
+    return records.slice(start, start + pageSize);
+  }, [records, page, pageSize, isClientPaginated]);
+
+  const totalPages = isClientPaginated
+    ? Math.max(1, Math.ceil(records.length / pageSize))
+    : pagination.total_pages || 1;
+  const totalItems = isClientPaginated ? records.length : pagination.total_items;
 
   return (
     <div className="space-y-6">
@@ -92,7 +143,7 @@ export default function DetailedDispenseReportTab({
             </p>
           </div>
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-            Showing {records.length} of {pagination.total_items} records
+            Showing {displayRecords.length} of {totalItems} records (Page {page} of {totalPages})
           </span>
         </div>
 
@@ -118,7 +169,7 @@ export default function DetailedDispenseReportTab({
                     <p className="mt-2 text-xs">Loading detailed dispense records...</p>
                   </td>
                 </tr>
-              ) : records.length === 0 ? (
+              ) : displayRecords.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-500">
                     <FiInbox className="mx-auto h-8 w-8 text-slate-400 mb-2" />
@@ -135,7 +186,7 @@ export default function DetailedDispenseReportTab({
                   </td>
                 </tr>
               ) : (
-                records.map((rec, index) => (
+                displayRecords.map((rec, index) => (
                   <tr
                     key={rec.item_id || `${rec.request_id}-${index}`}
                     className="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
@@ -193,22 +244,22 @@ export default function DetailedDispenseReportTab({
         </div>
 
         {/* Pagination Bar */}
-        {pagination.total_pages > 1 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3 dark:border-slate-800">
             <div className="text-xs text-slate-500 dark:text-slate-400">
-              Page {pagination.page} of {pagination.total_pages} ({pagination.total_items} records total)
+              Page {page} of {totalPages} ({totalItems} records total)
             </div>
             <div className="flex items-center gap-2">
               <button
-                disabled={pagination.page <= 1 || isLoading}
-                onClick={() => onPageChange(pagination.page - 1)}
+                disabled={page <= 1 || isLoading}
+                onClick={() => onPageChange(page - 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 <FiChevronLeft /> Previous
               </button>
               <button
-                disabled={pagination.page >= pagination.total_pages || isLoading}
-                onClick={() => onPageChange(pagination.page + 1)}
+                disabled={page >= totalPages || isLoading}
+                onClick={() => onPageChange(page + 1)}
                 className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-750"
               >
                 Next <FiChevronRight />
