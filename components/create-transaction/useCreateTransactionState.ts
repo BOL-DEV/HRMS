@@ -810,11 +810,15 @@ export function useCreateTransactionState({
       // 1. Try Drug Return & Exchange Lookup first
       try {
         const exRes = await getPendingDrugExchanges(cleanCode);
-        const rawData = exRes.data;
+        const rawData = (exRes as any)?.data ?? exRes;
         const exList: any[] = Array.isArray(rawData)
           ? rawData
           : rawData?.items
           ? rawData.items
+          : Array.isArray(rawData?.exchanges)
+          ? rawData.exchanges
+          : Array.isArray(rawData?.records)
+          ? rawData.records
           : rawData?.refunds
           ? rawData.refunds
           : rawData
@@ -823,9 +827,12 @@ export function useCreateTransactionState({
         const matchedEx =
           exList.find(
             (ex: any) =>
-              ex.exchange_code?.toUpperCase() === cleanCode ||
-              ex.id?.toUpperCase() === cleanCode
-          ) || (cleanCode.startsWith("DEX") ? exList[0] : null);
+              (ex.exchange_code && ex.exchange_code.toUpperCase() === cleanCode) ||
+              (ex.id && String(ex.id).toUpperCase() === cleanCode) ||
+              (ex.billing_code && ex.billing_code.toUpperCase() === cleanCode) ||
+              (ex.receipt_no && ex.receipt_no.toUpperCase() === cleanCode) ||
+              (ex.original_billing_code && ex.original_billing_code.toUpperCase() === cleanCode)
+          ) || (exList.length === 1 ? exList[0] : cleanCode.startsWith("DEX") ? exList[0] : null);
 
         if (matchedEx) {
           const rawItems: any[] = matchedEx.items || [];
