@@ -554,7 +554,12 @@ export async function processDrugExchangePayment(payload: {
     const paymentTypeUpper = paymentTypeLower.toUpperCase();
     const amount = payload.amount ?? (payload.net_amount ? Math.abs(payload.net_amount) : 0);
 
-    const body = {
+    const exactBody = {
+      exchange_code: code,
+      payment_type: paymentTypeLower,
+    };
+
+    const fullBody = {
       exchange_code: code,
       exchange_id: id,
       code: code,
@@ -569,34 +574,45 @@ export async function processDrugExchangePayment(payload: {
 
     let lastError: any = null;
 
-    // Strategy 1: POST /api/payments/drug-exchange/process
+    // Strategy 1: POST /api/payments/drug-exchange/process with exact documented payload { exchange_code, payment_type }
     try {
       return await postJson<ProcessPaymentResponse>(
         "/api/payments/drug-exchange/process",
-        body,
+        exactBody,
         { headers }
       );
     } catch (err: any) {
       lastError = err;
     }
 
-    // Strategy 2: POST /api/payments/drug-exchange
+    // Strategy 2: POST /api/payments/drug-exchange/process with full body
+    try {
+      return await postJson<ProcessPaymentResponse>(
+        "/api/payments/drug-exchange/process",
+        fullBody,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 3: POST /api/payments/drug-exchange
     try {
       return await postJson<ProcessPaymentResponse>(
         "/api/payments/drug-exchange",
-        body,
+        exactBody,
         { headers }
       );
     } catch (err: any) {
       lastError = err;
     }
 
-    // Strategy 3: POST /api/pharmacy/drug-exchange/:code/settle
+    // Strategy 4: POST /api/pharmacy/drug-exchange/:code/settle
     if (code) {
       try {
         return await postJson<ProcessPaymentResponse>(
           `/api/pharmacy/drug-exchange/${encodeURIComponent(code)}/settle`,
-          body,
+          fullBody,
           { headers }
         );
       } catch (err: any) {
@@ -604,52 +620,28 @@ export async function processDrugExchangePayment(payload: {
       }
     }
 
-    // Strategy 4: POST /api/pharmacy/drug-exchange/settle
+    // Strategy 5: POST /api/pharmacy/drug-exchange/settle
     try {
       return await postJson<ProcessPaymentResponse>(
         "/api/pharmacy/drug-exchange/settle",
-        body,
+        fullBody,
         { headers }
       );
     } catch (err: any) {
       lastError = err;
     }
 
-    // Strategy 5: POST /api/pharmacy/drug-exchange/:code/pay
+    // Strategy 6: POST /api/pharmacy/drug-exchange/:code/pay
     if (code) {
       try {
         return await postJson<ProcessPaymentResponse>(
           `/api/pharmacy/drug-exchange/${encodeURIComponent(code)}/pay`,
-          body,
+          fullBody,
           { headers }
         );
       } catch (err: any) {
         lastError = err;
       }
-    }
-
-    // Strategy 6: POST /api/pharmacy-store/refunds/:exchangeId/approve
-    if (id || code) {
-      try {
-        return await postJson<ProcessPaymentResponse>(
-          `/api/pharmacy-store/refunds/${encodeURIComponent(id || code)}/approve`,
-          body,
-          { headers }
-        );
-      } catch (err: any) {
-        lastError = err;
-      }
-    }
-
-    // Strategy 7: POST /api/pharmacy-store/refunds/approve
-    try {
-      return await postJson<ProcessPaymentResponse>(
-        "/api/pharmacy-store/refunds/approve",
-        body,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
     }
 
     throw new Error(
