@@ -21,6 +21,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "react-hot-toast";
 import { FiGrid, FiLayers, FiTag } from "react-icons/fi";
+import { isValidNigerianPhoneNumber } from "@/libs/helper";
 
 type FormState = {
   name: string;
@@ -34,6 +35,10 @@ type FormState = {
   allowAgentPharmacyPay: boolean;
   allowPharmacyWalkIn: boolean;
   pharmacyBatchStrategy: "single_row" | "multi_batch";
+  allowPaymentCash: boolean;
+  allowPaymentPos: boolean;
+  allowPaymentTransfer: boolean;
+  receiptCount: number;
 };
 
 function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): FormState {
@@ -49,6 +54,10 @@ function buildInitialState(data?: ReturnType<typeof getHospitalFormDefaults>): F
     allowAgentPharmacyPay: data?.allowAgentPharmacyPay ?? true,
     allowPharmacyWalkIn: data?.allowPharmacyWalkIn ?? true,
     pharmacyBatchStrategy: data?.pharmacyBatchStrategy ?? "multi_batch",
+    allowPaymentCash: data?.allowPaymentCash ?? true,
+    allowPaymentPos: data?.allowPaymentPos ?? true,
+    allowPaymentTransfer: data?.allowPaymentTransfer ?? true,
+    receiptCount: data?.receiptCount ?? 2,
   };
 }
 
@@ -92,6 +101,22 @@ function getHospitalFormDefaults(
       (hospital as any).pharmacy_batch_strategy ??
       (hospital as any).pharmacyBatchStrategy ??
       "multi_batch",
+    allowPaymentCash:
+      readBoolean(hospital.allow_payment_cash) ??
+      readBoolean(hospital.allowPaymentCash) ??
+      true,
+    allowPaymentPos:
+      readBoolean(hospital.allow_payment_pos) ??
+      readBoolean(hospital.allowPaymentPos) ??
+      true,
+    allowPaymentTransfer:
+      readBoolean(hospital.allow_payment_transfer) ??
+      readBoolean(hospital.allowPaymentTransfer) ??
+      true,
+    receiptCount:
+      hospital.receipt_count ??
+      hospital.receiptCount ??
+      2,
   };
 }
 
@@ -113,11 +138,21 @@ function HospitalSettingsForm({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!form.allowPaymentCash && !form.allowPaymentPos && !form.allowPaymentTransfer) {
+      toast.error("At least one payment method must be allowed for the hospital");
+      return;
+    }
+
     const payload: UpdateAdminHospitalPayload = {};
     const trimmedName = form.name.trim();
     const trimmedEmail = form.email.trim();
     const trimmedPhone = form.phone.trim();
     const trimmedAddress = form.address.trim();
+
+    if (trimmedPhone && !isValidNigerianPhoneNumber(trimmedPhone)) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
+      return;
+    }
 
     if (trimmedName && trimmedName !== defaults.name) {
       payload.name = trimmedName;
@@ -159,6 +194,19 @@ function HospitalSettingsForm({
     }
     if (form.pharmacyBatchStrategy !== defaults.pharmacyBatchStrategy) {
       (payload as any).pharmacy_batch_strategy = form.pharmacyBatchStrategy;
+    }
+
+    if (form.allowPaymentCash !== defaults.allowPaymentCash) {
+      payload.allow_payment_cash = form.allowPaymentCash;
+    }
+    if (form.allowPaymentPos !== defaults.allowPaymentPos) {
+      payload.allow_payment_pos = form.allowPaymentPos;
+    }
+    if (form.allowPaymentTransfer !== defaults.allowPaymentTransfer) {
+      payload.allow_payment_transfer = form.allowPaymentTransfer;
+    }
+    if (form.receiptCount !== defaults.receiptCount) {
+      payload.receipt_count = form.receiptCount;
     }
 
     if (!Object.keys(payload).length) {
@@ -377,6 +425,82 @@ function HospitalSettingsForm({
               </label>
             </div>
           )}
+        </div>
+
+        {/* Payment & Receipt Configuration */}
+        <div className="md:col-span-2 border border-line-subtle rounded-xl p-5 space-y-4 bg-canvas-alt/25">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Payment & Print Configuration</h4>
+            <p className="text-xs text-gray-500 mt-0.5">Define hospital-wide billing payment methods and print limits.</p>
+          </div>
+
+          <div className="space-y-2.5 pt-2 border-t border-line-subtle/50">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300 block">Accepted Payment Methods</span>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPaymentCash}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPaymentCash: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Cash Payments</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPaymentPos}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPaymentPos: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <span className="text-sm text-gray-700 dark:text-slate-300">POS Payments</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.allowPaymentTransfer}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      allowPaymentTransfer: event.target.checked,
+                    }))
+                  }
+                  className="rounded border-line-subtle text-brand-600 focus:ring-brand-500 h-4 w-4"
+                />
+                <span className="text-sm text-gray-700 dark:text-slate-300">Transfer Payments</span>
+              </label>
+            </div>
+          </div>
+
+          <label className="block space-y-2 pt-2 border-t border-line-subtle/50">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Receipt Print Copy Count</span>
+            <select
+              value={form.receiptCount}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  receiptCount: Number(event.target.value),
+                }))
+              }
+              className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-4 py-3 text-sm dark:text-slate-100"
+            >
+              <option value={1}>1 Copy (Customer copy only)</option>
+              <option value={2}>2 Copies (Customer & Audit copies)</option>
+              <option value={3}>3 Copies (Customer, Audit & Department copies)</option>
+            </select>
+          </label>
         </div>
       </div>
 

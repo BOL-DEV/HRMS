@@ -4,8 +4,8 @@ import React from "react";
 import PharmacySidebar from "@/components/pharmacy/PharmacySidebar";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
-import { getAgentAccessToken } from "@/libs/auth";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
+import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import AccessDenied from "@/components/shared/AccessDenied";
 
 interface Props {
@@ -15,16 +15,25 @@ interface Props {
 export default function PharmacyLayout({ children }: Props) {
   const pathname = usePathname();
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const decoded = React.useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
 
   const { data: profileResponse, isLoading } = useQuery({
-    queryKey: ["pharmacy-profile-sidebar"],
-    queryFn: getPharmacyProfile,
+    queryKey: ["pharmacy-profile-sidebar", decoded?.role],
+    queryFn: async () => {
+      if (decoded?.role === "PHARMACY_STORE") {
+        return (await getPharmacyStoreProfile()) as any;
+      }
+      return (await getPharmacyProfile()) as any;
+    },
     enabled: Boolean(accessToken),
     retry: false,
     refetchOnWindowFocus: false,
   });
 
-  const activeModules = profileResponse?.data?.modules;
+  const jwtModules = decoded?.modules || decoded?.user?.modules || decoded?.data?.modules;
+  const activeModules =
+    profileResponse?.data?.modules ||
+    (Array.isArray(jwtModules) && jwtModules.length > 0 ? jwtModules : undefined);
 
   // Resolve sub-module name and required key
   const moduleInfo = React.useMemo(() => {
@@ -37,8 +46,17 @@ export default function PharmacyLayout({ children }: Props) {
     if (pathname.startsWith("/pharmacy/prescriptions")) {
       return { key: "prescriptions", name: "Prescriptions" };
     }
+    if (pathname.startsWith("/pharmacy/exchanges")) {
+      return { key: "dispense", name: "Exchanges" };
+    }
+    if (pathname.startsWith("/pharmacy/refunds")) {
+      return { key: "approve-refund", name: "Refunds" };
+    }
     if (pathname.startsWith("/pharmacy/inventory")) {
       return { key: "inventory", name: "Inventory" };
+    }
+    if (pathname.startsWith("/pharmacy/transfers")) {
+      return { key: "transfers", name: "Transfers" };
     }
     if (pathname.startsWith("/pharmacy/reports")) {
       return { key: "reports", name: "Reports" };
@@ -47,19 +65,59 @@ export default function PharmacyLayout({ children }: Props) {
   }, [pathname]);
 
   const hasAccess = React.useMemo(() => {
-    const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
+    const userRole = (profileResponse?.data?.role as string) || (decoded?.role as string);
+    const isPlatformAdmin = userRole === "PLATFORM_ADMIN";
     if (isPlatformAdmin) return true;
+
+    // Dispense, Prescriptions & Exchanges are Point Pharmacist only - reject Store Managers
+    if (userRole === "PHARMACY_STORE") {
+      if (
+        pathname.startsWith("/pharmacy/dispense") ||
+        pathname.startsWith("/pharmacy/prescriptions") ||
+        pathname.startsWith("/pharmacy/exchanges")
+      ) {
+        return false;
+      }
+    }
+
     if (!moduleInfo) return true; // Settings/Profile or other general routes
     if (!activeModules) return true; // fallback if profile loading or not resolved
     if (moduleInfo.key === "inventory") {
       return (
         activeModules.includes("inventory") ||
         activeModules.includes("inventory-edit") ||
-        activeModules.includes("inventory-history")
+        activeModules.includes("inventory-history") ||
+        activeModules.includes("stock-edit")
+      );
+    }
+    if (moduleInfo.key === "transfers") {
+      return (
+        userRole === "PHARMACY_STORE" ||
+        activeModules.includes("transfers") ||
+        activeModules.includes("transfer-history") ||
+        activeModules.length <= 7
+      );
+    }
+    if (moduleInfo.key === "approve-refund") {
+      return (
+        userRole === "PHARMACY_STORE" ||
+        activeModules.includes("approve-refund") ||
+        activeModules.includes("refunds")
+      );
+    }
+    if (moduleInfo.key === "reports") {
+      return (
+        activeModules.includes("reports") ||
+        activeModules.includes("drug-report") ||
+        activeModules.includes("detailed-drug-report") ||
+        activeModules.includes("stock-inventory-report") ||
+        activeModules.includes("expiry-report") ||
+        activeModules.includes("pharmacist-performance-report") ||
+        activeModules.includes("returns-exchanges-report")
       );
     }
     return activeModules.includes(moduleInfo.key);
-  }, [moduleInfo, activeModules, profileResponse]);
+  }, [moduleInfo, activeModules, profileResponse, decoded, pathname]);
 
   return (
     <div className="min-h-screen bg-canvas text-slate-900 dark:text-slate-100">

@@ -6,10 +6,16 @@ import type {
   CreateAdminHospitalPharmacistPayload,
   UpdateAdminHospitalPharmacistPayload,
 } from "@/libs/type";
+import { getPharmacyUnits } from "@/libs/pharmacy-api";
+import { useQuery } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { FiEye, FiEyeOff, FiX } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiX, FiCheckSquare, FiSquare, FiLayers } from "react-icons/fi";
+import { toast } from "react-hot-toast";
+import { isValidNigerianPhoneNumber } from "@/libs/helper";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Props = {
+  hospitalId?: string;
   pharmacist?: AdminHospitalPharmacistListItem | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -25,8 +31,64 @@ type FormState = {
   phone: string;
   password: string;
   status: AdminHospitalPharmacistStatus;
+  role: "PHARMACY" | "PHARMACY_STORE";
+  pharmacy_unit_id: string;
   modules: string[];
 };
+
+const POINT_ROLE_MODULES = [
+  "dashboard",
+  "dispense",
+  "prescriptions",
+  "drug-exchange",
+  "transfers",
+  "stock-edit",
+  "inventory",
+  "inventory-edit",
+  "inventory-history",
+  "reports",
+  "stock-inventory-report",
+];
+
+const STORE_ROLE_MODULES = [
+  "dashboard",
+  "inventory",
+  "stock-addition",
+  "inventory-edit",
+  "inventory-history",
+  "reports",
+  "transfers",
+  "approve-refund",
+];
+
+const POINT_MODULE_DEFINITIONS = [
+  { key: "dashboard", label: "Dashboard", desc: "Overview & daily KPIs" },
+  { key: "dispense", label: "Patient Dispensing", desc: "Dispense drugs & collect payment" },
+  { key: "prescriptions", label: "Prescriptions", desc: "Manage billing requests" },
+  { key: "drug-exchange", label: "Drug Exchanges", desc: "Process patient returns & exchanges" },
+  { key: "transfers", label: "Unit Transfers", desc: "Accept/Decline store dispatches & request restock" },
+  { key: "stock-edit", label: "Stock Reduction (Bal Stock)", desc: "Reduce shelf stock count with audit reasons" },
+  { key: "inventory", label: "Drug Inventory", desc: "View catalog, stock levels & batches" },
+  { key: "inventory-edit", label: "Edit Inventory", desc: "Add/edit items at unit level" },
+  { key: "inventory-history", label: "Drug Timeline", desc: "Audit logs & movement history" },
+  { key: "reports", label: "Financial Reports", desc: "Sales, dispense & addition logs" },
+  { key: "stock-inventory-report", label: "Stock Valuation Report", desc: "Detailed unit inventory & valuation" },
+];
+
+const STORE_MODULE_DEFINITIONS = [
+  { key: "dashboard", label: "Warehouse Dashboard", desc: "Stock valuation & analytics" },
+  { key: "inventory", label: "Store Inventory", desc: "Central catalog & supplier additions" },
+  { key: "stock-addition", label: "Supplier Stock Additions", desc: "Receive & log new shipments from vendors" },
+  { key: "inventory-edit", label: "Edit Master Drugs", desc: "Create, edit or manage master catalog" },
+  { key: "inventory-history", label: "Stock Movement History", desc: "Supplier restock & dispatch logs" },
+  { key: "reports", label: "Warehouse Reports", desc: "Stock valuation & movement reports" },
+  { key: "transfers", label: "Transfer Dispatch", desc: "Review, approve & dispatch stock" },
+  { key: "approve-refund", label: "Approve Return Refunds", desc: "Offline return & exchange settlements" },
+];
+
+function getDefaultModulesForRole(role: "PHARMACY" | "PHARMACY_STORE") {
+  return role === "PHARMACY_STORE" ? [...STORE_ROLE_MODULES] : [...POINT_ROLE_MODULES];
+}
 
 function splitPharmacistName(name?: string) {
   if (!name) {
@@ -42,6 +104,11 @@ function splitPharmacistName(name?: string) {
 
 function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null): FormState {
   const name = splitPharmacistName(pharmacist?.pharmacist_name);
+  const role = pharmacist?.role ?? "PHARMACY";
+  const validAllowed = getDefaultModulesForRole(role);
+
+  const rawModules = pharmacist?.modules?.length ? pharmacist.modules : validAllowed;
+  const sanitizedModules = rawModules.filter((m) => validAllowed.includes(m));
 
   return {
     first_name: pharmacist?.first_name ?? name.first_name,
@@ -50,11 +117,14 @@ function buildInitialState(pharmacist?: AdminHospitalPharmacistListItem | null):
     phone: pharmacist?.phone ?? "",
     password: "",
     status: pharmacist?.status ?? "active",
-    modules: pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"],
+    role,
+    pharmacy_unit_id: pharmacist?.pharmacy_unit_id ?? "",
+    modules: sanitizedModules.length > 0 ? sanitizedModules : validAllowed,
   };
 }
 
 function AdminHospitalPharmacistFormModal({
+  hospitalId,
   pharmacist,
   isSubmitting = false,
   onClose,
@@ -64,20 +134,60 @@ function AdminHospitalPharmacistFormModal({
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState<FormState>(() => buildInitialState(pharmacist));
 
+  // Fetch Pharmacy Units
+  const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery({
+    queryKey: ["admin-hospital-pharmacy-units-dropdown", hospitalId],
+    queryFn: () => getPharmacyUnits(hospitalId),
+    enabled: Boolean(hospitalId),
+  });
+
+  const allUnits = unitsResponse?.data ?? [];
+
+  const availableUnits = useMemo(() => {
+    if (form.role === "PHARMACY_STORE") {
+      return allUnits.filter((unit) => unit.type === "store");
+    }
+    return allUnits.filter((unit) => unit.type === "point");
+  }, [allUnits, form.role]);
+
+  // Sync initial pharmacy_unit_id if available and not set
+  useEffect(() => {
+    if (!form.pharmacy_unit_id && availableUnits.length > 0 && !isEditMode) {
+      setForm((prev) => ({ ...prev, pharmacy_unit_id: availableUnits[0].id }));
+    }
+  }, [availableUnits, form.pharmacy_unit_id, isEditMode]);
+
   useEffect(() => {
     setForm(buildInitialState(pharmacist));
   }, [pharmacist]);
+
+  const roleOptions = [
+    { value: "PHARMACY", label: "Point Pharmacist (Dispensary)" },
+    { value: "PHARMACY_STORE", label: "Central Store Manager" },
+  ] as const;
+
+  const activeModuleDefinitions = form.role === "PHARMACY_STORE" ? STORE_MODULE_DEFINITIONS : POINT_MODULE_DEFINITIONS;
 
   const submitLabel = useMemo(() => {
     if (isSubmitting) {
       return isEditMode ? "Saving..." : "Creating...";
     }
 
-    return isEditMode ? "Save Changes" : "Create Pharmacist";
-  }, [isEditMode, isSubmitting]);
+    return isEditMode ? "Save Changes" : `Create ${form.role === "PHARMACY_STORE" ? "Store" : "Point"} User`;
+  }, [form.role, isEditMode, isSubmitting]);
 
-  const updateField = (key: keyof FormState, value: string) => {
+  const updateField = (key: keyof FormState, value: any) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleRoleChange = (nextRole: "PHARMACY" | "PHARMACY_STORE") => {
+    const matchingUnits = allUnits.filter((u) => u.type === (nextRole === "PHARMACY_STORE" ? "store" : "point"));
+    setForm((current) => ({
+      ...current,
+      role: nextRole,
+      modules: getDefaultModulesForRole(nextRole),
+      pharmacy_unit_id: matchingUnits.length > 0 ? matchingUnits[0].id : "",
+    }));
   };
 
   const handleModuleToggle = (moduleKey: string) => {
@@ -90,6 +200,20 @@ function AdminHospitalPharmacistFormModal({
     });
   };
 
+  const handleSelectAllModules = () => {
+    setForm((current) => ({
+      ...current,
+      modules: getDefaultModulesForRole(current.role),
+    }));
+  };
+
+  const handleDeselectAllModules = () => {
+    setForm((current) => ({
+      ...current,
+      modules: [],
+    }));
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -98,6 +222,16 @@ function AdminHospitalPharmacistFormModal({
     const email = form.email.trim();
     const phone = form.phone.trim();
     const password = form.password;
+    const pharmacy_unit_id = form.pharmacy_unit_id.trim();
+
+    if (phone && !isValidNigerianPhoneNumber(phone)) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
+      return;
+    }
+
+    const allowed = getDefaultModulesForRole(form.role);
+    // Sanitize modules: store manager can never have dispense or prescriptions
+    const cleanModules = form.modules.filter((m) => allowed.includes(m));
 
     if (!isEditMode) {
       onSubmit({
@@ -106,7 +240,9 @@ function AdminHospitalPharmacistFormModal({
         email,
         phone,
         password,
-        modules: form.modules,
+        role: form.role,
+        ...(pharmacy_unit_id ? { pharmacy_unit_id } : {}),
+        modules: cleanModules,
       });
       return;
     }
@@ -136,33 +272,44 @@ function AdminHospitalPharmacistFormModal({
       payload.password = password;
     }
 
+    if (pharmacy_unit_id && pharmacy_unit_id !== pharmacist?.pharmacy_unit_id) {
+      payload.pharmacy_unit_id = pharmacy_unit_id;
+    }
+
     if (form.status !== pharmacist?.status) {
       payload.status = form.status;
     }
 
-    const originalModules = pharmacist?.modules ?? ["dashboard", "dispense", "prescriptions", "inventory", "reports"];
-    const modulesChanged =
-      form.modules.length !== originalModules.length ||
-      !form.modules.every((m) => originalModules.includes(m));
-    if (modulesChanged) {
-      payload.modules = form.modules;
+    if (form.role !== pharmacist?.role) {
+      payload.role = form.role;
     }
+
+    // Always send sanitized modules selection
+    payload.modules = cleanModules;
 
     onSubmit(payload);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-line-subtle bg-panel shadow-2xl">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl rounded-2xl border border-line-subtle bg-panel shadow-2xl my-8 overflow-hidden"
+      >
         <div className="flex items-start justify-between gap-4 border-b border-line-subtle p-5">
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">
-              {isEditMode ? "Edit Pharmacist" : "Create Pharmacist"}
+              {isEditMode ? "Edit Pharmacy User" : "Create Pharmacy User"}
             </h3>
             <p className="text-sm text-gray-600 dark:text-slate-400">
               {isEditMode
-                ? "Update pharmacist account details."
-                : "Create a new pharmacist user under this hospital."}
+                ? "Update user profile, unit assignment, and module access permissions."
+                : "Add a dispensing pharmacist or central store manager with tailored module permissions."}
             </p>
           </div>
           <button
@@ -175,9 +322,67 @@ function AdminHospitalPharmacistFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5 p-5">
+        <form onSubmit={handleSubmit} className="space-y-5 p-5 max-h-[80vh] overflow-y-auto">
+          {/* Role Selection */}
+          <div className="space-y-2">
+            <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+              User Role & Workspace Type
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-xl border border-line-subtle bg-canvas-alt p-1.5">
+              {roleOptions.map((option) => {
+                const isActive = form.role === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleRoleChange(option.value)}
+                    className={[
+                      "flex items-center justify-center rounded-lg px-3 py-2.5 text-sm font-medium transition text-center",
+                      isActive
+                        ? "bg-brand-600 text-white shadow-sm font-semibold"
+                        : "text-gray-700 hover:bg-panel-muted dark:text-slate-300 dark:hover:bg-panel-muted",
+                    ].join(" ")}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Pharmacy Unit Dropdown */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center gap-1.5">
+                <FiLayers className="text-brand-600" />
+                Assigned Pharmacy Unit ({form.role === "PHARMACY_STORE" ? "Central Store" : "Dispensing Point"})
+              </label>
+              {isLoadingUnits && (
+                <span className="text-xs text-gray-400">Loading units...</span>
+              )}
+            </div>
+            <select
+              value={form.pharmacy_unit_id}
+              onChange={(e) => updateField("pharmacy_unit_id", e.target.value)}
+              className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
+            >
+              <option value="">Select a {form.role === "PHARMACY_STORE" ? "Store Unit" : "Dispensing Point"}...</option>
+              {availableUnits.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name} ({unit.type === "store" ? "Central Store" : "Pharmacy Point"})
+                </option>
+              ))}
+            </select>
+            {availableUnits.length === 0 && !isLoadingUnits && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                No active {form.role === "PHARMACY_STORE" ? "stores" : "dispensing points"} found. Please create one in Pharmacy {form.role === "PHARMACY_STORE" ? "Stores" : "Points"} settings.
+              </p>
+            )}
+          </div>
+
+          {/* Name Fields */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="space-y-2">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                 First Name
               </span>
@@ -189,7 +394,7 @@ function AdminHospitalPharmacistFormModal({
               />
             </label>
 
-            <label className="space-y-2">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                 Last Name
               </span>
@@ -202,10 +407,11 @@ function AdminHospitalPharmacistFormModal({
             </label>
           </div>
 
+          {/* Contact Fields */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="space-y-2">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Email
+                Email Address
               </span>
               <input
                 type="email"
@@ -216,22 +422,24 @@ function AdminHospitalPharmacistFormModal({
               />
             </label>
 
-            <label className="space-y-2">
+            <label className="space-y-1.5">
               <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Phone
+                Phone Number
               </span>
               <input
                 value={form.phone}
                 onChange={(event) => updateField("phone", event.target.value)}
+                placeholder="e.g. 08012345678"
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
                 required
               />
             </label>
           </div>
 
-          <label className="block space-y-2">
+          {/* Password Field */}
+          <label className="block space-y-1.5">
             <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-              {isEditMode ? "New Password" : "Password"}
+              {isEditMode ? "New Password (Optional)" : "Password"}
             </span>
             <div className="relative">
               <input
@@ -240,7 +448,7 @@ function AdminHospitalPharmacistFormModal({
                 onChange={(event) => updateField("password", event.target.value)}
                 className="w-full rounded-lg border border-line-subtle bg-canvas-alt px-3 py-2 pr-11 text-sm outline-none focus:ring-2 focus:ring-brand-500 dark:text-slate-100"
                 required={!isEditMode}
-                placeholder={isEditMode ? "Leave blank to keep current password" : ""}
+                placeholder={isEditMode ? "Leave blank to keep current password" : "Enter secure password"}
               />
               <button
                 type="button"
@@ -253,37 +461,74 @@ function AdminHospitalPharmacistFormModal({
             </div>
           </label>
 
-          <div className="space-y-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-              Module Access Permissions
-            </span>
-            <div className="grid grid-cols-2 gap-3 rounded-lg border border-line-subtle bg-canvas-alt p-3.5 sm:grid-cols-3">
-              {[
-                { key: "dashboard", label: "Dashboard" },
-                { key: "dispense", label: "Dispense Control" },
-                { key: "prescriptions", label: "Prescriptions" },
-                { key: "inventory", label: "Inventory Setup" },
-                { key: "inventory-edit", label: "Inventory Edit" },
-                { key: "inventory-history", label: "Inventory History" },
-                { key: "reports", label: "Reports Logs" },
-              ].map((mod) => (
-                <label key={mod.key} className="flex items-center gap-2 text-sm text-gray-800 dark:text-slate-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form.modules.includes(mod.key)}
-                    onChange={() => handleModuleToggle(mod.key)}
-                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                  />
-                  <span>{mod.label}</span>
-                </label>
-              ))}
+          {/* Dynamic Module Access Permissions */}
+          <div className="space-y-2.5 rounded-xl border border-line-subtle bg-canvas-alt p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-sm font-bold text-gray-900 dark:text-slate-100 block">
+                  Module Access Permissions ({form.modules.length}/{activeModuleDefinitions.length} selected)
+                </span>
+                <p className="text-xs text-gray-500">
+                  {form.role === "PHARMACY_STORE"
+                    ? "Store managers have warehouse management, master inventory & dispatch permissions."
+                    : "Point pharmacists have patient dispensing, retail inventory & restock request permissions."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectAllModules}
+                  className="inline-flex items-center gap-1 rounded-md border border-line-subtle bg-panel px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-50 dark:border-slate-700 dark:text-brand-300 dark:hover:bg-slate-800"
+                >
+                  <FiCheckSquare className="text-xs" /> Select All
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeselectAllModules}
+                  className="inline-flex items-center gap-1 rounded-md border border-line-subtle bg-panel px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <FiSquare className="text-xs" /> Clear
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 pt-1">
+              {activeModuleDefinitions.map((mod) => {
+                const isChecked = form.modules.includes(mod.key);
+                return (
+                  <label
+                    key={mod.key}
+                    className={`flex items-start gap-3 rounded-lg border p-2.5 cursor-pointer transition ${
+                      isChecked
+                        ? "border-brand-300 bg-brand-50/50 dark:border-brand-500/40 dark:bg-brand-500/10"
+                        : "border-line-subtle bg-panel opacity-80 hover:opacity-100"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleModuleToggle(mod.key)}
+                      className="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <div className="select-none">
+                      <p className={`text-xs font-bold ${isChecked ? "text-brand-900 dark:text-brand-200" : "text-gray-800 dark:text-slate-200"}`}>
+                        {mod.label}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-slate-400 line-clamp-1">
+                        {mod.desc}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
+          {/* Status Field (Edit mode) */}
           {isEditMode ? (
-            <label className="block space-y-2">
+            <label className="block space-y-1.5">
               <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Status
+                Account Status
               </span>
               <select
                 value={form.status}
@@ -298,7 +543,8 @@ function AdminHospitalPharmacistFormModal({
             </label>
           ) : null}
 
-          <div className="flex items-center justify-end gap-3 border-t border-line-subtle pt-5">
+          {/* Footer Buttons */}
+          <div className="flex items-center justify-end gap-3 border-t border-line-subtle pt-4">
             <button
               type="button"
               onClick={onClose}
@@ -309,7 +555,7 @@ function AdminHospitalPharmacistFormModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
             >
               {submitLabel}
             </button>

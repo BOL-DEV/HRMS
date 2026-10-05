@@ -1,3 +1,12 @@
+export function isValidNigerianPhoneNumber(phone: string): boolean {
+  if (!phone) return false;
+  // Strip spaces, hyphens, and parentheses
+  const cleanPhone = phone.replace(/[\s\-\(\)]/g, "");
+  // Matches local starting with 0 followed by 10 digits, or international 234/+234 followed by 10 digits
+  const regex = /^(?:\+234|234|0)[789]\d{9}$/;
+  return regex.test(cleanPhone);
+}
+
 export function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
@@ -23,15 +32,42 @@ export function formatCompactNumber(value: number) {
 }
 
 
-export function formatDateTime(value: string) {
-  const date = new Date(value);
+export function formatDateTime(value: string | number | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "object" && value instanceof Date ? value : new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value;
+    return String(value);
   }
 
   return new Intl.DateTimeFormat("en-NG", {
     dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+export function formatDate(value: string | number | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "object" && value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+  }).format(date);
+}
+
+export function formatTime(value: string | number | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "object" && value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat("en-NG", {
     timeStyle: "short",
   }).format(date);
 }
@@ -82,12 +118,13 @@ function stripReceiptWatermark(html: string) {
   );
 }
 
-function buildReceiptPrintableDocument(html: string) {
+function buildReceiptPrintableDocument(html: string, receiptCount: number = 2) {
   const trimmedHtml = html.trim();
   const hasHtmlTag = /<html[\s>]/i.test(trimmedHtml);
   const hasCopyMarkup = /swiftrev-receipt-copy|customer copy|audit copy/i.test(
     trimmedHtml,
   );
+
   const sanitizedHtml = stripReceiptWatermark(trimmedHtml);
 
   if (hasCopyMarkup) {
@@ -112,6 +149,20 @@ function buildReceiptPrintableDocument(html: string) {
   const bodyMatch = hasHtmlTag ? trimmedHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i) : null;
   const headContent = headMatch?.[1] ?? "";
   const bodyContent = bodyMatch?.[1] ?? trimmedHtml;
+
+  const copies: string[] = [];
+  const labels = ["Customer Copy", "Audit Copy", "Department Copy"];
+  for (let i = 0; i < Math.max(1, Math.min(3, receiptCount)); i++) {
+    copies.push(`
+      <section class="swiftrev-receipt-copy">
+        <div class="swiftrev-receipt-content">
+          <div class="swiftrev-receipt-label copy-label">${labels[i]}</div>
+          ${bodyContent}
+        </div>
+      </section>
+    `);
+  }
+  const stackContent = copies.join("\n");
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -162,18 +213,7 @@ function buildReceiptPrintableDocument(html: string) {
   </head>
   <body>
     <div class="swiftrev-receipt-stack">
-      <section class="swiftrev-receipt-copy">
-        <div class="swiftrev-receipt-content">
-          <div class="swiftrev-receipt-label">Customer Copy</div>
-          ${bodyContent}
-        </div>
-      </section>
-      <section class="swiftrev-receipt-copy">
-        <div class="swiftrev-receipt-content">
-          <div class="swiftrev-receipt-label">Audit Copy</div>
-          ${bodyContent}
-        </div>
-      </section>
+      ${stackContent}
     </div>
   </body>
 </html>`;
@@ -212,7 +252,7 @@ export function openPrintWindowFromHtml(html: string) {
   return true;
 }
 
-export function openReceiptPrintWindowFromHtml(html: string) {
+export function openReceiptPrintWindowFromHtml(html: string, receiptCount?: number) {
   if (typeof window === "undefined") {
     return false;
   }
@@ -223,7 +263,7 @@ export function openReceiptPrintWindowFromHtml(html: string) {
     return false;
   }
 
-  const printableDocument = buildReceiptPrintableDocument(html);
+  const printableDocument = buildReceiptPrintableDocument(html, receiptCount);
 
   printWindow.document.open();
   printWindow.document.write(printableDocument);

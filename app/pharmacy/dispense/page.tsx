@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import Header from "@/components/shared/Header";
-import { formatCurrency, formatDateTime } from "@/libs/helper";
+import { formatCurrency, formatDateTime, isValidNigerianPhoneNumber } from "@/libs/helper";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import { FiPlus, FiTrash2, FiCheck, FiX, FiPrinter, FiSearch } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { decodeJwt, getAgentAccessToken } from "@/libs/auth";
@@ -20,6 +21,7 @@ import {
   getPharmacyProfile,
   getPharmacyWalkInPatient,
 } from "@/libs/pharmacy-api";
+import { getAgentPaymentConfig } from "@/libs/agent-auth";
 
 interface PharmacyBillItem {
   drugId: string;
@@ -173,6 +175,17 @@ export default function PharmacyDispensePage() {
     enabled: Boolean(accessToken),
   });
 
+  const paymentConfigQuery = useQuery({
+    queryKey: ["agent-payment-config"],
+    queryFn: getAgentPaymentConfig,
+    enabled: Boolean(accessToken),
+  });
+
+  const paymentConfig = paymentConfigQuery.data?.data;
+  const isCashAllowed = paymentConfig?.allow_payment_cash !== false && (paymentConfig as any)?.allowPaymentCash !== false;
+  const isPosAllowed = paymentConfig?.allow_payment_pos !== false && (paymentConfig as any)?.allowPaymentPos !== false;
+  const isTransferAllowed = paymentConfig?.allow_payment_transfer !== false && (paymentConfig as any)?.allowPaymentTransfer !== false;
+
   const allowPharmacyWalkIn = useMemo(() => {
     const tokenClaim = getAllowPharmacyWalkIn(accessToken);
     if (tokenClaim !== undefined) return tokenClaim;
@@ -300,6 +313,20 @@ export default function PharmacyDispensePage() {
 
   // Generated bill modal
   const [generatedBill, setGeneratedBill] = useState<PharmacyBill | null>(null);
+
+  useScrollLock(Boolean(generatedBill || paymentSelectionBillId));
+
+  useEffect(() => {
+    if (!generatedBill && !paymentSelectionBillId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setGeneratedBill(null);
+        setPaymentSelectionBillId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [generatedBill, paymentSelectionBillId]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -476,12 +503,13 @@ export default function PharmacyDispensePage() {
       return;
     }
 
+    const unitPrice = selectedDrug.unit_price ?? 0;
     const newItem: PharmacyBillItem = {
       drugId: selectedDrug.id,
       name: selectedDrug.name,
       quantity: qty,
-      unitPrice: selectedDrug.unit_price,
-      amount: selectedDrug.unit_price * qty,
+      unitPrice: unitPrice,
+      amount: unitPrice * qty,
     };
 
     setBillItems((current) => [...current, newItem]);
@@ -523,6 +551,11 @@ export default function PharmacyDispensePage() {
 
     if ((!isWalkIn && !patientId.trim()) || !patientName.trim() || !patientPhone.trim()) {
       toast.error("Please fill in all patient details.");
+      return;
+    }
+
+    if (!isValidNigerianPhoneNumber(patientPhone.trim())) {
+      toast.error("Please enter a valid phone number (e.g. 08012345678).");
       return;
     }
 
@@ -697,7 +730,7 @@ export default function PharmacyDispensePage() {
                                 </p>
                               </div>
                               <span className="shrink-0 font-semibold text-brand-700 dark:text-brand-300">
-                                {formatCurrency(drug.unit_price)}
+                                {drug.unit_price != null ? formatCurrency(drug.unit_price) : "—"}
                               </span>
                             </div>
                           </button>
@@ -732,7 +765,7 @@ export default function PharmacyDispensePage() {
 
               {selectedDrug ? (
                 <p className="mt-3 text-xs text-brand-700 dark:text-brand-400 font-semibold">
-                  Unit Price: {formatCurrency(selectedDrug.unit_price)} | Stock available: {selectedDrug.stock} {selectedDrug.generic_name ? `(${selectedDrug.generic_name})` : ""}
+                  Unit Price: {selectedDrug.unit_price != null ? formatCurrency(selectedDrug.unit_price) : "—"} | Stock available: {selectedDrug.stock} {selectedDrug.generic_name ? `(${selectedDrug.generic_name})` : ""}
                 </p>
               ) : null}
             </div>
@@ -805,8 +838,16 @@ export default function PharmacyDispensePage() {
 
       {/* Code Receipt Modal */}
       {generatedBill ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative overflow-hidden">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setGeneratedBill(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="my-8 w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide relative overflow-hidden"
+          >
             <div className="flex justify-end">
               <button
                 onClick={() => setGeneratedBill(null)}
@@ -923,8 +964,16 @@ export default function PharmacyDispensePage() {
 
       {/* Payment Method Selection Modal */}
       {paymentSelectionBillId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPaymentSelectionBillId(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-fade-in-slide"
+          >
             <h3 className="text-lg font-bold text-slate-950 dark:text-white text-center mb-4">
               Select Payment Method
             </h3>
@@ -932,33 +981,39 @@ export default function PharmacyDispensePage() {
               Select the payment type to clear and dispense this prescription.
             </p>
             <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "cash" });
-                  setPaymentSelectionBillId(null);
-                }}
-                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                💵 Cash
-              </button>
-              <button
-                onClick={() => {
-                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "pos" });
-                  setPaymentSelectionBillId(null);
-                }}
-                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                💳 POS Card
-              </button>
-              <button
-                onClick={() => {
-                  selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "transfer" });
-                  setPaymentSelectionBillId(null);
-                }}
-                className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
-              >
-                📲 Bank Transfer
-              </button>
+              {isCashAllowed && (
+                <button
+                  onClick={() => {
+                    selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "cash" });
+                    setPaymentSelectionBillId(null);
+                  }}
+                  className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  💵 Cash
+                </button>
+              )}
+              {isPosAllowed && (
+                <button
+                  onClick={() => {
+                    selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "pos" });
+                    setPaymentSelectionBillId(null);
+                  }}
+                  className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  💳 POS Card
+                </button>
+              )}
+              {isTransferAllowed && (
+                <button
+                  onClick={() => {
+                    selfPayMutation.mutate({ id: paymentSelectionBillId, paymentType: "transfer" });
+                    setPaymentSelectionBillId(null);
+                  }}
+                  className="w-full rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 py-3 text-sm font-semibold text-slate-950 dark:text-white transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  📲 Bank Transfer
+                </button>
+              )}
               <button
                 onClick={() => setPaymentSelectionBillId(null)}
                 className="w-full rounded-xl border border-gray-200 text-gray-700 dark:border-slate-700 dark:text-slate-300 py-3 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-800 transition cursor-pointer"

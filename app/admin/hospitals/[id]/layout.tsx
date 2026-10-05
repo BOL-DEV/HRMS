@@ -16,6 +16,7 @@ const tabs = [
   { label: "Top-Ups", href: (id: string) => `/admin/hospitals/${id}/topups` },
   { label: "FOs", href: (id: string) => `/admin/hospitals/${id}/fos` },
   { label: "Pharmacists", href: (id: string) => `/admin/hospitals/${id}/pharmacists` },
+  { label: "Pharmacy Units", href: (id: string) => `/admin/hospitals/${id}/pharmacy-units` },
   {
     label: "Departments",
     href: (id: string) => `/admin/hospitals/${id}/departments`,

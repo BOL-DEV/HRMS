@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   FiExternalLink,
   FiEye,
@@ -20,6 +21,7 @@ import {
 import {
   printApprovedAgentReceipt,
   requestAgentReceiptReprint,
+  getAgentPaymentConfig,
 } from "@/libs/agent-auth";
 import type { AgentReceiptItem } from "@/libs/type";
 
@@ -28,10 +30,18 @@ type Props = {
   totalCount: number;
   isLoading?: boolean;
   emptyMessage?: string;
+  onRefresh?: () => void;
+  pagination?: {
+    current_page: number;
+    total_pages: number;
+    has_previous: boolean;
+    has_next: boolean;
+  } | null;
+  onPageChange?: (page: number) => void;
 };
 
-function printReceiptHtml(receiptHTML: string) {
-  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML);
+function printReceiptHtml(receiptHTML: string, receiptCount?: number) {
+  const didOpenWindow = openReceiptPrintWindowFromHtml(receiptHTML, receiptCount);
 
   if (!didOpenWindow) {
     toast.error("Popup blocked. Please allow popups to print the receipt.");
@@ -60,12 +70,20 @@ function ReceiptLists({
   totalCount,
   isLoading = false,
   emptyMessage = "No receipts found for the selected filters.",
+  pagination,
+  onPageChange,
 }: Props) {
   const queryClient = useQueryClient();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [viewing, setViewing] = useState<AgentReceiptItem | null>(null);
   const [requesting, setRequesting] = useState<AgentReceiptItem | null>(null);
   const [reason, setReason] = useState("");
+
+  const paymentConfigQuery = useQuery({
+    queryKey: ["agent-payment-config"],
+    queryFn: getAgentPaymentConfig,
+  });
+  const receiptCount = paymentConfigQuery.data?.data.receipt_count ?? 2;
 
   const requestMutation = useMutation({
     mutationFn: requestAgentReceiptReprint,
@@ -86,7 +104,7 @@ function ReceiptLists({
     mutationFn: printApprovedAgentReceipt,
     onSuccess: (response) => {
       toast.success(response.message || "Receipt ready for printing.");
-      printReceiptHtml(response.data.receipt.receiptHTML);
+      printReceiptHtml(response.data.receipt.receiptHTML, receiptCount);
       queryClient.invalidateQueries({ queryKey: ["agent-receipts"] });
     },
     onError: (error) => {
@@ -277,9 +295,47 @@ function ReceiptLists({
         </table>
       </div>
 
+      {pagination && pagination.total_pages > 0 ? (
+        <div className="flex flex-col gap-3 border-t border-gray-200 px-6 py-4 text-sm dark:border-line-subtle md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-gray-600 dark:text-slate-300">
+            Page {pagination.current_page} of {pagination.total_pages}
+          </p>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={!pagination.has_previous}
+              onClick={() => onPageChange?.(Math.max(pagination.current_page - 1, 1))}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={!pagination.has_next}
+              onClick={() => onPageChange?.(pagination.current_page + 1)}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-line-subtle dark:bg-panel dark:text-slate-200 dark:hover:bg-panel-strong"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {requesting ? (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !requestMutation.isPending) {
+              setRequesting(null);
+              setReason("");
+            }
+          }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
+          >
             <div className="border-b border-gray-200 p-5 dark:border-line-subtle">
               <h3 className="text-lg font-bold">
                 {requesting.reprint_status === "rejected"
@@ -338,8 +394,16 @@ function ReceiptLists({
       ) : null}
 
       {viewing ? (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewing(null);
+          }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
+          >
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5 dark:border-line-subtle">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Receipt Details</h3>

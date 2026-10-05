@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { FiX } from "react-icons/fi";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 type Props = {
   title: string;
@@ -10,11 +11,28 @@ type Props = {
 };
 
 function JsonModal({ title, payload, onClose }: Props) {
+  useScrollLock(true);
   const text = useMemo(() => JSON.stringify(payload, null, 2), [payload]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-3xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      >
         <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5 dark:border-slate-700">
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">

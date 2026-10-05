@@ -24,8 +24,11 @@ export interface BackendDrugItem {
   expiry_date: string; // YYYY-MM-DD
   stock: number;
   reorder_level: number;
-  unit_price: number;
-  status: "In stock" | "Low stock" | "Expired";
+  unit_price?: number | null;
+  status: "In stock" | "Low stock" | "1 month to expire" | "Expired" | string;
+  unit_type?: "store" | "point";
+  unit_name?: string;
+  pharmacy_unit_id?: string;
   is_active: boolean;
 }
 
@@ -43,6 +46,7 @@ export interface GetPharmacyInventoryParams {
   search?: string;
   page?: number;
   limit?: number;
+  pharmacy_unit_id?: string;
 }
 
 export type PharmacyDrugPayload = {
@@ -53,7 +57,7 @@ export type PharmacyDrugPayload = {
   expiry_date: string;
   stock: number;
   reorder_level: number;
-  unit_price: number;
+  unit_price?: number;
   status?: string;
 };
 
@@ -116,6 +120,61 @@ export interface GetPharmacyRequestsResponse {
 }
 
 export interface PharmacyDashboardStats {
+  pharmacy_unit?: {
+    id: string;
+    name: string;
+    type: "point" | "store";
+  };
+  sales_summary?: {
+    total_revenue: number;
+    total_dispensed_count?: number;
+    total_dispensed_requests?: number;
+    today_dispensed_count?: number;
+    pending_prescriptions_count?: number;
+    cash_revenue?: number;
+    pos_revenue?: number;
+    transfer_revenue?: number;
+  };
+  inventory_summary?: {
+    total_inventory_valuation?: number;
+    total_items_count?: number;
+    total_stock_count?: number;
+    out_of_stock_count?: number;
+    low_stock_count?: number;
+    expiring_soon_count?: number;
+    expired_count?: number;
+  };
+  dispense_chart?: Array<{
+    date: string;
+    amount: number;
+    count: number;
+  }>;
+  recent_activities?: Array<{
+    id: string;
+    patient_name: string;
+    billing_code: string;
+    total_amount: number;
+    payment_type?: string;
+    created_at: string;
+  }>;
+  expiring_items?: Array<{
+    id: string;
+    name: string;
+    expiry_date: string;
+    stock: number;
+    status: string;
+  }>;
+  alerts?: {
+    low_stock_count: number;
+    out_of_stock_count: number;
+    expiring_soon_count?: number;
+    expired_count?: number;
+  };
+  top_dispensed_drugs?: Array<{
+    item_name: string;
+    total_quantity: number;
+    total_revenue?: number;
+  }>;
   summary?: {
     total_inventory_items: number;
     total_categories: number;
@@ -142,8 +201,6 @@ export interface PharmacyDashboardStats {
     expiry_date: string;
     status: string;
   }>;
-
-  // Live backend fields
   revenue_today?: number;
   total_count_dispensed?: number;
   pending_requests_count?: number;
@@ -308,6 +365,73 @@ export async function deletePharmacyDrug(itemId: string) {
   );
 }
 
+/**
+ * Reduce Pharmacy Balance Stock (Module: stock-edit)
+ * PATCH /api/pharmacy/inventory/:itemId/bal-stock
+ * Constraint: stock <= current_stock
+ */
+export async function reducePharmacyBalanceStock(
+  itemId: string,
+  payload: { stock: number; reason: string }
+) {
+  return withPharmacySessionRetry((accessToken) =>
+    patchJson<{
+      status: string;
+      message: string;
+      data: {
+        id: string;
+        name: string;
+        old_stock: number;
+        new_stock: number;
+        quantity_reduced: number;
+        action_type: string;
+        reason: string;
+        updated_by: string;
+        updated_at: string;
+      };
+    }>(`/api/pharmacy/inventory/${itemId}/bal-stock`, payload, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+/**
+ * Fast Search for Pharmacy Inventory Formulations (Prescription Autocomplete)
+ * GET /api/pharmacy/inventory/search?q={searchTerm}&in_stock=true
+ */
+export async function searchPharmacyInventoryFast(params: {
+  search?: string;
+  q?: string;
+  in_stock?: boolean;
+  limit?: number | string;
+}) {
+  const queryTerm = (params.q || params.search || "").trim();
+  const searchParams = new URLSearchParams();
+  if (queryTerm) {
+    searchParams.append("q", queryTerm);
+    searchParams.append("search", queryTerm);
+  }
+  if (params.in_stock) searchParams.append("in_stock", "true");
+  if (params.limit) searchParams.append("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/api/pharmacy/inventory/search${queryStr ? `?${queryStr}` : ""}`;
+
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<any>(endpoint, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch {
+      // Fallback to standard inventory query with search and in_stock
+      const fallbackEndpoint = `/api/pharmacy/inventory${queryStr ? `?${queryStr}` : ""}`;
+      return await getJson<any>(fallbackEndpoint, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    }
+  });
+}
+
 // --- Patient Match API ---
 
 export async function searchPatientsForPharmacy(query: string) {
@@ -386,42 +510,115 @@ export async function payPharmacyRequestSelf(requestId: string, paymentType: "ca
 // --- Dashboard Stats APIs ---
 
 export async function getPharmacyDashboardStats() {
-  return withPharmacySessionRetry((accessToken) =>
-    getJson<PharmacyDashboardStats>("/api/pharmacy/dashboard", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-  );
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<PharmacyDashboardStats>("/api/pharmacy/dashboard", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
+        try {
+          return await getJson<PharmacyDashboardStats>("/api/pharmacy-store/dashboard", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+        } catch {
+          return {
+            status: "success",
+            data: {
+              sales_summary: {
+                total_revenue: 0,
+                total_dispensed_count: 0,
+                total_dispensed_requests: 0,
+                cash_revenue: 0,
+                pos_revenue: 0,
+                transfer_revenue: 0,
+              },
+              alerts: {
+                low_stock_count: 0,
+                out_of_stock_count: 0,
+              },
+              top_dispensed_drugs: [],
+            },
+          } as any;
+        }
+      }
+      throw error;
+    }
+  });
 }
 
 export async function getPharmacyProfile() {
-  return withPharmacySessionRetry((accessToken) =>
-    getJson<{
-      status: number;
-      message: string;
-      data: {
-        id: string;
-        first_name: string;
-        last_name: string;
-        email: string;
-        phone: string;
-        role: "PHARMACY";
-        is_active: boolean;
-        created_at: string;
-        hospital_id: string;
-        hospital_name: string;
-        hospital_code: string;
-        hospital_modules: {
-          has_pharmacy_module: boolean;
-          allow_pharmacy_self_pay: boolean;
-          allow_agent_pharmacy_pay: boolean;
-          allow_pharmacy_walk_in: boolean;
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<{
+        status: number;
+        message: string;
+        data: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          email: string;
+          phone: string;
+          role: "PHARMACY" | "PHARMACY_STORE" | "PLATFORM_ADMIN";
+          is_active: boolean;
+          created_at: string;
+          hospital_id: string;
+          hospital_name: string;
+          hospital_code: string;
+          pharmacy_unit?: {
+            id: string;
+            name: string;
+            type: "point" | "store";
+          };
+          hospital_modules: {
+            has_pharmacy_module: boolean;
+            allow_pharmacy_self_pay: boolean;
+            allow_agent_pharmacy_pay: boolean;
+            allow_pharmacy_walk_in: boolean;
+          };
+          modules?: string[];
         };
-        modules?: string[];
-      };
-    }>("/api/pharmacy/profile", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-  );
+      }>("/api/pharmacy/profile", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch (error) {
+      if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
+        return await getJson<{
+          status: number;
+          message: string;
+          data: {
+            id: string;
+            first_name: string;
+            last_name: string;
+            email: string;
+            phone: string;
+            role: "PHARMACY" | "PHARMACY_STORE" | "PLATFORM_ADMIN";
+            is_active: boolean;
+            created_at: string;
+            hospital_id: string;
+            hospital_name: string;
+            hospital_code: string;
+            pharmacy_unit?: {
+              id: string;
+              name: string;
+              type: "point" | "store";
+            };
+            hospital_modules: {
+              has_pharmacy_module: boolean;
+              allow_pharmacy_self_pay: boolean;
+              allow_agent_pharmacy_pay: boolean;
+              allow_pharmacy_walk_in: boolean;
+            };
+            modules?: string[];
+          };
+        }>("/api/pharmacy-store/profile", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      }
+
+      throw error;
+    }
+  });
 }
 
 export async function lookupPatientForPharmacy(patientId: string) {
@@ -758,9 +955,708 @@ export interface PharmacyDrugHistoryResponse {
 }
 
 export async function getPharmacyDrugHistory(itemId: string) {
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<PharmacyDrugHistoryResponse>(`/api/pharmacy/inventory/${itemId}/history`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch (error) {
+      try {
+        return await getJson<PharmacyDrugHistoryResponse>(`/api/pharmacy-store/inventory/${itemId}/history`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      } catch (innerError) {
+        return {
+          status: 200,
+          message: "Success",
+          data: {
+            item: { id: itemId } as any,
+            history: [],
+          },
+        };
+      }
+    }
+  });
+}
+
+export interface PharmacyUnitItem {
+  id: string;
+  name: string;
+  type: "store" | "point";
+  is_active: boolean;
+  created_at: string;
+}
+
+export async function getPharmacyUnits(hospitalId?: string) {
+  const query = hospitalId ? `?hospital_id=${hospitalId}` : "";
   return withPharmacySessionRetry((accessToken) =>
-    getJson<PharmacyDrugHistoryResponse>(`/api/pharmacy/inventory/${itemId}/history`, {
+    getJson<{
+      status: number;
+      message: string;
+      data: PharmacyUnitItem[];
+    }>(`/api/pharmacy/units${query}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
 }
+
+export async function createPharmacyUnit(payload: { name: string; type: "store" | "point"; hospital_id?: string }) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: number;
+      message: string;
+      data: {
+        id: string;
+        name: string;
+        type: "store" | "point";
+        is_active: boolean;
+      };
+    }>("/api/pharmacy/units", payload, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export interface CreateTransferPayload {
+  to_unit_id: string;
+  from_unit_id?: string;
+  remarks?: string;
+  items: Array<{
+    source_pharmacy_item_id: string;
+    quantity: number;
+  }>;
+}
+
+export interface PharmacyTransferItem {
+  id: string;
+  from_unit_name: string;
+  to_unit_name: string;
+  status: "pending" | "completed" | "rejected" | "cancelled" | string;
+  remarks: string;
+  created_at: string;
+  items_count: number;
+  items?: Array<{
+    id: string;
+    item_name: string;
+    generic_name?: string;
+    quantity: number;
+  }>;
+}
+
+export async function createPharmacyTransfer(payload: CreateTransferPayload) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: number;
+      message: string;
+      data: any;
+    }>("/api/pharmacy/transfers", payload as any, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyTransfers(params?: {
+  status?: string;
+  unit_id?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.status && params.status !== "all") searchParams.append("status", params.status);
+  if (params?.unit_id && params.unit_id !== "all") searchParams.append("unit_id", params.unit_id);
+  if (params?.start_date) searchParams.append("start_date", params.start_date);
+  if (params?.end_date) searchParams.append("end_date", params.end_date);
+  if (params?.search?.trim()) searchParams.append("search", params.search.trim());
+  if (params?.page) searchParams.append("page", String(params.page));
+  if (params?.limit) searchParams.append("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/api/pharmacy/transfers${queryStr ? `?${queryStr}` : ""}`;
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: number | string;
+      message: string;
+      data: PharmacyTransferItem[];
+    }>(endpoint, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function updatePharmacyTransferStatus(
+  transferId: string,
+  payload:
+    | {
+        action: "completed" | "cancelled" | "approve" | "reject" | "accept" | "decline" | string;
+        remarks?: string;
+      }
+    | string
+) {
+  const rawAction = typeof payload === "string" ? payload : payload.action;
+  const isAccept = rawAction === "approve" || rawAction === "completed" || rawAction === "accept";
+  const actionNormalized = isAccept ? "accept" : "decline";
+  const body = {
+    action: actionNormalized,
+    remarks: typeof payload === "object" ? payload.remarks : undefined,
+  };
+
+  return withPharmacySessionRetry((accessToken) =>
+    patchJson<{
+      status: number | string;
+      message: string;
+      data: {
+        id: string;
+        status: "completed" | "cancelled" | "rejected";
+      };
+    }>(`/api/pharmacy/transfers/${transferId}`, body, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+// ==========================================
+// --- PHARMACY STORE SPECIFIC APIS (/api/pharmacy-store/*) ---
+// ==========================================
+
+export interface PharmacyStoreProfileResponse {
+  status: string;
+  data: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    role: "PHARMACY_STORE";
+    is_active: boolean;
+    pharmacy_unit?: {
+      id: string;
+      name: string;
+      type: "store";
+    };
+    hospital_id: string;
+    hospital_name: string;
+    hospital_code: string;
+    hospital_logo_url?: string;
+    modules: string[];
+    hospital_modules: {
+      has_pharmacy_module: boolean;
+      allow_pharmacy_self_pay: boolean;
+      allow_agent_pharmacy_pay: boolean;
+      allow_pharmacy_walk_in: boolean;
+    };
+  };
+}
+
+export interface PharmacyStoreDashboardStats {
+  store_unit?: {
+    id: string;
+    name: string;
+  };
+  total_store_inventory_value?: number;
+  total_store_items?: number;
+  out_of_stock_count?: number;
+  low_stock_count?: number;
+  expiring_soon_count?: number;
+  expired_count?: number;
+  pending_transfers_count?: number;
+  completed_transfers_today?: number;
+  units_overview?: {
+    total_units: number;
+    active_points_count: number;
+    active_stores_count: number;
+  };
+  recent_pending_transfers?: Array<{
+    id: string;
+    from_unit_name?: string;
+    to_unit_name?: string;
+    items_count?: number;
+    created_at?: string;
+    status?: string;
+  }>;
+  store_low_stock_items?: Array<{
+    id: string;
+    name: string;
+    generic_name?: string | null;
+    batch_number?: string | null;
+    expiry_date?: string;
+    stock: number;
+    reorder_level: number;
+    unit_price?: number | null;
+    category_name?: string;
+    status: string;
+  }>;
+  store_expiring_items?: Array<{
+    id: string;
+    name: string;
+    generic_name?: string | null;
+    batch_number?: string | null;
+    expiry_date?: string;
+    stock: number;
+    category_name?: string;
+    days_until_expiry?: number;
+    status: string;
+  }>;
+  recent_stock_additions?: Array<{
+    id: string;
+    drug_name?: string;
+    item_name?: string;
+    quantity_changed: number;
+    old_stock?: number;
+    new_stock: number;
+    new_batch?: string | null;
+    new_expiry?: string | null;
+    action_type?: string;
+    pharmacist_name: string;
+    created_at: string;
+  }>;
+  // Legacy / fallback fields
+  inventory_valuation?: {
+    total_valuation: number;
+    total_items_count: number;
+  };
+  alerts?: {
+    out_of_stock_count: number;
+    low_stock_count: number;
+    expiring_soon_count: number;
+    expired_count: number;
+  };
+  transfers_summary?: {
+    pending_transfers_count: number;
+    completed_transfers_count: number;
+    total_items_dispatched: number;
+  };
+  point_units_overview?: Array<{
+    unit_id: string;
+    unit_name: string;
+    total_stock_count: number;
+    out_of_stock_items: number;
+  }>;
+}
+
+export interface PharmacyStoreInventoryItem {
+  id: string;
+  name: string;
+  generic_name?: string;
+  category_id?: string;
+  category_name?: string;
+  batch_number?: string;
+  expiry_date?: string;
+  stock: number;
+  reorder_level: number;
+  unit_price?: number | null;
+  status: "In stock" | "Low stock" | "1 month to expire" | "Expired" | string;
+  unit_type?: "store" | "point";
+  unit_name?: string;
+  pharmacy_unit_id?: string;
+}
+
+export interface GetPharmacyStoreInventoryResponse {
+  total_items: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  items: PharmacyStoreInventoryItem[];
+}
+
+export interface GetPharmacyStoreInventoryParams {
+  pharmacy_unit_id?: string;
+  search?: string;
+  category_id?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface CreatePharmacyStoreDrugPayload {
+  name: string;
+  generic_name?: string;
+  category_id: string;
+  batch_number?: string;
+  expiry_date: string;
+  stock: number;
+  reorder_level: number;
+  unit_price?: number;
+}
+
+export interface AddPharmacyStoreStockPayload {
+  pharmacy_item_id: string;
+  quantity: number;
+  batch_number?: string;
+  expiry_date?: string;
+}
+
+export interface PharmacyStoreTransferItem {
+  id: string;
+  from_unit_id?: string;
+  from_unit_name: string;
+  from_unit_type?: "store" | "point";
+  to_unit_id?: string;
+  to_unit_name: string;
+  to_unit_type?: "store" | "point";
+  status: "pending" | "completed" | "rejected";
+  remarks: string;
+  requester_name?: string;
+  processor_name?: string | null;
+  items_count: number;
+  items?: Array<{
+    id: string;
+    item_name: string;
+    generic_name?: string;
+    quantity: number;
+  }>;
+  created_at: string;
+}
+
+export interface PharmacyStoreTransfersResponse {
+  total_items: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+  transfers: PharmacyStoreTransferItem[];
+}
+
+export interface PharmacyStoreReportOverviewResponse {
+  status: string;
+  data: {
+    date_range: {
+      start_date: string;
+      end_date: string;
+    };
+    store_summary: {
+      supplier_restocks_count: number;
+      total_stock_qty_added: number;
+      transfers_completed: number;
+      total_qty_dispatched: number;
+      store_inventory_valuation: number;
+      out_of_stock_count: number;
+      low_stock_count: number;
+      expiring_items_count: number;
+    };
+  };
+}
+
+export interface PharmacyStoreReportStockAdditionsResponse {
+  status: string;
+  data: {
+    date_range: {
+      start_date: string;
+      end_date: string;
+    };
+    total_items: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    logs: Array<{
+      id: string;
+      item_name: string;
+      generic_name?: string;
+      quantity_changed: number;
+      new_stock: number;
+      old_stock?: number;
+      new_batch?: string;
+      new_expiry?: string;
+      pharmacist_name: string;
+      created_at: string;
+    }>;
+  };
+}
+
+export interface PharmacyStoreReportTransfersResponse {
+  status: string;
+  data: {
+    date_range: {
+      start_date: string;
+      end_date: string;
+    };
+    total_items: number;
+    page: number;
+    limit: number;
+    total_pages: number;
+    transfers: PharmacyStoreTransferItem[];
+  };
+}
+
+// --- Store API Functions ---
+
+export async function getPharmacyStoreProfile() {
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyStoreProfileResponse>("/api/pharmacy-store/profile", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyStoreDashboard() {
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: string;
+      message: string;
+      data: PharmacyStoreDashboardStats;
+    }>("/api/pharmacy-store/dashboard", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyStoreInventory(params?: GetPharmacyStoreInventoryParams) {
+  const searchParams = new URLSearchParams();
+  if (params?.pharmacy_unit_id) searchParams.append("pharmacy_unit_id", params.pharmacy_unit_id);
+  if (params?.category_id) searchParams.append("category_id", params.category_id);
+  if (params?.status) searchParams.append("status", params.status);
+  if (params?.search) searchParams.append("search", params.search);
+  if (params?.page) searchParams.append("page", String(params.page));
+  if (params?.limit) searchParams.append("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/api/pharmacy-store/inventory${queryStr ? `?${queryStr}` : ""}`;
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: string;
+      data: GetPharmacyStoreInventoryResponse;
+    }>(endpoint, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function createPharmacyStoreDrug(payload: CreatePharmacyStoreDrugPayload) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: string;
+      data: PharmacyStoreInventoryItem;
+    }>("/api/pharmacy-store/inventory", payload as unknown as Record<string, unknown>, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function addPharmacyStoreStock(payload: AddPharmacyStoreStockPayload) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: string;
+      data: PharmacyStoreInventoryItem;
+    }>("/api/pharmacy-store/inventory/stock-addition", payload as unknown as Record<string, unknown>, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyStoreDrugHistory(itemId: string) {
+  return withPharmacySessionRetry(async (accessToken) => {
+    try {
+      return await getJson<{
+        status: string;
+        data: {
+          item: { id: string; name: string; stock: number };
+          history: Array<{
+            type: string;
+            date: string;
+            quantity_changed: number;
+            remaining_stock: number;
+            details: Record<string, any>;
+          }>;
+        };
+      }>(`/api/pharmacy-store/inventory/${itemId}/history`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+    } catch (error) {
+      try {
+        return await getJson<any>(`/api/pharmacy/inventory/${itemId}/history`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      } catch (innerError) {
+        return {
+          status: "success",
+          data: {
+            item: { id: itemId, name: "", stock: 0 },
+            history: [],
+          },
+        };
+      }
+    }
+  });
+}
+
+export async function getPharmacyStoreTransfers(params?: {
+  point_id?: string;
+  pharmacy_unit_id?: string;
+  unit_id?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const searchParams = new URLSearchParams();
+  const pointId = params?.point_id || params?.pharmacy_unit_id || params?.unit_id;
+  if (pointId && pointId !== "all") searchParams.append("point_id", pointId);
+  if (params?.status && params.status !== "all") searchParams.append("status", params.status);
+  if (params?.start_date) searchParams.append("start_date", params.start_date);
+  if (params?.end_date) searchParams.append("end_date", params.end_date);
+  if (params?.search) searchParams.append("search", params.search);
+  if (params?.page) searchParams.append("page", String(params.page));
+  if (params?.limit) searchParams.append("limit", String(params.limit));
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/api/pharmacy-store/transfers${queryStr ? `?${queryStr}` : ""}`;
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: string;
+      data: PharmacyStoreTransfersResponse;
+    }>(endpoint, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function dispatchPharmacyStoreTransfer(payload: {
+  to_unit_id: string;
+  remarks?: string;
+  items: Array<{
+    source_pharmacy_item_id: string;
+    quantity: number;
+  }>;
+}) {
+  return withPharmacySessionRetry((accessToken) =>
+    postJson<{
+      status: string;
+      data: PharmacyStoreTransferItem;
+    }>("/api/pharmacy-store/transfers", payload, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function updatePharmacyStoreTransferStatus(
+  transferId: string,
+  payload:
+    | {
+        action: "approve" | "reject" | "completed" | "cancelled" | "accept" | "decline" | string;
+        quantity?: number;
+        items?: Array<{ transfer_item_id?: string; id?: string; quantity?: number; approved_quantity?: number }>;
+        remarks?: string;
+      }
+    | "approve"
+    | "reject"
+    | string
+) {
+  const rawAction = typeof payload === "string" ? payload : payload.action;
+  const isApprove = rawAction === "approve" || rawAction === "completed" || rawAction === "accept";
+  const actionNormalized = isApprove ? "approve" : "reject";
+
+  let body: Record<string, unknown>;
+  if (typeof payload === "string") {
+    body = { action: actionNormalized };
+  } else {
+    body = {
+      action: actionNormalized,
+      remarks: payload.remarks,
+      ...(payload.quantity !== undefined ? { quantity: payload.quantity } : {}),
+      ...(payload.items
+        ? {
+            items: payload.items.map((it) => ({
+              transfer_item_id: it.transfer_item_id || it.id,
+              quantity: it.approved_quantity ?? it.quantity ?? 1,
+            })),
+          }
+        : {}),
+    };
+  }
+  return withPharmacySessionRetry((accessToken) =>
+    patchJson<{
+      status: string;
+      message: string;
+      data: {
+        id: string;
+        status: "completed" | "rejected";
+      };
+    }>(`/api/pharmacy-store/transfers/${transferId}`, body, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyStoreReportOverview(params?: {
+  start_date?: string;
+  end_date?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyStoreReportOverviewResponse>(`/api/pharmacy-store/report/overview${suffix}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyStoreReportStockAdditions(params?: {
+  start_date?: string;
+  end_date?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyStoreReportStockAdditionsResponse>(`/api/pharmacy-store/report/stock-additions${suffix}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+export async function getPharmacyStoreReportTransfers(params?: {
+  start_date?: string;
+  end_date?: string;
+  pharmacy_unit_id?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.pharmacy_unit_id) query.set("pharmacy_unit_id", params.pharmacy_unit_id);
+  if (params?.status && params.status !== "all") query.set("status", params.status);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<PharmacyStoreReportTransfersResponse>(`/api/pharmacy-store/report/transfers${suffix}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+// Point price update API (PATCH /api/pharmacy/inventory/:itemId)
+export async function updatePharmacyPointItem(
+  itemId: string,
+  payload: {
+    unit_price?: number;
+    reorder_level?: number;
+  }
+) {
+  return withPharmacySessionRetry((accessToken) =>
+    patchJson<{
+      status: string;
+      data: BackendDrugItem;
+    }>(`/api/pharmacy/inventory/${itemId}`, payload, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+

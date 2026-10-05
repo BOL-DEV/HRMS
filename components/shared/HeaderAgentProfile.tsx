@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { FaUser } from "react-icons/fa";
@@ -9,14 +9,14 @@ import { getAgentProfile, logoutAgent } from "@/libs/agent-auth";
 import { logoutAdmin } from "@/libs/admin-auth";
 import { getFoProfile, logoutFo } from "@/libs/fo-auth";
 import { clearAuthTokens, decodeJwt, getAccessToken } from "@/libs/auth";
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
 import type { AgentProfileResponse, FoProfileResponse } from "@/libs/type";
 
 type HeaderProfileResponse =
   | AgentProfileResponse
   | FoProfileResponse
   | {
-      data: {
+      data?: {
         first_name?: string;
         last_name?: string;
         email?: string;
@@ -57,10 +57,14 @@ export default function HeaderAgentProfile() {
       : "default";
 
   const profileQuery = useQuery({
-    queryKey: [section, "header-profile"],
+    queryKey: ["header-agent-profile", section, accessToken],
     queryFn: async (): Promise<HeaderProfileResponse> => {
       if (section === "pharmacy") {
-        return getPharmacyProfile();
+        const decoded = accessToken ? decodeJwt(accessToken) : null;
+        if (decoded?.role === "PHARMACY_STORE") {
+          return (await getPharmacyStoreProfile()) as any;
+        }
+        return (await getPharmacyProfile()) as any;
       }
       return section === "fo" ? getFoProfile() : getAgentProfile();
     },
@@ -68,15 +72,25 @@ export default function HeaderAgentProfile() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
+  const tokenUser = decoded?.user ?? decoded?.data ?? decoded ?? {};
+
+
+
   const displayName = useMemo(() => {
     const profile = profileQuery.data?.data;
-    if (!profile) {
-      return null;
+    if (profile) {
+      const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+      return fullName || profile.email || "User";
     }
 
-    const fullName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
-    return fullName || profile.email || "User";
-  }, [profileQuery.data]);
+    // Fallback to token claims
+    const tokenFirstName = decoded?.first_name || decoded?.firstName || tokenUser?.first_name || tokenUser?.firstName || "";
+    const tokenLastName = decoded?.last_name || decoded?.lastName || tokenUser?.last_name || tokenUser?.lastName || "";
+    const tokenEmail = decoded?.email || tokenUser?.email || "";
+    const fullName = `${tokenFirstName} ${tokenLastName}`.trim();
+    return fullName || tokenEmail || null;
+  }, [profileQuery.data, decoded, tokenUser]);
 
   const fallbackLabel =
     section === "fo"

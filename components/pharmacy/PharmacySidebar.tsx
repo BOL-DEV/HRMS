@@ -2,10 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import { FaRegChartBar } from "react-icons/fa";
-import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings } from "react-icons/fi";
+import { FiPlusCircle, FiPackage, FiFileText, FiTrendingUp, FiSettings, FiRefreshCw, FiRepeat, FiDollarSign } from "react-icons/fi";
 import Sidebar from "@/components/shared/Sidebar";
 import { RxHamburgerMenu } from "react-icons/rx";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IoMdClose as CloseIcon } from "react-icons/io";
 
 const sidebarData = {
@@ -30,9 +30,27 @@ const sidebarData = {
       active: false,
     },
     {
+      name: "Exchanges",
+      link: "/pharmacy/exchanges",
+      label: <FiRepeat className="inline" />,
+      active: false,
+    },
+    {
+      name: "Refunds",
+      link: "/pharmacy/refunds",
+      label: <FiDollarSign className="inline" />,
+      active: false,
+    },
+    {
       name: "Inventory",
       link: "/pharmacy/inventory",
       label: <FiPackage className="inline" />,
+      active: false,
+    },
+    {
+      name: "Transfers",
+      link: "/pharmacy/transfers",
+      label: <FiRefreshCw className="inline" />,
       active: false,
     },
     {
@@ -50,39 +68,108 @@ const sidebarData = {
   ],
 };
 
-import { getPharmacyProfile } from "@/libs/pharmacy-api";
-import { getAgentAccessToken } from "@/libs/auth";
+import { getPharmacyProfile, getPharmacyStoreProfile } from "@/libs/pharmacy-api";
+import { getAgentProfile } from "@/libs/agent-auth";
+import { getAgentAccessToken, decodeJwt } from "@/libs/auth";
 import { useQuery } from "@tanstack/react-query";
 
 const PharmacySidebar = () => {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const [mounted, setMounted] = useState(false);
 
-  const { data: profileResponse } = useQuery({
-    queryKey: ["pharmacy-profile-sidebar"],
-    queryFn: getPharmacyProfile,
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : null;
+  const decoded = useMemo(() => (accessToken ? decodeJwt(accessToken) : null), [accessToken]);
+
+  const { data: profileResponse, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["pharmacy-profile-sidebar", decoded?.role],
+    queryFn: async () => {
+      if (decoded?.role === "PHARMACY_STORE") {
+        return (await getPharmacyStoreProfile()) as any;
+      }
+      return (await getPharmacyProfile()) as any;
+    },
     enabled: Boolean(accessToken),
     retry: false,
     refetchOnWindowFocus: false,
   });
 
-  const activeModules = profileResponse?.data?.modules;
+  const userRole =
+    (profileResponse?.data?.role as string) ||
+    (decoded?.role as string) ||
+    (decoded?.user?.role as string) ||
+    (decoded?.data?.role as string) ||
+    "";
+
+  const jwtModules = decoded?.modules || decoded?.user?.modules || decoded?.data?.modules;
+  const activeModules =
+    profileResponse?.data?.modules ||
+    (Array.isArray(jwtModules) && jwtModules.length > 0 ? jwtModules : undefined);
 
   const links = useMemo(() => {
     return sidebarData.links
       .filter((link) => {
-        if (!activeModules) return true; // fallback if profile not loaded
-        const isPlatformAdmin = (profileResponse?.data?.role as string) === "PLATFORM_ADMIN";
+        const isPlatformAdmin =
+          (profileResponse?.data?.role as string) === "PLATFORM_ADMIN" ||
+          (decoded?.role as string) === "PLATFORM_ADMIN";
         if (isPlatformAdmin) return true;
+
+        // Central Store Manager (PHARMACY_STORE): Hide retail dispensing, prescriptions, and exchanges
+        if (userRole === "PHARMACY_STORE") {
+          if (
+            link.link === "/pharmacy/dispense" ||
+            link.link === "/pharmacy/prescriptions" ||
+            link.link === "/pharmacy/exchanges"
+          ) {
+            return false;
+          }
+          // Allow store manager to access Refunds and Transfers
+          if (link.link === "/pharmacy/refunds") {
+            if (!activeModules || activeModules.includes("approve-refund") || activeModules.includes("refunds") || activeModules.length <= 7) {
+              return true;
+            }
+          }
+          if (link.link === "/pharmacy/transfers") {
+            if (!activeModules || activeModules.includes("transfers") || activeModules.includes("transfer-history") || activeModules.length <= 7) {
+              return true;
+            }
+          }
+        } else {
+          // Pharmacy Point Pharmacist: Hide Refunds unless role has approve-refund
+          if (link.link === "/pharmacy/refunds") {
+            const hasApproveRefund = Array.isArray(activeModules) && (activeModules.includes("approve-refund") || activeModules.includes("refunds"));
+            if (!hasApproveRefund) return false;
+          }
+        }
+
+        // If modules array is not yet loaded, grant default access
+        if (!activeModules || !Array.isArray(activeModules) || activeModules.length === 0) {
+          return true;
+        }
 
         const keyMap: Record<string, string | string[]> = {
           "/pharmacy/dashboard": "dashboard",
           "/pharmacy/dispense": "dispense",
           "/pharmacy/prescriptions": "prescriptions",
-          "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history"],
-          "/pharmacy/reports": "reports",
+          "/pharmacy/exchanges": "drug-exchange",
+          "/pharmacy/refunds": ["approve-refund", "refunds"],
+          "/pharmacy/transfers": ["transfers", "transfer-history"],
+          "/pharmacy/inventory": ["inventory", "inventory-edit", "inventory-history", "stock-edit"],
+          "/pharmacy/reports": [
+            "reports",
+            "drug-report",
+            "detailed-drug-report",
+            "stock-inventory-report",
+            "expiry-report",
+            "pharmacist-performance-report",
+            "returns-exchanges-report",
+          ],
         };
+
         const val = keyMap[link.link];
         if (!val) return true;
         if (Array.isArray(val)) {
@@ -94,10 +181,13 @@ const PharmacySidebar = () => {
         ...link,
         active: pathname === link.link,
       }));
-  }, [pathname, activeModules, profileResponse]);
+  }, [pathname, activeModules, profileResponse, userRole, decoded]);
 
   const toggleSidebar = () => setIsOpen((prev) => !prev);
   const closeSidebar = () => setIsOpen(false);
+
+  // Show skeleton if unmounted or if profile query is loading for the first time
+  const isSidebarLoading = !mounted || (isProfileLoading && !profileResponse && !jwtModules);
 
   return (
     <div className="relative">
@@ -109,7 +199,12 @@ const PharmacySidebar = () => {
         {isOpen ? <CloseIcon /> : <RxHamburgerMenu />}
       </button>
 
-      <Sidebar title={sidebarData.title} links={links} isOpen={isOpen} />
+      <Sidebar
+        title={sidebarData.title}
+        links={links}
+        isOpen={isOpen}
+        isLoading={isSidebarLoading}
+      />
 
       {isOpen ? (
         <div

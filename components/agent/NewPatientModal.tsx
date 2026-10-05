@@ -1,44 +1,63 @@
-import {useState} from 'react'
+"use client";
+
+import { useState, useEffect } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface Props {
-    setShowAddPatient: (value: boolean) => void;
+  setShowAddPatient: (value: boolean) => void;
 }
 
 function NewPatientModal(props: Props) {
-    const { setShowAddPatient } = props
-    
-      const [form, setForm] = useState({
-        fullName: "",
-        phone: "",
-        gender: "Male",
-        age: "",
-        dob: "",
-        email: "",
-        address: "",
-        emergencyName: "",
-        emergencyPhone: "",
-      });
+  const { setShowAddPatient } = props;
+  useScrollLock(true);
 
-      const handleChange = (
-        key:
-          | "fullName"
-          | "phone"
-          | "gender"
-          | "age"
-          | "dob"
-          | "email"
-          | "address"
-          | "emergencyName"
-          | "emergencyPhone",
-        value: string,
-      ) => {
-        setForm((prev) => ({ ...prev, [key]: value }));
-      };
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowAddPatient(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setShowAddPatient]);
 
-    return (
-       
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-5">
+  const [form, setForm] = useState({
+    fullName: "",
+    phone: "",
+    gender: "Male",
+    age: "",
+    dob: "",
+    email: "",
+    address: "",
+    emergencyName: "",
+    emergencyPhone: "",
+  });
+
+  const handleChange = (
+    key:
+      | "fullName"
+      | "phone"
+      | "gender"
+      | "age"
+      | "dob"
+      | "email"
+      | "address"
+      | "emergencyName"
+      | "emergencyPhone",
+    value: string,
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setShowAddPatient(false);
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs px-4 overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-5 border border-gray-150 dark:border-slate-800"
+      >
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-bold">Add Patient</h2>

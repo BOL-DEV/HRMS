@@ -15,6 +15,7 @@ function ExpressTransactionSection({
   isSubmitting,
   onSubmit,
   onCancel,
+  allowedPaymentMethods = { cash: true, pos: true, transfer: true },
 }: ExpressTransactionSectionProps) {
   const selectedDepartment = departments.find(
     (department) => department.id === expressForm.departmentId,
@@ -99,7 +100,7 @@ function ExpressTransactionSection({
                 Payment Type
               </span>
               <select
-                value={expressForm.paymentType}
+                value={expressForm.paymentType || ""}
                 onChange={(event) =>
                   setExpressForm((current) => ({
                     ...current,
@@ -108,9 +109,10 @@ function ExpressTransactionSection({
                 }
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm dark:border-line-subtle dark:bg-canvas dark:text-slate-100"
               >
-                <option value="cash">Cash</option>
-                <option value="transfer">Transfer</option>
-                <option value="pos">POS</option>
+                <option value="">Select payment type</option>
+                {allowedPaymentMethods.cash && <option value="cash">Cash</option>}
+                {allowedPaymentMethods.transfer && <option value="transfer">Transfer</option>}
+                {allowedPaymentMethods.pos && <option value="pos">POS</option>}
               </select>
             </label>
 

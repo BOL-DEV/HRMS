@@ -1,5 +1,5 @@
 import DashboardSection from "@/components/dashboard/DashboardSection";
-import { formatCurrency } from "@/libs/helper";
+import { formatCurrency, formatDateTime } from "@/libs/helper";
 import { RecentTransactionDisplayRow } from "@/libs/type";
 
 type Props = {
@@ -82,7 +82,7 @@ function RecentTransactions({
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-gray-600 dark:text-slate-300">
-                    {tx.createdAt}
+                    {formatDateTime(tx.createdAt)}
                   </td>
                 </tr>
               ))

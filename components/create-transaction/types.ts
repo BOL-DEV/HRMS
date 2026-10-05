@@ -51,6 +51,11 @@ export type ExpressTransactionSectionProps = {
   isSubmitting: boolean;
   onSubmit: () => void;
   onCancel: () => void;
+  allowedPaymentMethods?: {
+    cash: boolean;
+    pos: boolean;
+    transfer: boolean;
+  };
 };
 
 export type PatientTransactionSectionProps = {

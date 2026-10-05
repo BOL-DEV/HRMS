@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import ChartWatermark from "@/components/shared/ChartWatermark";
-import { formatNaira } from "@/libs/helper";
+import { formatDate, formatDateTime, formatNaira } from "@/libs/helper";
 import StatusPill from "@/components/shared/StatusPill";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   Line,
   LineChart,
@@ -32,12 +34,30 @@ export type PatientProfile = {
 };
 
 function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; onClose: () => void }) {
+  useScrollLock(true);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const trend = patient.paymentTrend ?? [];
   const txs = patient.recentTransactions ?? [];
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-end">
-      <div className="bg-white w-full max-w-4xl h-full overflow-y-auto shadow-2xl">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-start justify-end overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-4xl h-full overflow-y-auto shadow-2xl"
+      >
         <div className="p-5 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Patient Profile</h2>
@@ -84,12 +104,12 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
             </div>
             <div className="space-y-1">
               <p className="text-sm text-gray-500">Last Visit</p>
-              <p className="text-base font-semibold text-gray-900">{patient.lastVisit}</p>
+              <p className="text-base font-semibold text-gray-900">{formatDate(patient.lastVisit)}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[{ label: "Total Amount Paid", value: formatNaira(patient.totalPaid) }, { label: "Total Visits", value: patient.totalVisits }, { label: "Last Visit", value: patient.lastVisit }].map((card) => (
+            {[{ label: "Total Amount Paid", value: formatNaira(patient.totalPaid) }, { label: "Total Visits", value: patient.totalVisits }, { label: "Last Visit", value: formatDate(patient.lastVisit) }].map((card) => (
               <div key={card.label} className="border border-gray-200 rounded-xl p-4">
                 <p className="text-sm text-gray-600">{card.label}</p>
                 <p className="text-2xl font-bold mt-1">{card.value}</p>
@@ -122,7 +142,7 @@ function PatientProfileModal({ patient, onClose }: { patient: PatientProfile; on
                   <div key={t.invoice} className="py-3 flex items-center justify-between">
                     <div>
                       <p className="font-medium text-gray-900">{t.name}</p>
-                      <p className="text-sm text-gray-500">{t.invoice} • {t.date}</p>
+                      <p className="text-sm text-gray-500">{t.invoice} • {formatDateTime(t.date)}</p>
                     </div>
                     <p className="font-semibold text-brand-700">{formatNaira(t.amount)}</p>
                   </div>
