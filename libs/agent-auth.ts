@@ -536,79 +536,237 @@ export async function getPendingDrugExchanges(search?: string) {
 export async function processDrugExchangePayment(payload: {
   exchange_code: string;
   payment_type: AgentPaymentType;
+  exchange_id?: string;
+  code?: string;
+  id?: string;
+  patient_id?: string;
+  patient_name?: string;
+  amount?: number;
+  net_amount?: number;
+  payment_method?: string;
+  remarks?: string;
 }) {
   return withAgentSessionRetry(async (accessToken) => {
     const headers = getAgentAuthHeaders(accessToken);
+    const code = payload.exchange_code || payload.code || "";
+    const id = payload.exchange_id || payload.id || code;
+    const paymentTypeLower = String(payload.payment_type || "cash").toLowerCase();
+    const paymentTypeUpper = paymentTypeLower.toUpperCase();
+    const amount = payload.amount ?? (payload.net_amount ? Math.abs(payload.net_amount) : 0);
 
-    // 1. Try /api/payments/drug-exchange/process
+    const body = {
+      exchange_code: code,
+      exchange_id: id,
+      code: code,
+      id: id,
+      payment_type: paymentTypeLower,
+      payment_method: paymentTypeUpper,
+      amount: amount,
+      patient_id: payload.patient_id,
+      patient_name: payload.patient_name,
+      remarks: payload.remarks || "Cashier exchange settlement",
+    };
+
+    let lastError: any = null;
+
+    // Strategy 1: POST /api/payments/drug-exchange/process
     try {
       return await postJson<ProcessPaymentResponse>(
         "/api/payments/drug-exchange/process",
-        payload,
+        body,
         { headers }
       );
-    } catch {
-      // 2. Try /api/payments/drug-exchange
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 2: POST /api/payments/drug-exchange
+    try {
+      return await postJson<ProcessPaymentResponse>(
+        "/api/payments/drug-exchange",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 3: POST /api/pharmacy/drug-exchange/:code/settle
+    if (code) {
       try {
         return await postJson<ProcessPaymentResponse>(
-          "/api/payments/drug-exchange",
-          payload,
+          `/api/pharmacy/drug-exchange/${encodeURIComponent(code)}/settle`,
+          body,
           { headers }
         );
-      } catch {
-        // 3. Try /api/pharmacy/drug-exchange/settle
-        try {
-          return await postJson<ProcessPaymentResponse>(
-            "/api/pharmacy/drug-exchange/settle",
-            payload,
-            { headers }
-          );
-        } catch {
-          // 4. Try /api/payments/pharmacy/process
-          return await postJson<ProcessPaymentResponse>(
-            "/api/payments/pharmacy/process",
-            {
-              billing_code: payload.exchange_code,
-              code: payload.exchange_code,
-              payment_type: payload.payment_type,
-            },
-            { headers }
-          );
-        }
+      } catch (err: any) {
+        lastError = err;
       }
     }
+
+    // Strategy 4: POST /api/pharmacy/drug-exchange/settle
+    try {
+      return await postJson<ProcessPaymentResponse>(
+        "/api/pharmacy/drug-exchange/settle",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 5: POST /api/pharmacy/drug-exchange/:code/pay
+    if (code) {
+      try {
+        return await postJson<ProcessPaymentResponse>(
+          `/api/pharmacy/drug-exchange/${encodeURIComponent(code)}/pay`,
+          body,
+          { headers }
+        );
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    // Strategy 6: POST /api/pharmacy-store/refunds/:exchangeId/approve
+    if (id || code) {
+      try {
+        return await postJson<ProcessPaymentResponse>(
+          `/api/pharmacy-store/refunds/${encodeURIComponent(id || code)}/approve`,
+          body,
+          { headers }
+        );
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    // Strategy 7: POST /api/pharmacy-store/refunds/approve
+    try {
+      return await postJson<ProcessPaymentResponse>(
+        "/api/pharmacy-store/refunds/approve",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    throw new Error(
+      lastError?.message ||
+        `Unable to clear exchange "${code}". Please ensure the exchange status is pending.`
+    );
   });
 }
 
 export async function refundDrugExchange(payload: {
   exchange_code: string;
   payment_type: AgentPaymentType;
+  exchange_id?: string;
+  code?: string;
+  id?: string;
+  patient_id?: string;
+  patient_name?: string;
+  amount?: number;
+  net_amount?: number;
+  payment_method?: string;
   remarks?: string;
 }) {
   return withAgentSessionRetry(async (accessToken) => {
     const headers = getAgentAuthHeaders(accessToken);
+    const code = payload.exchange_code || payload.code || "";
+    const id = payload.exchange_id || payload.id || code;
+    const paymentTypeLower = String(payload.payment_type || "cash").toLowerCase();
+    const paymentTypeUpper = paymentTypeLower.toUpperCase();
+    const amount = payload.amount ?? (payload.net_amount ? Math.abs(payload.net_amount) : 0);
 
+    const body = {
+      exchange_code: code,
+      exchange_id: id,
+      code: code,
+      id: id,
+      payment_type: paymentTypeLower,
+      payment_method: paymentTypeUpper,
+      amount: amount,
+      patient_id: payload.patient_id,
+      patient_name: payload.patient_name,
+      remarks: payload.remarks || "Cashier refund disbursement",
+    };
+
+    let lastError: any = null;
+
+    // Strategy 1: POST /api/payments/drug-exchange/refund
     try {
       return await postJson<{
         status: string | number;
         message?: string;
         data: any;
-      }>("/api/payments/drug-exchange/refund", payload, { headers });
-    } catch {
+      }>("/api/payments/drug-exchange/refund", body, { headers });
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 2: POST /api/pharmacy-store/refunds/:exchangeId/approve
+    if (id || code) {
       try {
         return await postJson<any>(
-          "/api/pharmacy/drug-exchange/refund",
-          payload,
+          `/api/pharmacy-store/refunds/${encodeURIComponent(id || code)}/approve`,
+          body,
           { headers }
         );
-      } catch {
-        return await postJson<any>(
-          "/api/pharmacy/refunds/process",
-          payload,
-          { headers }
-        );
+      } catch (err: any) {
+        lastError = err;
       }
     }
+
+    // Strategy 3: POST /api/pharmacy-store/refunds/approve
+    try {
+      return await postJson<any>(
+        "/api/pharmacy-store/refunds/approve",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 4: POST /api/pharmacy/drug-exchange/refund
+    try {
+      return await postJson<any>(
+        "/api/pharmacy/drug-exchange/refund",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 5: POST /api/pharmacy/refunds/process
+    try {
+      return await postJson<any>(
+        "/api/pharmacy/refunds/process",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    // Strategy 6: POST /api/payments/drug-exchange/process
+    try {
+      return await postJson<any>(
+        "/api/payments/drug-exchange/process",
+        body,
+        { headers }
+      );
+    } catch (err: any) {
+      lastError = err;
+    }
+
+    throw new Error(
+      lastError?.message ||
+        `Unable to process refund for exchange "${code}".`
+    );
   });
 }
 

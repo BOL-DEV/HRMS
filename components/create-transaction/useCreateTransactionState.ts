@@ -687,17 +687,27 @@ export function useCreateTransactionState({
     mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
       const selectedPaymentType = (form.paymentType || "cash") as AgentPaymentType;
       if (isPharmacyMode && drugExchangeBill) {
-        if (drugExchangeBill.netAmount < 0 || drugExchangeBill.status === "pending_refund") {
-          return refundDrugExchange({
-            exchange_code: drugExchangeBill.exchangeCode,
-            payment_type: selectedPaymentType,
-            remarks: "Cashier refund disbursement",
-          });
-        }
-        return processDrugExchangePayment({
+        const exchangePayload = {
           exchange_code: drugExchangeBill.exchangeCode,
+          exchange_id: drugExchangeBill.id,
+          code: drugExchangeBill.exchangeCode,
+          id: drugExchangeBill.id,
+          patient_id: drugExchangeBill.patientId,
+          patient_name: drugExchangeBill.patientName,
+          amount: Math.abs(drugExchangeBill.netAmount || 0),
+          net_amount: drugExchangeBill.netAmount,
           payment_type: selectedPaymentType,
-        });
+          payment_method: selectedPaymentType.toUpperCase(),
+          remarks:
+            drugExchangeBill.netAmount < 0
+              ? "Cashier refund disbursement"
+              : "Cashier exchange settlement",
+        };
+
+        if (drugExchangeBill.netAmount < 0 || drugExchangeBill.status === "pending_refund") {
+          return refundDrugExchange(exchangePayload);
+        }
+        return processDrugExchangePayment(exchangePayload);
       }
 
       if (isPharmacyMode && pharmacyBill) {
