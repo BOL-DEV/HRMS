@@ -687,17 +687,27 @@ export function useCreateTransactionState({
     mutationFn: (variables: Parameters<typeof processAgentPayment>[0] & { pharmacy_code?: string }) => {
       const selectedPaymentType = (form.paymentType || "cash") as AgentPaymentType;
       if (isPharmacyMode && drugExchangeBill) {
-        if (drugExchangeBill.netAmount < 0 || drugExchangeBill.status === "pending_refund") {
-          return refundDrugExchange({
-            exchange_code: drugExchangeBill.exchangeCode,
-            payment_type: selectedPaymentType,
-            remarks: "Cashier refund disbursement",
-          });
-        }
-        return processDrugExchangePayment({
+        const exchangePayload = {
           exchange_code: drugExchangeBill.exchangeCode,
+          exchange_id: drugExchangeBill.id,
+          code: drugExchangeBill.exchangeCode,
+          id: drugExchangeBill.id,
+          patient_id: drugExchangeBill.patientId,
+          patient_name: drugExchangeBill.patientName,
+          amount: Math.abs(drugExchangeBill.netAmount || 0),
+          net_amount: drugExchangeBill.netAmount,
           payment_type: selectedPaymentType,
-        });
+          payment_method: selectedPaymentType.toUpperCase(),
+          remarks:
+            drugExchangeBill.netAmount < 0
+              ? "Cashier refund disbursement"
+              : "Cashier exchange settlement",
+        };
+
+        if (drugExchangeBill.netAmount < 0 || drugExchangeBill.status === "pending_refund") {
+          return refundDrugExchange(exchangePayload);
+        }
+        return processDrugExchangePayment(exchangePayload);
       }
 
       if (isPharmacyMode && pharmacyBill) {
@@ -810,11 +820,15 @@ export function useCreateTransactionState({
       // 1. Try Drug Return & Exchange Lookup first
       try {
         const exRes = await getPendingDrugExchanges(cleanCode);
-        const rawData = exRes.data;
+        const rawData = (exRes as any)?.data ?? exRes;
         const exList: any[] = Array.isArray(rawData)
           ? rawData
           : rawData?.items
           ? rawData.items
+          : Array.isArray(rawData?.exchanges)
+          ? rawData.exchanges
+          : Array.isArray(rawData?.records)
+          ? rawData.records
           : rawData?.refunds
           ? rawData.refunds
           : rawData
@@ -823,9 +837,12 @@ export function useCreateTransactionState({
         const matchedEx =
           exList.find(
             (ex: any) =>
-              ex.exchange_code?.toUpperCase() === cleanCode ||
-              ex.id?.toUpperCase() === cleanCode
-          ) || (cleanCode.startsWith("DEX") ? exList[0] : null);
+              (ex.exchange_code && ex.exchange_code.toUpperCase() === cleanCode) ||
+              (ex.id && String(ex.id).toUpperCase() === cleanCode) ||
+              (ex.billing_code && ex.billing_code.toUpperCase() === cleanCode) ||
+              (ex.receipt_no && ex.receipt_no.toUpperCase() === cleanCode) ||
+              (ex.original_billing_code && ex.original_billing_code.toUpperCase() === cleanCode)
+          ) || (exList.length === 1 ? exList[0] : cleanCode.startsWith("DEX") ? exList[0] : null);
 
         if (matchedEx) {
           const rawItems: any[] = matchedEx.items || [];
