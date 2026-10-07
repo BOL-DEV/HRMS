@@ -572,30 +572,25 @@ export function useCreateTransactionState({
 
     // Check if the currently selected payment method is disallowed
     const currentPaymentType = form.paymentType;
-    let allowedDefault: "cash" | "pos" | "transfer" | null = null;
-    if (isCashAllowed) allowedDefault = "cash";
-    else if (isTransferAllowed) allowedDefault = "transfer";
-    else if (isPosAllowed) allowedDefault = "pos";
-
-    if (allowedDefault) {
+    if (currentPaymentType) {
       if (
         (currentPaymentType === "cash" && !isCashAllowed) ||
         (currentPaymentType === "pos" && !isPosAllowed) ||
         (currentPaymentType === "transfer" && !isTransferAllowed)
       ) {
-        setForm((curr) => ({ ...curr, paymentType: allowedDefault! }));
+        setForm((curr) => ({ ...curr, paymentType: "" }));
       }
     }
 
     // Similarly for express form
     const currentExpressPaymentType = expressForm.paymentType;
-    if (allowedDefault) {
+    if (currentExpressPaymentType) {
       if (
         (currentExpressPaymentType === "cash" && !isCashAllowed) ||
         (currentExpressPaymentType === "pos" && !isPosAllowed) ||
         (currentExpressPaymentType === "transfer" && !isTransferAllowed)
       ) {
-        setExpressForm((curr) => ({ ...curr, paymentType: allowedDefault! }));
+        setExpressForm((curr) => ({ ...curr, paymentType: "" }));
       }
     }
   }, [paymentConfigQuery.data, form.paymentType, expressForm.paymentType]);
@@ -825,8 +820,6 @@ export function useCreateTransactionState({
           ? rawData
           : Array.isArray(rawData?.exchanges)
           ? rawData.exchanges
-          : Array.isArray(rawData?.items)
-          ? rawData.items
           : Array.isArray(rawData?.records)
           ? rawData.records
           : Array.isArray(rawData?.refunds)
@@ -839,15 +832,21 @@ export function useCreateTransactionState({
 
         const isExchangeMatch = (ex: any, target: string) => {
           if (!ex || typeof ex !== "object") return false;
-          const t = target.toUpperCase();
+          const t = target.trim().toUpperCase();
           const candidates = [
             ex.exchange_code,
             ex.exchangeCode,
             ex.code,
             ex.id,
             ex._id,
+            ex.exchange_id,
+            ex.exchangeId,
+            ex.exchange_number,
+            ex.exchangeNumber,
             ex.billing_code,
             ex.billingCode,
+            ex.bill_code,
+            ex.billCode,
             ex.receipt_no,
             ex.receiptNo,
             ex.original_billing_code,
@@ -856,14 +855,21 @@ export function useCreateTransactionState({
             ex.originalReceiptNo,
             ex.reference_code,
             ex.referenceCode,
+            ex.reference,
+            ex.reference_no,
+            ex.referenceNo,
             ex.cashier_bill_code,
             ex.patient_id,
             ex.patientId,
+            ex.exchange?.exchange_code,
+            ex.exchange?.exchangeCode,
+            ex.exchange?.code,
+            ex.exchange?.id,
           ]
             .filter(Boolean)
-            .map((s) => String(s).toUpperCase());
+            .map((s) => String(s).trim().toUpperCase());
 
-          return candidates.includes(t);
+          return candidates.some((c) => c === t || c.includes(t) || t.includes(c));
         };
 
         const matchedEx =
@@ -997,24 +1003,7 @@ export function useCreateTransactionState({
           setPharmacyBill(null);
           setDrugExchangeBill(mappedExchangeBill);
 
-          // Default allowed payment method
-          const config = paymentConfigQuery.data?.data;
-          let allowedDefault: "cash" | "pos" | "transfer" = "cash";
-          if (config) {
-            const isCashAllowed =
-              config.allow_payment_cash !== false &&
-              (config as any).allowPaymentCash !== false;
-            const isTransferAllowed =
-              config.allow_payment_transfer !== false &&
-              (config as any).allowPaymentTransfer !== false;
-            const isPosAllowed =
-              config.allow_payment_pos !== false &&
-              (config as any).allowPaymentPos !== false;
-            if (isCashAllowed) allowedDefault = "cash";
-            else if (isTransferAllowed) allowedDefault = "transfer";
-            else if (isPosAllowed) allowedDefault = "pos";
-          }
-          setForm((cur) => ({ ...cur, paymentType: allowedDefault }));
+          setForm((cur) => ({ ...cur, paymentType: "" }));
 
           if (
             mappedExchangeBill.status === "pending_refund" ||
@@ -1084,27 +1073,10 @@ export function useCreateTransactionState({
         setDrugExchangeBill(null);
         setPharmacyBill(mappedBill);
 
-        // Select first allowed payment method as default
-        const config = paymentConfigQuery.data?.data;
-        let allowedDefault: "cash" | "pos" | "transfer" = "cash";
-        if (config) {
-          const isCashAllowed =
-            config.allow_payment_cash !== false &&
-            (config as any).allowPaymentCash !== false;
-          const isTransferAllowed =
-            config.allow_payment_transfer !== false &&
-            (config as any).allowPaymentTransfer !== false;
-          const isPosAllowed =
-            config.allow_payment_pos !== false &&
-            (config as any).allowPaymentPos !== false;
-          if (isCashAllowed) allowedDefault = "cash";
-          else if (isTransferAllowed) allowedDefault = "transfer";
-          else if (isPosAllowed) allowedDefault = "pos";
-        }
-
+        // Require explicit payment type selection
         setForm((current) => ({
           ...current,
-          paymentType: allowedDefault,
+          paymentType: "",
         }));
       } else {
         toast.error(`No pending prescription bill or exchange found for code "${code}".`);

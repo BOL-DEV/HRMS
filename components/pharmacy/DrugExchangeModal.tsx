@@ -1100,28 +1100,13 @@ export default function DrugExchangeModal({
                   </div>
                 </div>
 
-                {/* Additional Payment Options (If balance > 0) */}
+                {/* Notice for Additional Payment (If balance > 0) */}
                 {balanceDifference > 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-2 dark:border-amber-900/30 dark:bg-amber-950/20">
-                    <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                      Payment Method for Additional Balance ({formatCurrency(balanceDifference)}):
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-xs text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/20">
+                    <p className="font-bold">Additional Payment Workflow:</p>
+                    <p className="text-amber-700 dark:text-amber-300 mt-0.5">
+                      An 8-character Exchange Code will be generated. The patient will present the code at the Cashier to select payment method and pay the outstanding balance of <strong>{formatCurrency(balanceDifference)}</strong>.
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {(["CASH", "POS", "TRANSFER"] as PaymentMethod[]).map((pm) => (
-                        <button
-                          key={pm}
-                          type="button"
-                          onClick={() => setPaymentMethod(pm)}
-                          className={`rounded-lg px-4 py-1.5 text-xs font-bold transition ${
-                            paymentMethod === pm
-                              ? "bg-brand-700 text-white shadow-xs"
-                              : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-200"
-                          }`}
-                        >
-                          {pm} Payment
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 )}
 
@@ -1130,24 +1115,10 @@ export default function DrugExchangeModal({
                   <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4 text-xs text-purple-900 dark:border-purple-900/30 dark:bg-purple-950/20">
                     <p className="font-bold">Refund Settlement Notice:</p>
                     <p className="text-purple-700 dark:text-purple-300 mt-0.5">
-                      A cash refund / wallet reversal voucher of <strong>{formatCurrency(Math.abs(balanceDifference))}</strong> will be generated upon transaction confirmation.
+                      A refund balance of <strong>{formatCurrency(Math.abs(balanceDifference))}</strong> will be generated. Direct the patient to the <strong>Pharmacy Store</strong> for administrative offline settlement.
                     </p>
                   </div>
                 )}
-
-                {/* Remarks & Notes */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-slate-300 mb-1">
-                    Clinical / Operational Remarks (Optional):
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={generalRemarks}
-                    onChange={(e) => setGeneralRemarks(e.target.value)}
-                    placeholder="e.g. Approved exchange per Dr. Okon's revised prescription..."
-                    className="w-full rounded-xl border border-gray-200 bg-canvas-alt p-3 text-xs outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:text-slate-100"
-                  />
-                </div>
               </div>
             </div>
           )}
