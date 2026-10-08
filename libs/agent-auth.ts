@@ -386,21 +386,57 @@ export async function getAgentPendingPharmacyRequests(params: {
   billing_code?: string;
   patient_id?: string;
 }) {
-  const searchParams = new URLSearchParams();
-  if (params.billing_code) {
-    searchParams.set("billing_code", params.billing_code);
-    searchParams.set("code", params.billing_code);
-  }
-  if (params.patient_id) searchParams.set("patient_id", params.patient_id);
+  const code = params.billing_code?.trim() || "";
+  const patientId = params.patient_id?.trim() || "";
 
-  return withAgentSessionRetry((accessToken) =>
-    getJson<AgentPendingPharmacyRequestsResponse>(
+  return withAgentSessionRetry(async (accessToken) => {
+    const headers = getAgentAuthHeaders(accessToken);
+
+    const searchParams = new URLSearchParams();
+    if (code) {
+      searchParams.set("billing_code", code);
+      searchParams.set("code", code);
+      searchParams.set("search", code);
+    }
+    if (patientId) searchParams.set("patient_id", patientId);
+
+    // Strategy 1: /api/payments/pharmacy-requests
+    try {
+      const res = await getJson<AgentPendingPharmacyRequestsResponse>(
+        `/api/payments/pharmacy-requests?${searchParams.toString()}`,
+        { headers }
+      );
+      const rawData = (res as any)?.data ?? res;
+      if (Array.isArray(rawData) && rawData.length > 0) return res;
+      if (Array.isArray((rawData as any)?.requests) && (rawData as any).requests.length > 0) return res;
+      if (Array.isArray((rawData as any)?.items) && (rawData as any).items.length > 0) return res;
+      if (rawData && typeof rawData === "object" && ((rawData as any).billing_code || (rawData as any).id)) return res;
+    } catch {}
+
+    // Strategy 2: /api/pharmacy/request
+    if (code) {
+      try {
+        const res = await getJson<any>(
+          `/api/pharmacy/request?search=${encodeURIComponent(code)}&status=all`,
+          { headers }
+        );
+        if (res) return res;
+      } catch {}
+
+      try {
+        const res = await getJson<any>(
+          `/api/pharmacy/request/${encodeURIComponent(code)}`,
+          { headers }
+        );
+        if (res) return res;
+      } catch {}
+    }
+
+    return getJson<AgentPendingPharmacyRequestsResponse>(
       `/api/payments/pharmacy-requests?${searchParams.toString()}`,
-      {
-        headers: getAgentAuthHeaders(accessToken),
-      },
-    ),
-  );
+      { headers }
+    );
+  });
 }
 
 export async function processAgentPharmacyPayment(payload: {
@@ -424,112 +460,154 @@ export async function getPendingDrugExchanges(search?: string) {
   return withAgentSessionRetry(async (accessToken) => {
     const headers = getAgentAuthHeaders(accessToken);
 
-    // Strategy 1: Try /api/payments/drug-exchange/pending?search=...
-    try {
-      const q = cleanSearch ? `?search=${encodeURIComponent(cleanSearch)}` : "";
-      const res = await getJson<any>(`/api/payments/drug-exchange/pending${q}`, { headers });
-      const rawData = res?.data ?? res;
-      const list = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.items)
-        ? rawData.items
-        : Array.isArray(rawData?.exchanges)
-        ? rawData.exchanges
-        : Array.isArray(rawData?.refunds)
-        ? rawData.refunds
-        : rawData && typeof rawData === "object" && (rawData.exchange_code || rawData.id)
-        ? [rawData]
-        : [];
-      if (list.length > 0) {
-        return { status: 200, message: "Success", data: list };
-      }
-    } catch {}
+    const parseList = (res: any): any[] => {
+      if (!res) return [];
+      const rawData = res.data ?? res;
+      if (Array.isArray(rawData)) return rawData;
 
-    // Strategy 2: Try /api/payments/drug-exchange?search=... & ?exchange_code=...
-    try {
-      const q = cleanSearch ? `?search=${encodeURIComponent(cleanSearch)}` : "";
-      const res = await getJson<any>(`/api/payments/drug-exchange${q}`, { headers });
-      const rawData = res?.data ?? res;
-      const list = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.items)
-        ? rawData.items
-        : Array.isArray(rawData?.exchanges)
-        ? rawData.exchanges
-        : Array.isArray(rawData?.refunds)
-        ? rawData.refunds
-        : rawData && typeof rawData === "object" && (rawData.exchange_code || rawData.id)
-        ? [rawData]
-        : [];
-      if (list.length > 0) {
-        return { status: 200, message: "Success", data: list };
+      // Single exchange object at top level
+      if (
+        rawData &&
+        typeof rawData === "object" &&
+        (rawData.exchange_code ||
+          rawData.exchangeCode ||
+          rawData.code ||
+          rawData.exchange_id ||
+          rawData.exchangeId ||
+          (rawData.id && (rawData.net_amount !== undefined || rawData.total_returned_amount !== undefined || rawData.returned_items || rawData.replacement_items)))
+      ) {
+        return [rawData];
       }
-    } catch {}
 
-    // Strategy 3: Try /api/pharmacy/drug-exchange?search=... & ?exchange_code=...
-    try {
-      const q = cleanSearch ? `?search=${encodeURIComponent(cleanSearch)}` : "";
-      const res = await getJson<any>(`/api/pharmacy/drug-exchange${q}`, { headers });
-      const rawData = res?.data ?? res;
-      const list = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.items)
-        ? rawData.items
-        : Array.isArray(rawData?.exchanges)
-        ? rawData.exchanges
-        : Array.isArray(rawData?.records)
-        ? rawData.records
-        : rawData && typeof rawData === "object" && (rawData.exchange_code || rawData.id)
-        ? [rawData]
-        : [];
-      if (list.length > 0) {
-        return { status: 200, message: "Success", data: list };
-      }
-    } catch {}
+      if (Array.isArray(rawData?.exchanges)) return rawData.exchanges;
+      if (Array.isArray(rawData?.pending_exchanges)) return rawData.pending_exchanges;
+      if (Array.isArray(rawData?.pendingExchanges)) return rawData.pendingExchanges;
+      if (Array.isArray(rawData?.records)) return rawData.records;
+      if (Array.isArray(rawData?.refunds)) return rawData.refunds;
+      if (Array.isArray(rawData?.rows)) return rawData.rows;
+      if (Array.isArray(rawData?.list)) return rawData.list;
+      if (Array.isArray(rawData?.results)) return rawData.results;
+      if (Array.isArray(rawData?.data)) return rawData.data;
 
-    // Strategy 4: Try /api/pharmacy/drug-exchange/${cleanSearch} (direct code/ID route)
-    if (cleanSearch) {
-      try {
-        const res = await getJson<any>(`/api/pharmacy/drug-exchange/${encodeURIComponent(cleanSearch)}`, { headers });
-        const rawData = res?.data ?? res;
-        if (rawData && (rawData.exchange_code || rawData.id)) {
-          return { status: 200, message: "Success", data: [rawData] };
+      if (Array.isArray(rawData?.items)) {
+        const first = rawData.items[0];
+        if (first && (first.exchange_code || first.exchangeCode || first.code || first.net_amount !== undefined)) {
+          return rawData.items;
         }
-      } catch {}
+      }
+
+      if (rawData?.exchange && typeof rawData.exchange === "object") return [rawData.exchange];
+      if (rawData?.record && typeof rawData.record === "object") return [rawData.record];
+      if (rawData?.item && typeof rawData.item === "object") return [rawData.item];
+
+      if (rawData && typeof rawData === "object") {
+        if (
+          rawData.exchange_code ||
+          rawData.exchangeCode ||
+          rawData.code ||
+          rawData.id ||
+          rawData._id ||
+          rawData.billing_code ||
+          rawData.billingCode ||
+          rawData.reference_code ||
+          rawData.referenceCode ||
+          rawData.patient_name ||
+          rawData.net_amount !== undefined ||
+          rawData.total_returned_amount !== undefined
+        ) {
+          return [rawData];
+        }
+      }
+      return [];
+    };
+
+    const isMatch = (item: any, target: string) => {
+      if (!item || typeof item !== "object") return false;
+      const t = target.trim().toUpperCase();
+      const candidates = [
+        item.exchange_code,
+        item.exchangeCode,
+        item.code,
+        item.id,
+        item._id,
+        item.exchange_id,
+        item.exchangeId,
+        item.exchange_number,
+        item.exchangeNumber,
+        item.billing_code,
+        item.billingCode,
+        item.bill_code,
+        item.billCode,
+        item.receipt_no,
+        item.receiptNo,
+        item.original_billing_code,
+        item.originalBillingCode,
+        item.original_receipt_no,
+        item.originalReceiptNo,
+        item.reference_code,
+        item.referenceCode,
+        item.reference,
+        item.reference_no,
+        item.referenceNo,
+        item.cashier_bill_code,
+        item.patient_id,
+        item.patientId,
+        item.exchange?.exchange_code,
+        item.exchange?.exchangeCode,
+        item.exchange?.code,
+        item.exchange?.id,
+      ]
+        .filter(Boolean)
+        .map((s) => String(s).trim().toUpperCase());
+
+      return candidates.some((c) => c === t || c.includes(t) || t.includes(c));
+    };
+
+    if (cleanSearch) {
+      const upperSearch = cleanSearch.toUpperCase();
+
+      // Official documented Cashier Pending Exchange search endpoint (DRUG_EXCHANGE_FRONTEND_GUIDE.md §4)
+      const searchEndpoints = [
+        `/api/payments/drug-exchange/pending?search=${encodeURIComponent(cleanSearch)}&status=pending_payment`,
+        `/api/payments/drug-exchange/pending?search=${encodeURIComponent(cleanSearch)}`,
+        `/api/payments/drug-exchange/pending`,
+      ];
+
+      for (const endpoint of searchEndpoints) {
+        try {
+          const res = await getJson<any>(endpoint, { headers });
+          const list = parseList(res);
+          if (list.length > 0) {
+            const matched = list.filter((it) => isMatch(it, upperSearch));
+            if (matched.length > 0) {
+              return { status: 200, message: "Success", data: matched };
+            }
+            if (list.length === 1 && endpoint.includes("search=")) {
+              return { status: 200, message: "Success", data: list };
+            }
+          }
+        } catch {}
+      }
+
+      return { status: 200, message: "No exchanges found", data: [] };
     }
 
-    // Strategy 5: Query /api/pharmacy/drug-exchange list and match in-memory
+    // Default when no search query: return pending list (DRUG_EXCHANGE_FRONTEND_GUIDE.md §4)
     try {
-      const res = await getJson<any>(`/api/pharmacy/drug-exchange`, { headers });
-      const rawData = res?.data ?? res;
-      const list = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.items)
-        ? rawData.items
-        : Array.isArray(rawData?.exchanges)
-        ? rawData.exchanges
-        : Array.isArray(rawData?.records)
-        ? rawData.records
-        : [];
+      const res = await getJson<any>("/api/payments/drug-exchange/pending?status=pending_payment", { headers });
+      const list = parseList(res);
       if (list.length > 0) {
-        if (cleanSearch) {
-          const upper = cleanSearch.toUpperCase();
-          const matched = list.filter(
-            (e: any) =>
-              (e.exchange_code && e.exchange_code.toUpperCase() === upper) ||
-              (e.id && String(e.id).toUpperCase() === upper) ||
-              (e.billing_code && e.billing_code.toUpperCase() === upper) ||
-              (e.patient_id && e.patient_id.toUpperCase() === upper)
-          );
-          if (matched.length > 0) {
-            return { status: 200, message: "Success", data: matched };
-          }
-        }
         return { status: 200, message: "Success", data: list };
       }
     } catch {}
 
-    return { status: 200, message: "No exchanges found", data: [] };
+    try {
+      const res = await getJson<any>("/api/payments/drug-exchange/pending", { headers });
+      const list = parseList(res);
+      return { status: 200, message: "Success", data: list };
+    } catch {
+      return { status: 200, message: "No exchanges found", data: [] };
+    }
   });
 }
 
@@ -548,105 +626,20 @@ export async function processDrugExchangePayment(payload: {
 }) {
   return withAgentSessionRetry(async (accessToken) => {
     const headers = getAgentAuthHeaders(accessToken);
-    const code = payload.exchange_code || payload.code || "";
-    const id = payload.exchange_id || payload.id || code;
+    const code = (payload.exchange_code || payload.code || "").trim().toUpperCase();
     const paymentTypeLower = String(payload.payment_type || "cash").toLowerCase();
-    const paymentTypeUpper = paymentTypeLower.toUpperCase();
-    const amount = payload.amount ?? (payload.net_amount ? Math.abs(payload.net_amount) : 0);
 
-    const exactBody = {
-      exchange_code: code,
-      payment_type: paymentTypeLower,
-    };
-
-    const fullBody = {
-      exchange_code: code,
-      exchange_id: id,
-      code: code,
-      id: id,
-      payment_type: paymentTypeLower,
-      payment_method: paymentTypeUpper,
-      amount: amount,
-      patient_id: payload.patient_id,
-      patient_name: payload.patient_name,
-      remarks: payload.remarks || "Cashier exchange settlement",
-    };
-
-    let lastError: any = null;
-
-    // Strategy 1: POST /api/payments/drug-exchange/process with exact documented payload { exchange_code, payment_type }
-    try {
-      return await postJson<ProcessPaymentResponse>(
-        "/api/payments/drug-exchange/process",
-        exactBody,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 2: POST /api/payments/drug-exchange/process with full body
-    try {
-      return await postJson<ProcessPaymentResponse>(
-        "/api/payments/drug-exchange/process",
-        fullBody,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 3: POST /api/payments/drug-exchange
-    try {
-      return await postJson<ProcessPaymentResponse>(
-        "/api/payments/drug-exchange",
-        exactBody,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 4: POST /api/pharmacy/drug-exchange/:code/settle
-    if (code) {
-      try {
-        return await postJson<ProcessPaymentResponse>(
-          `/api/pharmacy/drug-exchange/${encodeURIComponent(code)}/settle`,
-          fullBody,
-          { headers }
-        );
-      } catch (err: any) {
-        lastError = err;
-      }
-    }
-
-    // Strategy 5: POST /api/pharmacy/drug-exchange/settle
-    try {
-      return await postJson<ProcessPaymentResponse>(
-        "/api/pharmacy/drug-exchange/settle",
-        fullBody,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 6: POST /api/pharmacy/drug-exchange/:code/pay
-    if (code) {
-      try {
-        return await postJson<ProcessPaymentResponse>(
-          `/api/pharmacy/drug-exchange/${encodeURIComponent(code)}/pay`,
-          fullBody,
-          { headers }
-        );
-      } catch (err: any) {
-        lastError = err;
-      }
-    }
-
-    throw new Error(
-      lastError?.message ||
-        `Unable to clear exchange "${code}". Please ensure the exchange status is pending.`
+    return await postJson<ProcessPaymentResponse>(
+      "/api/payments/drug-exchange/process",
+      {
+        exchange_code: code,
+        exchangeCode: code,
+        code: code,
+        payment_type: paymentTypeLower,
+        paymentType: paymentTypeLower,
+        payment_method: paymentTypeLower.toUpperCase(),
+      },
+      { headers }
     );
   });
 }
@@ -667,25 +660,8 @@ export async function refundDrugExchange(payload: {
   return withAgentSessionRetry(async (accessToken) => {
     const headers = getAgentAuthHeaders(accessToken);
     const code = payload.exchange_code || payload.code || "";
-    const id = payload.exchange_id || payload.id || code;
     const paymentTypeLower = String(payload.payment_type || "cash").toLowerCase();
     const paymentTypeUpper = paymentTypeLower.toUpperCase();
-    const amount = payload.amount ?? (payload.net_amount ? Math.abs(payload.net_amount) : 0);
-
-    const body = {
-      exchange_code: code,
-      exchange_id: id,
-      code: code,
-      id: id,
-      payment_type: paymentTypeLower,
-      payment_method: paymentTypeUpper,
-      amount: amount,
-      patient_id: payload.patient_id,
-      patient_name: payload.patient_name,
-      remarks: payload.remarks || "Cashier refund disbursement",
-    };
-
-    let lastError: any = null;
 
     // Strategy 1: POST /api/payments/drug-exchange/refund
     try {
@@ -693,72 +669,34 @@ export async function refundDrugExchange(payload: {
         status: string | number;
         message?: string;
         data: any;
-      }>("/api/payments/drug-exchange/refund", body, { headers });
+      }>(
+        "/api/payments/drug-exchange/refund",
+        {
+          exchange_code: code,
+          payment_type: paymentTypeLower,
+          remarks: payload.remarks || "Cashier refund disbursement",
+        },
+        { headers }
+      );
     } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 2: POST /api/pharmacy-store/refunds/:exchangeId/approve
-    if (id || code) {
+      // Strategy 2: POST /api/pharmacy-store/refunds/approve
       try {
         return await postJson<any>(
-          `/api/pharmacy-store/refunds/${encodeURIComponent(id || code)}/approve`,
-          body,
+          "/api/pharmacy-store/refunds/approve",
+          {
+            exchange_code: code,
+            remarks: payload.remarks || "Store refund approval",
+          },
           { headers }
         );
-      } catch (err: any) {
-        lastError = err;
+      } catch (err2: any) {
+        throw new Error(
+          err?.message ||
+            err2?.message ||
+            `Unable to process refund for exchange "${code}".`
+        );
       }
     }
-
-    // Strategy 3: POST /api/pharmacy-store/refunds/approve
-    try {
-      return await postJson<any>(
-        "/api/pharmacy-store/refunds/approve",
-        body,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 4: POST /api/pharmacy/drug-exchange/refund
-    try {
-      return await postJson<any>(
-        "/api/pharmacy/drug-exchange/refund",
-        body,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 5: POST /api/pharmacy/refunds/process
-    try {
-      return await postJson<any>(
-        "/api/pharmacy/refunds/process",
-        body,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    // Strategy 6: POST /api/payments/drug-exchange/process
-    try {
-      return await postJson<any>(
-        "/api/payments/drug-exchange/process",
-        body,
-        { headers }
-      );
-    } catch (err: any) {
-      lastError = err;
-    }
-
-    throw new Error(
-      lastError?.message ||
-        `Unable to process refund for exchange "${code}".`
-    );
   });
 }
 
