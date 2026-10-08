@@ -179,13 +179,13 @@ function formatLocalYMD(d: Date): string {
   }, []);
 
   const [datePreset, setDatePreset] = useState<
-    "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "all_time" | "custom"
+    "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "custom"
   >("today");
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
   const applyDatePreset = (
-    preset: "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "all_time" | "custom"
+    preset: "today" | "yesterday" | "this_week" | "this_month" | "last_30_days"
   ) => {
     setDatePreset(preset);
     const now = new Date();
@@ -214,10 +214,6 @@ function formatLocalYMD(d: Date): string {
     } else if (preset === "last_30_days") {
       const start = new Date(now);
       start.setDate(start.getDate() - 30);
-      setStartDate(formatLocalYMD(start));
-      setEndDate(formatLocalYMD(now));
-    } else if (preset === "all_time") {
-      const start = new Date(now.getFullYear(), 0, 1);
       setStartDate(formatLocalYMD(start));
       setEndDate(formatLocalYMD(now));
     }
@@ -328,6 +324,34 @@ function formatLocalYMD(d: Date): string {
     enabled: Boolean(accessToken && activeTab === "returns-exchanges-report"),
   });
 
+  // Active loaded data for print/export fallback
+  const activeTabData = useMemo(() => {
+    switch (activeTab) {
+      case "drug-report":
+        return (drugSalesQuery.data as any)?.data ?? drugSalesQuery.data;
+      case "detailed-drug-report":
+        return (detailedDispenseQuery.data as any)?.data ?? detailedDispenseQuery.data;
+      case "stock-inventory-report":
+        return (stockInventoryQuery.data as any)?.data ?? stockInventoryQuery.data;
+      case "expiry-report":
+        return (expiryQuery.data as any)?.data ?? expiryQuery.data;
+      case "pharmacist-performance-report":
+        return (pharmacistPerformanceQuery.data as any)?.data ?? pharmacistPerformanceQuery.data;
+      case "returns-exchanges-report":
+        return (returnsExchangesQuery.data as any)?.data ?? returnsExchangesQuery.data;
+      default:
+        return null;
+    }
+  }, [
+    activeTab,
+    drugSalesQuery.data,
+    detailedDispenseQuery.data,
+    stockInventoryQuery.data,
+    expiryQuery.data,
+    pharmacistPerformanceQuery.data,
+    returnsExchangesQuery.data,
+  ]);
+
   // Export CSV Handler
   const [isExporting, setIsExporting] = useState(false);
   const handleExportCsv = async () => {
@@ -351,7 +375,13 @@ function formatLocalYMD(d: Date): string {
         filters.status = exchangeStatus;
       }
 
-      await downloadPharmacyReportCsv(currentTabConfig.endpoint, filters, currentTabConfig.filePrefix);
+      await downloadPharmacyReportCsv(
+        currentTabConfig.endpoint,
+        filters,
+        currentTabConfig.filePrefix,
+        activeTabData,
+        currentTabConfig.key
+      );
       toast.success("Report downloaded successfully as CSV!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Export failed");
@@ -361,7 +391,7 @@ function formatLocalYMD(d: Date): string {
   };
 
   // Print Handler
-  const handlePrint = () => {
+  const handlePrint = async () => {
     const filters: Record<string, any> = {
       start_date: startDate,
       end_date: endDate,
@@ -380,7 +410,13 @@ function formatLocalYMD(d: Date): string {
       filters.status = exchangeStatus;
     }
 
-    openPharmacyReportPrint(currentTabConfig.endpoint, filters);
+    await openPharmacyReportPrint(
+      currentTabConfig.endpoint,
+      filters,
+      currentTabConfig.label,
+      activeTabData,
+      currentTabConfig.key
+    );
   };
 
   if (!accessToken) return null;
@@ -478,22 +514,23 @@ function formatLocalYMD(d: Date): string {
                     { id: "this_week", label: "This Week" },
                     { id: "this_month", label: "This Month" },
                     { id: "last_30_days", label: "Last 30 Days" },
-                    { id: "all_time", label: "This Year" },
-                    { id: "custom", label: "Custom" },
                   ] as const
-                ).map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => applyDatePreset(preset.id)}
-                    className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                      datePreset === preset.id
-                        ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"
-                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+                ).map((preset) => {
+                  const isActive = datePreset === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      onClick={() => applyDatePreset(preset.id)}
+                      className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                        isActive
+                          ? "bg-brand-600 text-white shadow-xs dark:bg-brand-500"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 border border-slate-200/80 dark:border-slate-800/80"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-xs text-slate-400 font-medium">

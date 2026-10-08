@@ -272,6 +272,8 @@ async function fetchDispensedRequestsFallback(params?: {
   end_date?: string;
   search?: string;
 }) {
+  let list: any[] = [];
+
   // 1. Try report/dispensed endpoints
   try {
     const reportRes = await withPharmacySessionRetry((token) =>
@@ -282,42 +284,57 @@ async function fetchDispensedRequestsFallback(params?: {
 
     const logs = reportRes?.data?.logs || reportRes?.data?.requests || reportRes?.logs || reportRes?.requests;
     if (Array.isArray(logs) && logs.length > 0) {
-      return logs;
+      list = logs;
     }
   } catch {
     // ignore
   }
 
   // 2. Try pharmacy request endpoints
-  const endpoints = [
-    `/api/pharmacy/request?status=dispensed&limit=200`,
-    `/api/pharmacy/request?status=dispensed`,
-    `/api/pharmacy/requests?status=dispensed&limit=200`,
-    `/api/pharmacy/requests?status=dispensed`,
-    `/api/pharmacy/request?limit=200`,
-    `/api/pharmacy/requests?limit=200`,
-  ];
+  if (list.length === 0) {
+    const endpoints = [
+      `/api/pharmacy/request?status=dispensed&limit=200`,
+      `/api/pharmacy/request?status=dispensed`,
+      `/api/pharmacy/requests?status=dispensed&limit=200`,
+      `/api/pharmacy/requests?status=dispensed`,
+      `/api/pharmacy/request?limit=200`,
+      `/api/pharmacy/requests?limit=200`,
+    ];
 
-  for (const ep of endpoints) {
-    try {
-      const reqRes = await withPharmacySessionRetry((token) =>
-        getJson<any>(ep, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-      ).catch(() => null);
+    for (const ep of endpoints) {
+      try {
+        const reqRes = await withPharmacySessionRetry((token) =>
+          getJson<any>(ep, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        ).catch(() => null);
 
-      const unwrap = unwrapPharmacyData<any>(reqRes, []);
-      const list = Array.isArray(unwrap) ? unwrap : unwrap?.requests ?? unwrap?.items ?? unwrap?.data ?? [];
-      if (Array.isArray(list) && list.length > 0) {
-        const dispensedOnly = list.filter((r: any) => !r.status || r.status.toLowerCase() === "dispensed");
-        return dispensedOnly.length > 0 ? dispensedOnly : list;
+        const unwrap = unwrapPharmacyData<any>(reqRes, []);
+        const epList = Array.isArray(unwrap) ? unwrap : unwrap?.requests ?? unwrap?.items ?? unwrap?.data ?? [];
+        if (Array.isArray(epList) && epList.length > 0) {
+          const dispensedOnly = epList.filter((r: any) => !r.status || r.status.toLowerCase() === "dispensed");
+          list = dispensedOnly.length > 0 ? dispensedOnly : epList;
+          break;
+        }
+      } catch {
+        // ignore and try next
       }
-    } catch {
-      // ignore and try next
     }
   }
 
-  return [];
+  // Filter fallback records by start_date and end_date if provided
+  if (list.length > 0 && (params?.start_date || params?.end_date)) {
+    const sDate = params.start_date || "1970-01-01";
+    const eDate = params.end_date || "2099-12-31";
+    list = list.filter((r: any) => {
+      const dateStr = r.dispensed_at || r.created_at || r.updated_at || "";
+      if (!dateStr) return true;
+      const formatted = dateStr.slice(0, 10);
+      return formatted >= sDate && formatted <= eDate;
+    });
+  }
+
+  return list;
 }
 
 export async function getDrugSalesReport(params?: {
@@ -345,11 +362,8 @@ export async function getDrugSalesReport(params?: {
     primaryRes = null;
   }
 
-  const unwrapped = (primaryRes as any)?.data ?? primaryRes;
-  const rawDrugs = unwrapped?.drugs ?? unwrapped?.items ?? unwrapped?.records ?? (Array.isArray(unwrapped) ? unwrapped : []);
-
-  if (Array.isArray(rawDrugs) && rawDrugs.length > 0) {
-    return primaryRes!;
+  if (primaryRes && (primaryRes.data || (primaryRes as any).status === 200 || (primaryRes as any).drugs)) {
+    return primaryRes;
   }
 
   // Fallback: build from dispensed requests
@@ -465,11 +479,8 @@ export async function getDetailedDispenseReport(params?: {
     primaryRes = null;
   }
 
-  const unwrapped = (primaryRes as any)?.data ?? primaryRes;
-  const rawRecords = unwrapped?.records ?? unwrapped?.items ?? unwrapped?.drugs ?? (Array.isArray(unwrapped) ? unwrapped : []);
-
-  if (Array.isArray(rawRecords) && rawRecords.length > 0) {
-    return primaryRes!;
+  if (primaryRes && (primaryRes.data || (primaryRes as any).status === 200 || (primaryRes as any).records)) {
+    return primaryRes;
   }
 
   // Fallback: build from dispensed requests
@@ -594,11 +605,8 @@ export async function getStockInventoryReport(params?: {
     primaryRes = null;
   }
 
-  const unwrapped = (primaryRes as any)?.data ?? primaryRes;
-  const rawItems = unwrapped?.items ?? unwrapped?.drugs ?? (Array.isArray(unwrapped) ? unwrapped : []);
-
-  if (Array.isArray(rawItems) && rawItems.length > 0) {
-    return primaryRes!;
+  if (primaryRes && (primaryRes.data || (primaryRes as any).status === 200 || (primaryRes as any).items)) {
+    return primaryRes;
   }
 
   // Fallback to /api/pharmacy/inventory
@@ -696,11 +704,8 @@ export async function getExpiryReport(params?: {
     primaryRes = null;
   }
 
-  const unwrapped = (primaryRes as any)?.data ?? primaryRes;
-  const rawItems = unwrapped?.items ?? unwrapped?.drugs ?? (Array.isArray(unwrapped) ? unwrapped : []);
-
-  if (Array.isArray(rawItems) && rawItems.length > 0) {
-    return primaryRes!;
+  if (primaryRes && (primaryRes.data || (primaryRes as any).status === 200 || (primaryRes as any).items)) {
+    return primaryRes;
   }
 
   // Fallback to /api/pharmacy/inventory
@@ -822,11 +827,8 @@ export async function getPharmacistPerformanceReport(params?: {
     primaryRes = null;
   }
 
-  const unwrapped = (primaryRes as any)?.data ?? primaryRes;
-  const rawStaff = unwrapped?.pharmacists ?? unwrapped?.items ?? unwrapped?.records ?? (Array.isArray(unwrapped) ? unwrapped : []);
-
-  if (Array.isArray(rawStaff) && rawStaff.length > 0) {
-    return primaryRes!;
+  if (primaryRes && (primaryRes.data || (primaryRes as any).status === 200 || (primaryRes as any).pharmacists)) {
+    return primaryRes;
   }
 
   // Fallback: build from dispensed requests
@@ -935,10 +937,708 @@ export async function getReturnsExchangesReport(params?: {
 // 3. Print and Export Handlers
 // ==========================================
 
+function escapeCsvField(val: any): string {
+  if (val === undefined || val === null) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+export function generateClientReportCsv(
+  tabKey: string,
+  reportData: any
+): string {
+  const unwrapped = (reportData as any)?.data ?? reportData ?? {};
+
+  if (tabKey === "drug-report") {
+    const rawList: DrugSalesReportItem[] =
+      unwrapped?.drugs ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const headers = [
+      "Drug Name",
+      "Generic Name",
+      "Category",
+      "Current Stock",
+      "Unit Price (NGN)",
+      "Quantity Sold",
+      "Total Sales (NGN)",
+      "Average Price (NGN)",
+    ];
+    const rows = rawList.map((d) => [
+      escapeCsvField(d.drug_name),
+      escapeCsvField(d.generic_name || ""),
+      escapeCsvField(d.category_name || "General"),
+      escapeCsvField(d.current_stock || 0),
+      escapeCsvField(d.current_unit_price || 0),
+      escapeCsvField(d.quantity_sold || 0),
+      escapeCsvField(d.total_price || 0),
+      escapeCsvField(d.average_price || 0),
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+  }
+
+  if (tabKey === "detailed-drug-report") {
+    const rawList: DetailedDispenseRecord[] =
+      unwrapped?.records ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const headers = [
+      "Dispensed Date",
+      "Pharmacist",
+      "Drug Name",
+      "Generic Name",
+      "Quantity",
+      "Unit Price (NGN)",
+      "Amount Paid (NGN)",
+      "Patient Name",
+      "Patient ID",
+      "Phone Number",
+      "Billing Code",
+      "Receipt No",
+      "Payment Method",
+    ];
+    const rows = rawList.map((r) => [
+      escapeCsvField(r.dispensed_at ? new Date(r.dispensed_at).toLocaleString() : ""),
+      escapeCsvField(r.pharmacist_name || "Duty Pharmacist"),
+      escapeCsvField(r.drug_name),
+      escapeCsvField(r.generic_name || ""),
+      escapeCsvField(r.quantity || 1),
+      escapeCsvField(r.unit_price || 0),
+      escapeCsvField(r.amount_paid || 0),
+      escapeCsvField(r.patient_name || "Walk-In"),
+      escapeCsvField(r.patient_id || ""),
+      escapeCsvField(r.phone_number || ""),
+      escapeCsvField(r.billing_code || ""),
+      escapeCsvField(r.receipt_no || ""),
+      escapeCsvField((r.payment_method || "CASH").toUpperCase()),
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+  }
+
+  if (tabKey === "stock-inventory-report") {
+    const rawList: StockInventoryItem[] =
+      unwrapped?.items ?? unwrapped?.records ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const headers = [
+      "Item Name",
+      "Generic Name",
+      "Category",
+      "Batch Number",
+      "Expiry Date",
+      "Stock Units",
+      "Reorder Level",
+      "Unit Price (NGN)",
+      "Stock Valuation (NGN)",
+      "Stock Status",
+    ];
+    const rows = rawList.map((it) => [
+      escapeCsvField(it.item_name),
+      escapeCsvField(it.generic_name || ""),
+      escapeCsvField(it.category_name || "General"),
+      escapeCsvField(it.batch_number || "N/A"),
+      escapeCsvField(it.expiry_date || "N/A"),
+      escapeCsvField(it.stock || 0),
+      escapeCsvField(it.reorder_level || 0),
+      escapeCsvField(it.unit_price || 0),
+      escapeCsvField(it.stock_valuation || (Number(it.stock || 0) * Number(it.unit_price || 0))),
+      escapeCsvField(it.stock_status || "IN STOCK"),
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+  }
+
+  if (tabKey === "expiry-report") {
+    const rawList: ExpiryReportItem[] =
+      unwrapped?.items ?? unwrapped?.records ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const headers = [
+      "Drug Name",
+      "Generic Name",
+      "Batch Number",
+      "Expiry Date",
+      "Days Remaining",
+      "Stock Units",
+      "Unit Price (NGN)",
+      "Value at Risk (NGN)",
+      "Risk Status",
+    ];
+    const rows = rawList.map((it) => [
+      escapeCsvField(it.drug_name),
+      escapeCsvField(it.generic_name || ""),
+      escapeCsvField(it.batch_number || "N/A"),
+      escapeCsvField(it.expiry_date || ""),
+      escapeCsvField(it.days_remaining ?? 0),
+      escapeCsvField(it.stock || 0),
+      escapeCsvField(it.unit_price || 0),
+      escapeCsvField(it.value_at_risk || (Number(it.stock || 0) * Number(it.unit_price || 0))),
+      escapeCsvField(it.risk_status || "ALERT"),
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+  }
+
+  if (tabKey === "pharmacist-performance-report") {
+    const rawList: PharmacistPerformanceItem[] =
+      unwrapped?.pharmacists ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const headers = [
+      "Pharmacist Name",
+      "Email",
+      "Requests Processed",
+      "Units Dispensed",
+      "Cash Revenue (NGN)",
+      "POS Revenue (NGN)",
+      "Transfer Revenue (NGN)",
+      "Total Revenue (NGN)",
+    ];
+    const rows = rawList.map((p) => [
+      escapeCsvField(p.pharmacist_name || "Duty Pharmacist"),
+      escapeCsvField(p.email || ""),
+      escapeCsvField(p.requests_count || 0),
+      escapeCsvField(p.total_quantity_dispensed || 0),
+      escapeCsvField(p.cash_amount || 0),
+      escapeCsvField(p.pos_amount || 0),
+      escapeCsvField(p.transfer_amount || 0),
+      escapeCsvField(p.total_amount || 0),
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+  }
+
+  if (tabKey === "returns-exchanges-report") {
+    const rawList: ReturnsExchangesReportItem[] =
+      unwrapped?.exchanges ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const headers = [
+      "Exchange Code",
+      "Date",
+      "Patient Name",
+      "Patient ID",
+      "Phone Number",
+      "Returned Value (NGN)",
+      "Replacement Cost (NGN)",
+      "Net Amount (NGN)",
+      "Status",
+      "Pharmacist",
+    ];
+    const rows = rawList.map((ex) => [
+      escapeCsvField(ex.exchange_code),
+      escapeCsvField(ex.created_at ? new Date(ex.created_at).toLocaleString() : ""),
+      escapeCsvField(ex.patient_name || "Patient"),
+      escapeCsvField(ex.patient_id || ""),
+      escapeCsvField(ex.phone_number || ""),
+      escapeCsvField(ex.total_returned_amount || 0),
+      escapeCsvField(ex.total_replacement_amount || 0),
+      escapeCsvField(ex.net_amount || 0),
+      escapeCsvField(ex.status || "COMPLETED"),
+      escapeCsvField(ex.pharmacist_name || "Pharmacist"),
+    ]);
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+  }
+
+  return "No records available";
+}
+
+export function generatePrintReportHtml(
+  title: string,
+  tabKey: string,
+  reportData: any,
+  filters: Record<string, any>
+): string {
+  const unwrapped = (reportData as any)?.data ?? reportData ?? {};
+  const hospitalName = unwrapped?.hospital_name || "Hospital Management System";
+  const unitName = unwrapped?.pharmacy_unit_name || "Pharmacy Department";
+  const nowStr = new Date().toLocaleString();
+
+  const filterSummaryList: string[] = [];
+  if (filters.start_date && filters.end_date) {
+    filterSummaryList.push(`<strong>Period:</strong> ${filters.start_date} to ${filters.end_date}`);
+  }
+  if (filters.search) {
+    filterSummaryList.push(`<strong>Search:</strong> "${filters.search}"`);
+  }
+  if (filters.stock_status && filters.stock_status !== "all") {
+    filterSummaryList.push(`<strong>Status:</strong> ${filters.stock_status.toUpperCase()}`);
+  }
+  if (filters.timeframe && filters.timeframe !== "all") {
+    filterSummaryList.push(`<strong>Timeframe:</strong> ${filters.timeframe}`);
+  }
+  if (filters.status && filters.status !== "all") {
+    filterSummaryList.push(`<strong>Status:</strong> ${filters.status.toUpperCase()}`);
+  }
+
+  let tableHeaderHtml = "";
+  let tableRowsHtml = "";
+  let summaryCardsHtml = "";
+
+  if (tabKey === "drug-report") {
+    const list: DrugSalesReportItem[] =
+      unwrapped?.drugs ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const sum = unwrapped?.summary || {};
+    const totalQty = sum.total_quantity_sold ?? list.reduce((a, d) => a + Number(d.quantity_sold || 0), 0);
+    const totalRev = sum.total_sales_amount ?? list.reduce((a, d) => a + Number(d.total_price || 0), 0);
+
+    summaryCardsHtml = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Unique Drugs</div>
+          <div class="summary-value">${list.length}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Units Sold</div>
+          <div class="summary-value">${totalQty.toLocaleString()}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Sales Revenue</div>
+          <div class="summary-value">NGN ${totalRev.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+
+    tableHeaderHtml = `
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th>Drug Name</th>
+        <th>Generic Name</th>
+        <th>Category</th>
+        <th style="text-align: right;">Current Stock</th>
+        <th style="text-align: right;">Unit Price (NGN)</th>
+        <th style="text-align: right;">Qty Sold</th>
+        <th style="text-align: right;">Total Revenue (NGN)</th>
+      </tr>
+    `;
+
+    tableRowsHtml = list.length === 0
+      ? `<tr><td colspan="8" style="text-align: center; color: #888; padding: 20px;">No drug sales records found for this period.</td></tr>`
+      : list.map((d, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td style="font-weight: 600;">${d.drug_name}</td>
+          <td>${d.generic_name || "—"}</td>
+          <td>${d.category_name || "General"}</td>
+          <td style="text-align: right;">${Number(d.current_stock || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(d.current_unit_price || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 600;">${Number(d.quantity_sold || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 700; color: #047857;">${Number(d.total_price || 0).toLocaleString()}</td>
+        </tr>
+      `).join("");
+  } else if (tabKey === "detailed-drug-report") {
+    const list: DetailedDispenseRecord[] =
+      unwrapped?.records ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const sum = unwrapped?.summary || {};
+    const totalRec = sum.total_dispense_records ?? list.length;
+    const totalAmt = sum.total_amount ?? list.reduce((a, r) => a + Number(r.amount_paid || 0), 0);
+
+    summaryCardsHtml = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Total Dispense Events</div>
+          <div class="summary-value">${totalRec.toLocaleString()}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Amount Paid</div>
+          <div class="summary-value">NGN ${totalAmt.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+
+    tableHeaderHtml = `
+      <tr>
+        <th style="width: 4%;">#</th>
+        <th>Date / Time</th>
+        <th>Pharmacist</th>
+        <th>Medication</th>
+        <th style="text-align: right;">Qty</th>
+        <th style="text-align: right;">Amount (NGN)</th>
+        <th>Patient Name</th>
+        <th>Patient ID</th>
+        <th>Billing Code</th>
+        <th>Method</th>
+      </tr>
+    `;
+
+    tableRowsHtml = list.length === 0
+      ? `<tr><td colspan="10" style="text-align: center; color: #888; padding: 20px;">No detailed dispense records found.</td></tr>`
+      : list.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td style="white-space: nowrap;">${r.dispensed_at ? new Date(r.dispensed_at).toLocaleDateString() : "—"}</td>
+          <td>${r.pharmacist_name || "Duty Pharmacist"}</td>
+          <td style="font-weight: 600;">${r.drug_name}</td>
+          <td style="text-align: right;">${Number(r.quantity || 1).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 700; color: #047857;">${Number(r.amount_paid || 0).toLocaleString()}</td>
+          <td>${r.patient_name || "Walk-In"}</td>
+          <td>${r.patient_id || "—"}</td>
+          <td style="font-family: monospace;">${r.billing_code || "—"}</td>
+          <td style="text-transform: uppercase; font-size: 11px;">${r.payment_method || "CASH"}</td>
+        </tr>
+      `).join("");
+  } else if (tabKey === "stock-inventory-report") {
+    const list: StockInventoryItem[] =
+      unwrapped?.items ?? unwrapped?.records ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const sum = unwrapped?.summary || {};
+    const totalVal = sum.total_inventory_valuation ?? list.reduce((a, it) => a + Number(it.stock_valuation || (Number(it.stock || 0) * Number(it.unit_price || 0))), 0);
+
+    summaryCardsHtml = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Catalog Drug Lines</div>
+          <div class="summary-value">${list.length}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Stock Valuation</div>
+          <div class="summary-value">NGN ${totalVal.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+
+    tableHeaderHtml = `
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th>Item Name</th>
+        <th>Generic Name</th>
+        <th>Category</th>
+        <th>Batch No</th>
+        <th>Expiry Date</th>
+        <th style="text-align: right;">Stock Units</th>
+        <th style="text-align: right;">Unit Price (NGN)</th>
+        <th style="text-align: right;">Stock Valuation (NGN)</th>
+        <th>Status</th>
+      </tr>
+    `;
+
+    tableRowsHtml = list.length === 0
+      ? `<tr><td colspan="10" style="text-align: center; color: #888; padding: 20px;">No inventory items found.</td></tr>`
+      : list.map((it, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td style="font-weight: 600;">${it.item_name}</td>
+          <td>${it.generic_name || "—"}</td>
+          <td>${it.category_name || "General"}</td>
+          <td>${it.batch_number || "—"}</td>
+          <td>${it.expiry_date || "—"}</td>
+          <td style="text-align: right; font-weight: 600;">${Number(it.stock || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(it.unit_price || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 700;">${Number(it.stock_valuation || (Number(it.stock || 0) * Number(it.unit_price || 0))).toLocaleString()}</td>
+          <td style="font-weight: 600; font-size: 11px;">${it.stock_status || "IN STOCK"}</td>
+        </tr>
+      `).join("");
+  } else if (tabKey === "expiry-report") {
+    const list: ExpiryReportItem[] =
+      unwrapped?.items ?? unwrapped?.records ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const sum = unwrapped?.summary || {};
+    const totalRisk = sum.total_at_risk_valuation ?? list.reduce((a, it) => a + Number(it.value_at_risk || (Number(it.stock || 0) * Number(it.unit_price || 0))), 0);
+
+    summaryCardsHtml = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">At-Risk Drug Batches</div>
+          <div class="summary-value">${list.length}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Value at Risk</div>
+          <div class="summary-value" style="color: #b91c1c;">NGN ${totalRisk.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+
+    tableHeaderHtml = `
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th>Drug Name</th>
+        <th>Batch Number</th>
+        <th>Expiry Date</th>
+        <th style="text-align: right;">Days Remaining</th>
+        <th style="text-align: right;">Stock Units</th>
+        <th style="text-align: right;">Unit Price (NGN)</th>
+        <th style="text-align: right;">Value at Risk (NGN)</th>
+        <th>Risk Level</th>
+      </tr>
+    `;
+
+    tableRowsHtml = list.length === 0
+      ? `<tr><td colspan="9" style="text-align: center; color: #888; padding: 20px;">No expiring medications detected.</td></tr>`
+      : list.map((it, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td style="font-weight: 600;">${it.drug_name}</td>
+          <td>${it.batch_number || "—"}</td>
+          <td style="font-weight: 600; color: #b91c1c;">${it.expiry_date}</td>
+          <td style="text-align: right; font-weight: 700;">${it.days_remaining} d</td>
+          <td style="text-align: right;">${Number(it.stock || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(it.unit_price || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 700; color: #b91c1c;">${Number(it.value_at_risk || (Number(it.stock || 0) * Number(it.unit_price || 0))).toLocaleString()}</td>
+          <td style="font-weight: 600; font-size: 11px;">${it.risk_status || "ALERT"}</td>
+        </tr>
+      `).join("");
+  } else if (tabKey === "pharmacist-performance-report") {
+    const list: PharmacistPerformanceItem[] =
+      unwrapped?.pharmacists ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+    const sum = unwrapped?.summary || {};
+    const totalRev = sum.total_revenue ?? list.reduce((a, p) => a + Number(p.total_amount || 0), 0);
+
+    summaryCardsHtml = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-label">Pharmacists On Shift</div>
+          <div class="summary-value">${list.length}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Shift Dispense Revenue</div>
+          <div class="summary-value">NGN ${totalRev.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+
+    tableHeaderHtml = `
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th>Pharmacist Name</th>
+        <th>Email</th>
+        <th style="text-align: right;">Prescriptions</th>
+        <th style="text-align: right;">Units Dispensed</th>
+        <th style="text-align: right;">Cash (NGN)</th>
+        <th style="text-align: right;">POS (NGN)</th>
+        <th style="text-align: right;">Transfer (NGN)</th>
+        <th style="text-align: right;">Total Sales (NGN)</th>
+      </tr>
+    `;
+
+    tableRowsHtml = list.length === 0
+      ? `<tr><td colspan="9" style="text-align: center; color: #888; padding: 20px;">No pharmacist shift activity recorded.</td></tr>`
+      : list.map((p, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td style="font-weight: 600;">${p.pharmacist_name || "Duty Pharmacist"}</td>
+          <td>${p.email || "—"}</td>
+          <td style="text-align: right;">${Number(p.requests_count || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(p.total_quantity_dispensed || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(p.cash_amount || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(p.pos_amount || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(p.transfer_amount || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 700; color: #047857;">${Number(p.total_amount || 0).toLocaleString()}</td>
+        </tr>
+      `).join("");
+  } else if (tabKey === "returns-exchanges-report") {
+    const list: ReturnsExchangesReportItem[] =
+      unwrapped?.exchanges ?? unwrapped?.items ?? (Array.isArray(unwrapped) ? unwrapped : []);
+
+    tableHeaderHtml = `
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th>Code</th>
+        <th>Date</th>
+        <th>Patient Name</th>
+        <th>Patient ID</th>
+        <th style="text-align: right;">Returned (NGN)</th>
+        <th style="text-align: right;">Replacement (NGN)</th>
+        <th style="text-align: right;">Net Balance (NGN)</th>
+        <th>Status</th>
+      </tr>
+    `;
+
+    tableRowsHtml = list.length === 0
+      ? `<tr><td colspan="9" style="text-align: center; color: #888; padding: 20px;">No returns or exchanges recorded.</td></tr>`
+      : list.map((ex, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td style="font-family: monospace; font-weight: 700;">${ex.exchange_code}</td>
+          <td>${ex.created_at ? new Date(ex.created_at).toLocaleDateString() : "—"}</td>
+          <td style="font-weight: 600;">${ex.patient_name || "Patient"}</td>
+          <td>${ex.patient_id || "—"}</td>
+          <td style="text-align: right;">${Number(ex.total_returned_amount || 0).toLocaleString()}</td>
+          <td style="text-align: right;">${Number(ex.total_replacement_amount || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 700;">${Number(ex.net_amount || 0).toLocaleString()}</td>
+          <td style="font-size: 11px; text-transform: uppercase; font-weight: 600;">${ex.status || "COMPLETED"}</td>
+        </tr>
+      `).join("");
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title} - ${hospitalName}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
+      color: #1e293b;
+      background: #ffffff;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 16px;
+      margin-bottom: 18px;
+    }
+    .hospital-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 4px 0;
+    }
+    .unit-subtitle {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0284c7;
+      margin: 0 0 4px 0;
+    }
+    .report-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #334155;
+      margin: 6px 0 0 0;
+    }
+    .meta-box {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .filters-bar {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 11px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .summary-card {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .summary-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .summary-value {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    th {
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid #0f172a;
+    }
+    td {
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      font-size: 11px;
+    }
+    tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .footer-sign {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #475569;
+      page-break-inside: avoid;
+    }
+    .sign-line {
+      border-top: 1px dashed #94a3b8;
+      width: 200px;
+      padding-top: 4px;
+      margin-top: 36px;
+    }
+    @media print {
+      body {
+        padding: 0;
+      }
+      th {
+        background: #0f172a !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      tr {
+        page-break-inside: avoid;
+      }
+      .filters-bar, .summary-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header-container">
+    <div>
+      <h1 class="hospital-title">${hospitalName}</h1>
+      <div class="unit-subtitle">${unitName}</div>
+      <div class="report-name">${title}</div>
+    </div>
+    <div class="meta-box">
+      <div><strong>Generated:</strong> ${nowStr}</div>
+      <div><strong>Report Code:</strong> PHAR-REP-${Math.floor(100000 + Math.random() * 900000)}</div>
+      <div><strong>Classification:</strong> Confidential Audit Document</div>
+    </div>
+  </div>
+
+  ${filterSummaryList.length > 0 ? `<div class="filters-bar">${filterSummaryList.join(" | ")}</div>` : ""}
+  ${summaryCardsHtml}
+
+  <table>
+    <thead>
+      ${tableHeaderHtml}
+    </thead>
+    <tbody>
+      ${tableRowsHtml}
+    </tbody>
+  </table>
+
+  <div class="footer-sign">
+    <div>
+      <div>Generated By: Pharmacy Officer</div>
+      <div class="sign-line">Duty Pharmacist Signature</div>
+    </div>
+    <div>
+      <div>Verified By: Internal Audit / HOD</div>
+      <div class="sign-line">Supervising Pharmacist Signature</div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
 /**
- * Opens backend-rendered printable HTML report in a new tab (bypasses pagination automatically)
+ * Opens backend-rendered printable HTML report or renders clean client fallback
  */
-export function openPharmacyReportPrint(endpoint: string, filters: Record<string, any>) {
+export async function openPharmacyReportPrint(
+  endpoint: string,
+  filters: Record<string, any>,
+  reportTitle: string = "Pharmacy Report",
+  reportData?: any,
+  tabKey?: string
+) {
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(
+      "<html><head><title>Loading Print Preview...</title></head><body style='font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;'><p style='color:#666;font-size:15px;'>Preparing printable report, please wait...</p></body></html>"
+    );
+  }
+
   const query = new URLSearchParams();
   Object.entries(filters).forEach(([key, val]) => {
     if (val !== undefined && val !== null && val !== "" && val !== "all") {
@@ -948,24 +1648,60 @@ export function openPharmacyReportPrint(endpoint: string, filters: Record<string
   query.set("print", "true");
 
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : "";
-  if (accessToken) {
-    query.set("token", accessToken);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}?${query.toString()}`, {
+      method: "GET",
+      headers: {
+        Authorization: accessToken ? `Bearer ${accessToken}` : "",
+      },
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+
+    if (response.ok && contentType.includes("text/html")) {
+      const html = await response.text();
+      if (printWindow) {
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 300);
+      }
+      return;
+    }
+  } catch (err) {
+    console.warn("Backend print HTML fetch failed, using client generator:", err);
   }
 
-  const printUrl = `${API_BASE_URL}${endpoint}?${query.toString()}`;
-  const printWindow = window.open(printUrl, "_blank");
-  if (printWindow) {
+  // Client-side fallback report generator
+  if (printWindow && reportData && tabKey) {
+    const html = generatePrintReportHtml(reportTitle, tabKey, reportData, filters);
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
     printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  } else if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write("<p style='padding:20px;color:red;'>Unable to generate printable report.</p>");
+    printWindow.document.close();
   }
 }
 
 /**
- * Downloads full dataset CSV export from backend (bypasses pagination automatically)
+ * Downloads full dataset CSV export from backend with client-side fallback
  */
 export async function downloadPharmacyReportCsv(
   endpoint: string,
   filters: Record<string, any>,
-  fileNamePrefix: string = "pharmacy_report"
+  fileNamePrefix: string = "pharmacy_report",
+  reportData?: any,
+  tabKey?: string
 ) {
   const query = new URLSearchParams();
   Object.entries(filters).forEach(([key, val]) => {
@@ -977,25 +1713,47 @@ export async function downloadPharmacyReportCsv(
 
   const accessToken = typeof window !== "undefined" ? getAgentAccessToken() : "";
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}?${query.toString()}`, {
-    method: "GET",
-    headers: {
-      Authorization: accessToken ? `Bearer ${accessToken}` : "",
-    },
-  });
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}?${query.toString()}`, {
+      method: "GET",
+      headers: {
+        Authorization: accessToken ? `Bearer ${accessToken}` : "",
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Failed to export report (${response.statusText})`);
+    const contentType = response.headers.get("content-type") || "";
+
+    if (response.ok && (contentType.includes("text/csv") || contentType.includes("application/octet-stream"))) {
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      const dateStr = new Date().toISOString().split("T")[0];
+      link.setAttribute("download", `${fileNamePrefix}_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      return;
+    }
+  } catch (err) {
+    console.warn("Backend CSV export failed, falling back to client CSV:", err);
   }
 
-  const blob = await response.blob();
-  const downloadUrl = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = downloadUrl;
-  const dateStr = new Date().toISOString().split("T")[0];
-  link.setAttribute("download", `${fileNamePrefix}_${dateStr}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(downloadUrl);
+  // Client-side CSV generator fallback
+  if (reportData && tabKey) {
+    const csvContent = generateClientReportCsv(tabKey, reportData);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    const dateStr = new Date().toISOString().split("T")[0];
+    link.setAttribute("download", `${fileNamePrefix}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } else {
+    throw new Error("Unable to export CSV: no report records available.");
+  }
 }
