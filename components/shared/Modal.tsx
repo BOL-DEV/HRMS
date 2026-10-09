@@ -12,6 +12,7 @@ interface ModalProps {
   closeOnOutsideClick?: boolean;
   closeOnEscape?: boolean;
   align?: "center" | "right" | "left";
+  autoFocusFirstInput?: boolean;
 }
 
 export default function Modal({
@@ -23,9 +24,11 @@ export default function Modal({
   closeOnOutsideClick = true,
   closeOnEscape = true,
   align = "center",
+  autoFocusFirstInput = true,
 }: ModalProps) {
   useScrollLock(isOpen);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen || !closeOnEscape) return;
@@ -39,6 +42,26 @@ export default function Modal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, closeOnEscape, onClose]);
+
+  // Auto-focus first input element on modal open
+  useEffect(() => {
+    if (!isOpen || !autoFocusFirstInput) return;
+
+    const timer = setTimeout(() => {
+      if (contentRef.current) {
+        const firstFocusable = contentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstFocusable && typeof firstFocusable.focus === "function") {
+          firstFocusable.focus();
+        }
+      }
+    }, 60);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, autoFocusFirstInput]);
 
   if (!isOpen) return null;
 
@@ -61,6 +84,7 @@ export default function Modal({
       className={`fixed inset-0 z-50 flex overflow-y-auto ${alignStyles} ${overlayClassName} animate-in fade-in duration-150`}
     >
       <div
+        ref={contentRef}
         onClick={(e) => e.stopPropagation()}
         className={`relative ${className}`}
       >

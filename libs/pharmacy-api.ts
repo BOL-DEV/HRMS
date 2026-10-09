@@ -372,7 +372,7 @@ export async function deletePharmacyDrug(itemId: string) {
  */
 export async function reducePharmacyBalanceStock(
   itemId: string,
-  payload: { stock: number; reason: string }
+  payload: { stock: number; reason?: string }
 ) {
   return withPharmacySessionRetry((accessToken) =>
     patchJson<{

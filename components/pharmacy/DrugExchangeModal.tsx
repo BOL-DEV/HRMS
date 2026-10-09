@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   FiX,
   FiSearch,
@@ -441,6 +441,26 @@ export default function DrugExchangeModal({
   };
 
 
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input when modal opens or step changes
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [isOpen, step]);
+
   if (!isOpen) return null;
 
   return (
@@ -451,6 +471,7 @@ export default function DrugExchangeModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
     >
       <div
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-4xl rounded-2xl border border-gray-200 bg-white shadow-2xl my-8 overflow-hidden dark:border-slate-800 dark:bg-slate-900 flex flex-col max-h-[90vh]"
       >
