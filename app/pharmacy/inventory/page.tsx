@@ -71,7 +71,7 @@ export default function PharmacyInventoryPage() {
   const [balStockReason, setBalStockReason] = useState("");
 
   const reduceStockMutation = useMutation({
-    mutationFn: (params: { id: string; stock: number; reason: string }) =>
+    mutationFn: (params: { id: string; stock: number; reason?: string }) =>
       reducePharmacyBalanceStock(params.id, { stock: params.stock, reason: params.reason }),
     onSuccess: (res) => {
       toast.success(res?.message || "Stock balance updated successfully.");
@@ -106,14 +106,10 @@ export default function PharmacyInventoryPage() {
       toast.error(`Invalid stock count (${newStock}). You cannot set stock greater than current available stock (${balStockItem.stock}).`);
       return;
     }
-    if (!balStockReason.trim()) {
-      toast.error("Please provide a reason for the stock reduction (e.g. physical count adjustment, damage, or breakage).");
-      return;
-    }
     reduceStockMutation.mutate({
       id: balStockItem.id,
       stock: newStock,
-      reason: balStockReason.trim(),
+      reason: balStockReason.trim() || "Stock count adjustment",
     });
   };
 
@@ -2109,7 +2105,7 @@ export default function PharmacyInventoryPage() {
               {/* Reason Input */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider mb-1.5">
-                  Reason for Reduction <span className="text-rose-500">*</span>
+                  Reason for Reduction <span className="text-gray-400 font-normal normal-case">(Optional)</span>
                 </label>
                 <textarea
                   value={balStockReason}
@@ -2117,7 +2113,6 @@ export default function PharmacyInventoryPage() {
                   placeholder="e.g. Physical count adjustment / damaged units removed / packaging breakage..."
                   rows={3}
                   className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm text-slate-950 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50"
-                  required
                 />
               </div>
 
@@ -2135,8 +2130,7 @@ export default function PharmacyInventoryPage() {
                     reduceStockMutation.isPending ||
                     Number(balStockCount) > balStockItem.stock ||
                     Number(balStockCount) < 0 ||
-                    balStockCount === "" ||
-                    !balStockReason.trim()
+                    balStockCount === ""
                   }
                   className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-purple-600 shadow-sm disabled:opacity-50 transition"
                 >

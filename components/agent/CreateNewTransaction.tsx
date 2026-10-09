@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   FiCheckCircle,
   FiPlus,
@@ -95,6 +95,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
   } = useCreateTransactionState({ open, onClose, onSuccess });
 
   useScrollLock(open);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -104,6 +105,24 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, closeModal]);
+
+  // Auto-focus first input when modal opens
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [open, transactionMode]);
 
   const config = paymentConfigQuery.data?.data;
   const isCashAllowed = config?.allow_payment_cash !== false && (config as any)?.allowPaymentCash !== false;
@@ -132,6 +151,7 @@ function CreateNewTransaction({ open, onClose, onSuccess }: Props) {
         onClick={closeModal}
       >
         <div
+          ref={modalContentRef}
           className="mx-auto my-6 w-full max-w-5xl rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
           onClick={(event) => event.stopPropagation()}
         >

@@ -8,7 +8,7 @@ import type {
 } from "@/libs/type";
 import { getPharmacyUnits } from "@/libs/pharmacy-api";
 import { useQuery } from "@tanstack/react-query";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { FiEye, FiEyeOff, FiX, FiCheckSquare, FiSquare, FiLayers } from "react-icons/fi";
 import { toast } from "react-hot-toast";
 import { isValidNigerianPhoneNumber } from "@/libs/helper";
@@ -133,6 +133,24 @@ function AdminHospitalPharmacistFormModal({
   const isEditMode = Boolean(pharmacist);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState<FormState>(() => buildInitialState(pharmacist));
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-focus first input on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Fetch Pharmacy Units
   const { data: unitsResponse, isLoading: isLoadingUnits } = useQuery({
@@ -298,6 +316,7 @@ function AdminHospitalPharmacistFormModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm overflow-y-auto"
     >
       <div
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl rounded-2xl border border-line-subtle bg-panel shadow-2xl my-8 overflow-hidden"
       >

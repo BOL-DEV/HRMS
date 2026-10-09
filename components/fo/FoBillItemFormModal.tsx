@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useState, useEffect } from "react";
+import { FormEvent, useMemo, useState, useEffect, useRef } from "react";
 import { FiX } from "react-icons/fi";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
 type Option = {
   id: string;
@@ -47,6 +48,7 @@ function FoBillItemFormModal({
   onSubmit,
 }: Props) {
   useScrollLock(true);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -56,7 +58,42 @@ function FoBillItemFormModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSubmitting, onClose]);
 
-  const [form, setForm] = useState<FormValues>(initialValues ?? defaultValues);
+  const [persistedForm, setPersistedForm, clearPersistedDraft] = usePersistedFormState({
+    key: "fo_bill_item_form",
+    initialValue: defaultValues,
+    enabled: mode === "create",
+  });
+
+  const [form, setForm] = useState<FormValues>(() => {
+    if (mode === "create") {
+      return persistedForm;
+    }
+    return initialValues ?? defaultValues;
+  });
+
+  // Sync to persisted state when in create mode
+  useEffect(() => {
+    if (mode === "create") {
+      setPersistedForm(form);
+    }
+  }, [form, mode, setPersistedForm]);
+
+  // Auto-focus first input on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   const title = mode === "create" ? "Create Bill Item" : "Edit Bill Item";
   const submitLabel = useMemo(() => {
@@ -69,6 +106,9 @@ function FoBillItemFormModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (mode === "create") {
+      clearPersistedDraft();
+    }
     onSubmit({
       ...form,
       name: form.name.trim(),
@@ -84,6 +124,7 @@ function FoBillItemFormModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
     >
       <div
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
       >
