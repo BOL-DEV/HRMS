@@ -957,7 +957,7 @@ export default function DrugExchangeModal({
                         <input
                           type="number"
                           min="1"
-                          max={selectedReplacementDrug.stock}
+                          max={selectedReplacementDrug.stock > 0 ? selectedReplacementDrug.stock : undefined}
                           value={replacementQty}
                           onChange={(e) => setReplacementQty(e.target.value)}
                           className="w-16 rounded border border-gray-300 p-1 text-center text-xs dark:bg-slate-800"
