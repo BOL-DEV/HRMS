@@ -295,18 +295,22 @@ export default function PharmacyPrescriptionsPage() {
   });
 
   // Helper stock limit lookup
-  const getAvailableStockForEdit = (drugId: string) => {
+  const getAvailableStockForEdit = (drugId: string, currentItemQty?: number) => {
     const drug =
-      inventory.find((d) => d.id === drugId) ||
+      inventory.find((d) => d.id === drugId || (d as any).pharmacy_item_id === drugId) ||
       (selectedDrug?.id === drugId ? selectedDrug : null);
-    if (!drug) return 0;
 
     const originalItem = editingBill?.items?.find(
-      (it) => it.pharmacy_item_id === drugId || it.id === drugId
+      (it) => it.pharmacy_item_id === drugId || it.id === drugId || (drug && (it.item_name === drug.name || it.name === drug.name))
     );
-    const originalQty = originalItem ? originalItem.quantity : 0;
+    const originalQty = Number(originalItem?.quantity ?? currentItemQty ?? 0);
 
-    return Number(drug.stock || 0) + originalQty;
+    if (!drug) {
+      return originalQty > 0 ? originalQty : 0;
+    }
+
+    const available = Number(drug.stock || 0) + originalQty;
+    return available > 0 ? available : (originalQty > 0 ? originalQty : 0);
   };
 
   const handleOpenEditModal = (bill: PharmacyBillingRequest) => {
@@ -333,8 +337,9 @@ export default function PharmacyPrescriptionsPage() {
       return;
     }
 
-    const maxStock = getAvailableStockForEdit(drugId);
-    if (qty > maxStock) {
+    const currentItem = editItems.find((it) => it.drugId === drugId);
+    const maxStock = getAvailableStockForEdit(drugId, currentItem?.quantity);
+    if (maxStock > 0 && qty > maxStock) {
       toast.error(`Only ${maxStock} units of this formulation are available in stock.`);
       return;
     }
@@ -1125,7 +1130,8 @@ export default function PharmacyPrescriptionsPage() {
                     </p>
                   ) : (
                     editItems.map((item) => {
-                      const maxAvailable = getAvailableStockForEdit(item.drugId);
+                      const maxAvailable = getAvailableStockForEdit(item.drugId, item.quantity);
+                      const hasStockLimit = maxAvailable > 0;
                       return (
                         <div
                           key={item.drugId}
@@ -1136,8 +1142,8 @@ export default function PharmacyPrescriptionsPage() {
                               {item.name}
                             </p>
                             <p className="text-xs text-gray-500">
-                              Unit price: {formatCurrency(item.unitPrice)} | Total stock limit:{" "}
-                              {maxAvailable}
+                              Unit price: {formatCurrency(item.unitPrice)}
+                              {hasStockLimit ? ` | Total stock limit: ${maxAvailable}` : ""}
                             </p>
                           </div>
 
@@ -1151,7 +1157,7 @@ export default function PharmacyPrescriptionsPage() {
                                   handleUpdateItemQty(item.drugId, e.target.value)
                                 }
                                 min="1"
-                                max={maxAvailable}
+                                max={hasStockLimit ? maxAvailable : undefined}
                                 className="w-16 rounded-lg border border-gray-200 px-2 py-1 text-center text-xs font-semibold outline-none dark:border-slate-700 dark:bg-canvas dark:text-white"
                               />
                             </div>
