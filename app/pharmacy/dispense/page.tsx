@@ -22,6 +22,7 @@ import {
   getPharmacyWalkInPatient,
 } from "@/libs/pharmacy-api";
 import { getAgentPaymentConfig } from "@/libs/agent-auth";
+import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
 interface PharmacyBillItem {
   drugId: string;
@@ -30,6 +31,24 @@ interface PharmacyBillItem {
   unitPrice: number;
   amount: number;
 }
+
+interface PharmacyDispenseDraft {
+  isWalkIn: boolean;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  patientExists: boolean;
+  billItems: PharmacyBillItem[];
+}
+
+const INITIAL_DISPENSE_DRAFT: PharmacyDispenseDraft = {
+  isWalkIn: false,
+  patientId: "",
+  patientName: "",
+  patientPhone: "",
+  patientExists: false,
+  billItems: [],
+};
 
 interface PharmacyBill {
   id: string;
@@ -248,28 +267,70 @@ export default function PharmacyDispensePage() {
       toast.error(err instanceof Error ? err.message : "Failed to clear request.");
     },
   });
-  const [isWalkIn, setIsWalkIn] = useState(false);
+  const [dispenseDraft, setDispenseDraft, clearDispenseDraft, resetDispenseDraft] =
+    usePersistedFormState<PharmacyDispenseDraft>({
+      key: "pharmacy_dispense",
+      initialValue: INITIAL_DISPENSE_DRAFT,
+    });
+
+  const { isWalkIn, patientId, patientName, patientPhone, patientExists, billItems } = dispenseDraft;
+
+  const setIsWalkIn = (val: boolean | ((prev: boolean) => boolean)) => {
+    setDispenseDraft((prev) => ({
+      ...prev,
+      isWalkIn: typeof val === "function" ? val(prev.isWalkIn) : val,
+    }));
+  };
+
+  const setPatientId = (val: string | ((prev: string) => string)) => {
+    setDispenseDraft((prev) => ({
+      ...prev,
+      patientId: typeof val === "function" ? val(prev.patientId) : val,
+    }));
+  };
+
+  const setPatientName = (val: string | ((prev: string) => string)) => {
+    setDispenseDraft((prev) => ({
+      ...prev,
+      patientName: typeof val === "function" ? val(prev.patientName) : val,
+    }));
+  };
+
+  const setPatientPhone = (val: string | ((prev: string) => string)) => {
+    setDispenseDraft((prev) => ({
+      ...prev,
+      patientPhone: typeof val === "function" ? val(prev.patientPhone) : val,
+    }));
+  };
+
+  const setPatientExists = (val: boolean | ((prev: boolean) => boolean)) => {
+    setDispenseDraft((prev) => ({
+      ...prev,
+      patientExists: typeof val === "function" ? val(prev.patientExists) : val,
+    }));
+  };
+
+  const setBillItems = (
+    val: PharmacyBillItem[] | ((prev: PharmacyBillItem[]) => PharmacyBillItem[])
+  ) => {
+    setDispenseDraft((prev) => ({
+      ...prev,
+      billItems: typeof val === "function" ? val(prev.billItems) : val,
+    }));
+  };
+
   const [paymentSelectionBillId, setPaymentSelectionBillId] = useState<string | null>(null);
 
   const handleWalkInChange = (checked: boolean) => {
-    setIsWalkIn(checked);
-    if (checked) {
-      setPatientId("WALK_IN");
-      setPatientName("");
-      setPatientPhone("");
-      setPatientExists(false);
-    } else {
-      setPatientId("");
-      setPatientName("");
-      setPatientPhone("");
-      setPatientExists(false);
-    }
+    setDispenseDraft((prev) => ({
+      ...prev,
+      isWalkIn: checked,
+      patientId: checked ? "WALK_IN" : "",
+      patientName: "",
+      patientPhone: "",
+      patientExists: false,
+    }));
   };
-
-  // Form patient state
-  const [patientId, setPatientId] = useState("");
-  const [patientName, setPatientName] = useState("");
-  const [patientPhone, setPatientPhone] = useState("");
 
   // Walk-In Patient Lookup Query
   const walkInQuery = useQuery({
@@ -284,11 +345,8 @@ export default function PharmacyDispensePage() {
       setPatientName(walkInQuery.data.data.patient_name);
     }
   }, [walkInQuery.data, isWalkIn]);
-  const [patientExists, setPatientExists] = useState(false);
 
   // Patient Autocomplete State
-
-
   const containerRef = useRef<HTMLDivElement>(null);
   const drugPickerRef = useRef<HTMLDivElement>(null);
   const lastAutoLookupPatientIdRef = useRef("");
@@ -307,9 +365,6 @@ export default function PharmacyDispensePage() {
     }, 300);
     return () => clearTimeout(handler);
   }, [drugSearch]);
-
-  // Selected Items List
-  const [billItems, setBillItems] = useState<PharmacyBillItem[]>([]);
 
   // Generated bill modal
   const [generatedBill, setGeneratedBill] = useState<PharmacyBill | null>(null);
@@ -532,17 +587,12 @@ export default function PharmacyDispensePage() {
 
   // Reset form
   const handleResetForm = () => {
-    setPatientId("");
-    setPatientName("");
-    setPatientPhone("");
-    setPatientExists(false);
-    setBillItems([]);
+    resetDispenseDraft();
     setSelectedDrugId("");
     setSelectedDrug(null);
     setDrugSearch("");
     setShowDrugSuggestions(false);
     setDispenseQty("1");
-    setIsWalkIn(false);
   };
 
   // Submit Prescription / Generate Code

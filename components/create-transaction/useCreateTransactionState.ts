@@ -431,33 +431,108 @@ function buildDrugExchangeReceiptHtml(
   `;
 }
 
+const CASHIER_FORM_DRAFT_KEY = "hrms_cashier_transaction_draft_v1";
+
+function loadSavedTransactionDraft(): {
+  form?: NewTransactionForm;
+  expressForm?: ExpressPaymentForm;
+  transactionMode?: TransactionMode;
+  selectedBillItems?: SelectedAutomaticItem[];
+  selectedManualItems?: SelectedManualItem[];
+  pharmacyCode?: string;
+} | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CASHIER_FORM_DRAFT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function clearSavedTransactionDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(CASHIER_FORM_DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function useCreateTransactionState({
   open,
   onClose,
   onSuccess,
 }: UseCreateTransactionStateProps) {
   const queryClient = useQueryClient();
-  const [transactionMode, setTransactionMode] =
-    useState<TransactionMode>("patient");
-  const [pharmacyCode, setPharmacyCode] = useState("");
+  const initialDraft = useMemo(() => loadSavedTransactionDraft(), []);
+
+  const [transactionMode, setTransactionMode] = useState<TransactionMode>(
+    () => initialDraft?.transactionMode ?? "patient"
+  );
+  const [pharmacyCode, setPharmacyCode] = useState(
+    () => initialDraft?.pharmacyCode ?? ""
+  );
   const [pharmacyBill, setPharmacyBill] = useState<PharmacyBill | null>(null);
   const [drugExchangeBill, setDrugExchangeBill] = useState<DrugExchangeBill | null>(null);
   const [isSearchingPharmacyCode, setIsSearchingPharmacyCode] = useState(false);
   const isPharmacyMode = transactionMode === "pharmacy";
-  const [form, setForm] = useState<NewTransactionForm>(getInitialForm);
-  const [expressForm, setExpressForm] =
-    useState<ExpressPaymentForm>(getInitialExpressForm);
-  const [selectedBillItems, setSelectedBillItems] = useState<
-    SelectedAutomaticItem[]
-  >([]);
-  const [selectedManualItems, setSelectedManualItems] = useState<
-    SelectedManualItem[]
-  >([]);
+
+  const [form, setForm] = useState<NewTransactionForm>(
+    () => initialDraft?.form ? { ...getInitialForm(), ...initialDraft.form } : getInitialForm()
+  );
+  const [expressForm, setExpressForm] = useState<ExpressPaymentForm>(
+    () => initialDraft?.expressForm ? { ...getInitialExpressForm(), ...initialDraft.expressForm } : getInitialExpressForm()
+  );
+  const [selectedBillItems, setSelectedBillItems] = useState<SelectedAutomaticItem[]>(
+    () => initialDraft?.selectedBillItems ?? []
+  );
+  const [selectedManualItems, setSelectedManualItems] = useState<SelectedManualItem[]>(
+    () => initialDraft?.selectedManualItems ?? []
+  );
+
   const [billSearch, setBillSearch] = useState("");
   const [showBillItemList, setShowBillItemList] = useState(true);
-  const [patientSearchInput, setPatientSearchInput] = useState("");
+  const [patientSearchInput, setPatientSearchInput] = useState(
+    () => initialDraft?.form?.patientName || ""
+  );
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(true);
   const billItemFieldRef = useRef<HTMLDivElement | null>(null);
+
+  // Sync draft to localStorage on changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const hasContent =
+        form.patientId ||
+        form.patientName ||
+        form.departmentId ||
+        expressForm.fullName ||
+        expressForm.service ||
+        selectedBillItems.length > 0 ||
+        selectedManualItems.length > 0 ||
+        pharmacyCode;
+
+      if (hasContent) {
+        localStorage.setItem(
+          CASHIER_FORM_DRAFT_KEY,
+          JSON.stringify({
+            form,
+            expressForm,
+            transactionMode,
+            selectedBillItems,
+            selectedManualItems,
+            pharmacyCode,
+          })
+        );
+      } else {
+        localStorage.removeItem(CASHIER_FORM_DRAFT_KEY);
+      }
+    } catch (e) {
+      console.warn("Failed to persist transaction draft:", e);
+    }
+  }, [form, expressForm, transactionMode, selectedBillItems, selectedManualItems, pharmacyCode]);
   const patientFieldRef = useRef<HTMLDivElement | null>(null);
   const deferredPatientSearchInput = useDeferredValue(patientSearchInput.trim());
   const lastAutoLookupPatientIdRef = useRef<string>("");
@@ -744,6 +819,7 @@ export function useCreateTransactionState({
         }
       }
       await handlePaymentSuccess(response);
+      clearSavedTransactionDraft();
 
       setForm(getInitialForm());
       setSelectedBillItems([]);
@@ -771,6 +847,7 @@ export function useCreateTransactionState({
     onSuccess: async (response) => {
       toast.success(response.message || "Express payment processed successfully.");
       await handlePaymentSuccess(response);
+      clearSavedTransactionDraft();
       setExpressForm(getInitialExpressForm());
       setTransactionMode("patient");
       onClose();

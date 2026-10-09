@@ -1,15 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
 interface Props {
   setShowAddPatient: (value: boolean) => void;
 }
 
+const initialPatientForm = {
+  fullName: "",
+  phone: "",
+  gender: "Male",
+  age: "",
+  dob: "",
+  email: "",
+  address: "",
+  emergencyName: "",
+  emergencyPhone: "",
+};
+
 function NewPatientModal(props: Props) {
   const { setShowAddPatient } = props;
   useScrollLock(true);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -19,17 +33,27 @@ function NewPatientModal(props: Props) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [setShowAddPatient]);
 
-  const [form, setForm] = useState({
-    fullName: "",
-    phone: "",
-    gender: "Male",
-    age: "",
-    dob: "",
-    email: "",
-    address: "",
-    emergencyName: "",
-    emergencyPhone: "",
+  const [form, setForm, clearPersistedDraft] = usePersistedFormState({
+    key: "agent_new_patient_modal",
+    initialValue: initialPatientForm,
   });
+
+  // Auto-focus first input when modal mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleChange = (
     key:
@@ -47,6 +71,11 @@ function NewPatientModal(props: Props) {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleSave = () => {
+    clearPersistedDraft();
+    setShowAddPatient(false);
+  };
+
   return (
     <div
       onClick={(e) => {
@@ -55,6 +84,7 @@ function NewPatientModal(props: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs px-4 overflow-y-auto"
     >
       <div
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
         className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-xl p-6 space-y-5 border border-gray-150 dark:border-slate-800"
       >
@@ -199,7 +229,10 @@ function NewPatientModal(props: Props) {
               >
                 Cancel
               </button>
-              <button className="rounded-lg bg-brand-700 px-5 py-2 font-semibold text-white hover:bg-brand-800">
+              <button
+                onClick={handleSave}
+                className="rounded-lg bg-brand-700 px-5 py-2 font-semibold text-white hover:bg-brand-800"
+              >
                 Save
               </button>
             </div>

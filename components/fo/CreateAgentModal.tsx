@@ -1,14 +1,23 @@
 "use client";
 
 import { CreateFoAgentPayload } from "@/libs/type";
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState, useEffect, useRef } from "react";
 import { FiEye, FiEyeOff, FiX } from "react-icons/fi";
 import { useScrollLock } from "@/hooks/useScrollLock";
+import { usePersistedFormState } from "@/hooks/usePersistedFormState";
 
 type Props = {
   isSubmitting?: boolean;
   onClose: () => void;
   onSubmit: (payload: CreateFoAgentPayload) => void;
+};
+
+const initialAgentForm: CreateFoAgentPayload = {
+  first_name: "",
+  last_name: "",
+  email: "",
+  phone: "",
+  password: "",
 };
 
 function CreateAgentModal({
@@ -17,6 +26,7 @@ function CreateAgentModal({
   onSubmit,
 }: Props) {
   useScrollLock(true);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -27,13 +37,27 @@ function CreateAgentModal({
   }, [isSubmitting, onClose]);
 
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState<CreateFoAgentPayload>({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    password: "",
+  const [form, setForm, clearPersistedDraft] = usePersistedFormState<CreateFoAgentPayload>({
+    key: "fo_create_agent_form",
+    initialValue: initialAgentForm,
   });
+
+  // Auto-focus first input when modal mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   const updateField = (key: keyof CreateFoAgentPayload, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -41,6 +65,7 @@ function CreateAgentModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    clearPersistedDraft();
     onSubmit({
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
@@ -58,6 +83,7 @@ function CreateAgentModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
     >
       <div
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-line-subtle dark:bg-panel"
       >

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, useRef } from "react";
 import { FiX } from "react-icons/fi";
 import { useScrollLock } from "@/hooks/useScrollLock";
 
@@ -20,6 +20,7 @@ function AdminHospitalDepartmentFormModal({
   onSubmit,
 }: Props) {
   useScrollLock(true);
+  const modalContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -28,6 +29,23 @@ function AdminHospitalDepartmentFormModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSubmitting, onClose]);
+
+  // Auto-focus first input on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (modalContentRef.current) {
+        const firstInput = modalContentRef.current.querySelector<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(
+          'input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === "function") {
+          firstInput.focus();
+        }
+      }
+    }, 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   const [name, setName] = useState(initialName);
 
@@ -57,6 +75,7 @@ function AdminHospitalDepartmentFormModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto"
     >
       <div
+        ref={modalContentRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg rounded-2xl border border-line-subtle bg-panel shadow-2xl"
       >
