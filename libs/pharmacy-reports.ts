@@ -8,6 +8,15 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
 // 1. Types & Interfaces for Pharmacy Reports
 // ==========================================
 
+export interface UnitPharmacist {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  pharmacy_unit_id?: string;
+  unit_name?: string;
+}
+
 export interface ReportPagination {
   total_items: number;
   page: number;
@@ -33,8 +42,12 @@ export interface DrugSalesReportData {
   pharmacy_unit_name?: string;
   filters?: {
     start_date?: string;
+    start_time?: string;
     end_date?: string;
+    end_time?: string;
     search?: string | null;
+    pharmacist_id?: string;
+    pharmacist_name?: string;
     pharmacy_unit_id?: string;
   };
   summary?: {
@@ -76,9 +89,12 @@ export interface DetailedDispenseReportData {
   pharmacy_unit_name?: string;
   filters?: {
     start_date?: string;
+    start_time?: string;
     end_date?: string;
+    end_time?: string;
     search?: string | null;
     pharmacist_id?: string | null;
+    pharmacist_name?: string;
     pharmacy_unit_id?: string;
   };
   summary?: {
@@ -199,7 +215,10 @@ export interface PharmacistPerformanceReportData {
   pharmacy_unit_name?: string;
   filters?: {
     start_date?: string;
+    start_time?: string;
     end_date?: string;
+    end_time?: string;
+    pharmacist_id?: string;
     pharmacy_unit_id?: string;
   };
   summary?: {
@@ -241,9 +260,12 @@ export interface ReturnsExchangesReportData {
   pharmacy_unit_name?: string;
   filters?: {
     start_date?: string;
+    start_time?: string;
     end_date?: string;
+    end_time?: string;
     status?: string | null;
     search?: string | null;
+    pharmacist_id?: string;
     pharmacy_unit_id?: string;
   };
   summary?: {
@@ -267,9 +289,33 @@ export interface ReturnsExchangesReportResponse {
 // 2. API Fetch Functions & Dynamic Fallbacks
 // ==========================================
 
+/**
+ * Get Pharmacists in active unit (or specified unit) for report filter dropdown
+ * GET /api/pharmacy/pharmacists
+ * Alias: GET /api/pharmacy/report/pharmacists
+ */
+export async function getUnitPharmacists(pharmacyUnitId?: string): Promise<{
+  status: string;
+  message?: string;
+  data: UnitPharmacist[];
+}> {
+  const query = pharmacyUnitId ? `?pharmacy_unit_id=${encodeURIComponent(pharmacyUnitId)}` : "";
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{ status: string; message?: string; data: UnitPharmacist[] }>(
+      `/api/pharmacy/pharmacists${query}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    )
+  );
+}
+
 async function fetchDispensedRequestsFallback(params?: {
   start_date?: string;
+  start_time?: string;
   end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
   search?: string;
 }) {
   let list: any[] = [];
@@ -322,15 +368,32 @@ async function fetchDispensedRequestsFallback(params?: {
     }
   }
 
-  // Filter fallback records by start_date and end_date if provided
-  if (list.length > 0 && (params?.start_date || params?.end_date)) {
-    const sDate = params.start_date || "1970-01-01";
-    const eDate = params.end_date || "2099-12-31";
+  // Filter fallback records by start_date, start_time, end_date, end_time, and pharmacist_id
+  if (list.length > 0) {
+    const sDate = params?.start_date || "1970-01-01";
+    const sTime = params?.start_time ? `${params.start_time}:00` : "00:00:00";
+    const eDate = params?.end_date || "2099-12-31";
+    const eTime = params?.end_time ? `${params.end_time}:59` : "23:59:59";
+    const startIso = `${sDate}T${sTime}`;
+    const endIso = `${eDate}T${eTime}`;
+
     list = list.filter((r: any) => {
       const dateStr = r.dispensed_at || r.created_at || r.updated_at || "";
-      if (!dateStr) return true;
-      const formatted = dateStr.slice(0, 10);
-      return formatted >= sDate && formatted <= eDate;
+      if (dateStr) {
+        const formattedDate = dateStr.slice(0, 10);
+        const formattedTime = dateStr.length >= 19 ? dateStr.slice(11, 19) : "12:00:00";
+        const currentIso = `${formattedDate}T${formattedTime}`;
+        if (currentIso < startIso || currentIso > endIso) {
+          return false;
+        }
+      }
+      if (params?.pharmacist_id && params.pharmacist_id !== "all") {
+        const pId = r.pharmacist_id || r.pharmacist?.id || r.created_by;
+        if (pId && pId !== params.pharmacist_id) {
+          return false;
+        }
+      }
+      return true;
     });
   }
 
@@ -339,15 +402,23 @@ async function fetchDispensedRequestsFallback(params?: {
 
 export async function getDrugSalesReport(params?: {
   start_date?: string;
+  start_time?: string;
   end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
   search?: string;
   page?: number;
   limit?: number;
 }): Promise<DrugSalesReportResponse> {
   const query = new URLSearchParams();
   if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
   if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
   if (params?.search?.trim()) query.set("search", params.search.trim());
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
 
@@ -454,7 +525,9 @@ export async function getDrugSalesReport(params?: {
 
 export async function getDetailedDispenseReport(params?: {
   start_date?: string;
+  start_time?: string;
   end_date?: string;
+  end_time?: string;
   search?: string;
   pharmacist_id?: string;
   page?: number;
@@ -462,9 +535,13 @@ export async function getDetailedDispenseReport(params?: {
 }): Promise<DetailedDispenseReportResponse> {
   const query = new URLSearchParams();
   if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
   if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
   if (params?.search?.trim()) query.set("search", params.search.trim());
-  if (params?.pharmacist_id) query.set("pharmacist_id", params.pharmacist_id);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
 
@@ -806,13 +883,21 @@ export async function getExpiryReport(params?: {
 
 export async function getPharmacistPerformanceReport(params?: {
   start_date?: string;
+  start_time?: string;
   end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
   page?: number;
   limit?: number;
 }): Promise<PharmacistPerformanceReportResponse> {
   const query = new URLSearchParams();
   if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
   if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
 
@@ -912,7 +997,10 @@ export async function getPharmacistPerformanceReport(params?: {
 
 export async function getReturnsExchangesReport(params?: {
   start_date?: string;
+  start_time?: string;
   end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
   status?: string;
   search?: string;
   page?: number;
@@ -920,14 +1008,101 @@ export async function getReturnsExchangesReport(params?: {
 }): Promise<ReturnsExchangesReportResponse> {
   const query = new URLSearchParams();
   if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
   if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
   if (params?.status && params.status !== "all") query.set("status", params.status);
   if (params?.search?.trim()) query.set("search", params.search.trim());
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
 
   const queryString = query.toString() ? `?${query.toString()}` : "";
 
   return withPharmacySessionRetry((accessToken) =>
     getJson<ReturnsExchangesReportResponse>(`/api/pharmacy/report/returns-exchanges${queryString}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+/**
+ * Pharmacy Overview Report
+ * GET /api/pharmacy/report/overview
+ */
+export async function getPharmacyOverviewReport(params?: {
+  start_date?: string;
+  start_time?: string;
+  end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<any>(`/api/pharmacy/report/overview${queryString}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+/**
+ * Dispensed Prescriptions Log Audit
+ * GET /api/pharmacy/report/dispensed
+ */
+export async function getPharmacyDispensedLog(params?: {
+  start_date?: string;
+  start_time?: string;
+  end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.limit) query.set("limit", String(params.limit));
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<any>(`/api/pharmacy/report/dispensed${queryString}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+/**
+ * Stock Additions Audit Log
+ * GET /api/pharmacy/report/stock-additions
+ */
+export async function getStockAdditionsReport(params?: {
+  start_date?: string;
+  start_time?: string;
+  end_date?: string;
+  end_time?: string;
+  pharmacist_id?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.set("start_date", params.start_date);
+  if (params?.start_time) query.set("start_time", params.start_time);
+  if (params?.end_date) query.set("end_date", params.end_date);
+  if (params?.end_time) query.set("end_time", params.end_time);
+  if (params?.pharmacist_id && params.pharmacist_id !== "all") query.set("pharmacist_id", params.pharmacist_id);
+  const queryString = query.toString() ? `?${query.toString()}` : "";
+
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<any>(`/api/pharmacy/report/stock-additions${queryString}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
   );
@@ -1141,7 +1316,16 @@ export function generatePrintReportHtml(
 
   const filterSummaryList: string[] = [];
   if (filters.start_date && filters.end_date) {
-    filterSummaryList.push(`<strong>Period:</strong> ${filters.start_date} to ${filters.end_date}`);
+    if (filters.start_time || filters.end_time) {
+      filterSummaryList.push(`<strong>Period:</strong> ${filters.start_date} ${filters.start_time || "00:00"} to ${filters.end_date} ${filters.end_time || "23:59"}`);
+    } else {
+      filterSummaryList.push(`<strong>Period:</strong> ${filters.start_date} to ${filters.end_date}`);
+    }
+  } else if (filters.start_time || filters.end_time) {
+    filterSummaryList.push(`<strong>Time:</strong> ${filters.start_time || "00:00"} to ${filters.end_time || "23:59"}`);
+  }
+  if (filters.pharmacist_name || (filters.pharmacist_id && filters.pharmacist_id !== "all")) {
+    filterSummaryList.push(`<strong>Pharmacist:</strong> ${filters.pharmacist_name || filters.pharmacist_id}`);
   }
   if (filters.search) {
     filterSummaryList.push(`<strong>Search:</strong> "${filters.search}"`);

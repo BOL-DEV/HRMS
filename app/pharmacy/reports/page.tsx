@@ -14,6 +14,8 @@ import {
   getReturnsExchangesReport,
   openPharmacyReportPrint,
   downloadPharmacyReportCsv,
+  getUnitPharmacists,
+  UnitPharmacist,
 } from "@/libs/pharmacy-reports";
 import DrugSalesReportTab from "@/components/pharmacy/reports/DrugSalesReportTab";
 import DetailedDispenseReportTab from "@/components/pharmacy/reports/DetailedDispenseReportTab";
@@ -21,6 +23,10 @@ import StockInventoryReportTab from "@/components/pharmacy/reports/StockInventor
 import ExpiryAlertsReportTab from "@/components/pharmacy/reports/ExpiryAlertsReportTab";
 import PharmacistPerformanceReportTab from "@/components/pharmacy/reports/PharmacistPerformanceReportTab";
 import ReturnsExchangesReportTab from "@/components/pharmacy/reports/ReturnsExchangesReportTab";
+import PharmacyReportsToolbar, {
+  DatePresetKey,
+  ShiftKey,
+} from "@/components/pharmacy/reports/PharmacyReportsToolbar";
 import {
   FiTrendingUp,
   FiFileText,
@@ -30,9 +36,6 @@ import {
   FiRepeat,
   FiPrinter,
   FiDownload,
-  FiSearch,
-  FiCalendar,
-  FiRotateCcw,
   FiAlertCircle,
 } from "react-icons/fi";
 import { toast } from "react-hot-toast";
@@ -178,16 +181,53 @@ function formatLocalYMD(d: Date): string {
     return formatLocalYMD(new Date());
   }, []);
 
-  const [datePreset, setDatePreset] = useState<
-    "today" | "yesterday" | "this_week" | "this_month" | "last_30_days" | "custom"
-  >("today");
+  const [datePreset, setDatePreset] = useState<DatePresetKey>("today");
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
-  const applyDatePreset = (
-    preset: "today" | "yesterday" | "this_week" | "this_month" | "last_30_days"
-  ) => {
+  // Time & Shift Filter States (Backend Granular Time Filtering)
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [activeShift, setActiveShift] = useState<ShiftKey>("all_day");
+
+  // Pharmacist Filter State (Backend Pharmacist Filtering in Unit)
+  const [selectedPharmacist, setSelectedPharmacist] = useState("all");
+
+  // Fetch Pharmacists in Unit for dropdown
+  const pharmacistsQuery = useQuery({
+    queryKey: ["pharmacy-unit-pharmacists"],
+    queryFn: () => getUnitPharmacists(),
+    enabled: Boolean(accessToken),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const pharmacists: UnitPharmacist[] = useMemo(() => {
+    const res = pharmacistsQuery.data;
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray((res as any).data)) return (res as any).data;
+    return [];
+  }, [pharmacistsQuery.data]);
+
+  const selectedPharmacistObj = useMemo(() => {
+    if (!selectedPharmacist || selectedPharmacist === "all") return null;
+    return pharmacists.find((p) => p.id === selectedPharmacist) || null;
+  }, [pharmacists, selectedPharmacist]);
+
+  // Validate start vs end date/time to prevent invalid 400 Bad Request queries
+  const isTimeRangeInvalid = useMemo(() => {
+    if (!startDate || !endDate) return false;
+    if (startDate > endDate) return true;
+    if (startDate === endDate && startTime && endTime && startTime > endTime) return true;
+    return false;
+  }, [startDate, endDate, startTime, endTime]);
+
+  const applyDatePreset = (preset: DatePresetKey) => {
     setDatePreset(preset);
+    if (preset === "custom") return;
+    setActiveShift("all_day");
+    setStartTime("");
+    setEndTime("");
     const now = new Date();
 
     if (preset === "today") {
@@ -219,6 +259,24 @@ function formatLocalYMD(d: Date): string {
     }
   };
 
+  const applyShiftPreset = (shift: ShiftKey) => {
+    setActiveShift(shift);
+    if (shift === "custom") return;
+    if (shift === "all_day") {
+      setStartTime("");
+      setEndTime("");
+    } else if (shift === "morning") {
+      setStartTime("08:00");
+      setEndTime("14:00");
+    } else if (shift === "afternoon") {
+      setStartTime("14:00");
+      setEndTime("20:00");
+    } else if (shift === "night") {
+      setStartTime("20:00");
+      setEndTime("08:00");
+    }
+  };
+
   // Search filter with debounce
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -241,7 +299,18 @@ function formatLocalYMD(d: Date): string {
   // Reset page when switching tabs or filters
   useEffect(() => {
     setPage(1);
-  }, [activeTab, startDate, endDate, debouncedSearch, stockStatus, expiryTimeframe, exchangeStatus]);
+  }, [
+    activeTab,
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+    selectedPharmacist,
+    debouncedSearch,
+    stockStatus,
+    expiryTimeframe,
+    exchangeStatus,
+  ]);
 
   // Handle Full Reset
   const handleResetFilters = () => {
@@ -250,6 +319,10 @@ function formatLocalYMD(d: Date): string {
     setStockStatus("all");
     setExpiryTimeframe("all");
     setExchangeStatus("all");
+    setSelectedPharmacist("all");
+    setActiveShift("all_day");
+    setStartTime("");
+    setEndTime("");
     applyDatePreset("today");
     setPage(1);
   };
@@ -261,25 +334,47 @@ function formatLocalYMD(d: Date): string {
 
   // --- Live TanStack Queries ---
   const drugSalesQuery = useQuery({
-    queryKey: ["pharmacy-report-drug", startDate, endDate, debouncedSearch],
+    queryKey: [
+      "pharmacy-report-drug",
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      selectedPharmacist,
+      debouncedSearch,
+    ],
     queryFn: () =>
       getDrugSalesReport({
         start_date: startDate,
+        start_time: startTime || undefined,
         end_date: endDate,
+        end_time: endTime || undefined,
+        pharmacist_id: selectedPharmacist !== "all" ? selectedPharmacist : undefined,
         search: debouncedSearch,
       }),
-    enabled: Boolean(accessToken && activeTab === "drug-report"),
+    enabled: Boolean(accessToken && activeTab === "drug-report" && !isTimeRangeInvalid),
   });
 
   const detailedDispenseQuery = useQuery({
-    queryKey: ["pharmacy-report-detailed", startDate, endDate, debouncedSearch],
+    queryKey: [
+      "pharmacy-report-detailed",
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      selectedPharmacist,
+      debouncedSearch,
+    ],
     queryFn: () =>
       getDetailedDispenseReport({
         start_date: startDate,
+        start_time: startTime || undefined,
         end_date: endDate,
+        end_time: endTime || undefined,
+        pharmacist_id: selectedPharmacist !== "all" ? selectedPharmacist : undefined,
         search: debouncedSearch,
       }),
-    enabled: Boolean(accessToken && activeTab === "detailed-drug-report"),
+    enabled: Boolean(accessToken && activeTab === "detailed-drug-report" && !isTimeRangeInvalid),
   });
 
   const stockInventoryQuery = useQuery({
@@ -303,25 +398,47 @@ function formatLocalYMD(d: Date): string {
   });
 
   const pharmacistPerformanceQuery = useQuery({
-    queryKey: ["pharmacy-report-performance", startDate, endDate],
+    queryKey: [
+      "pharmacy-report-performance",
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      selectedPharmacist,
+    ],
     queryFn: () =>
       getPharmacistPerformanceReport({
         start_date: startDate,
+        start_time: startTime || undefined,
         end_date: endDate,
+        end_time: endTime || undefined,
+        pharmacist_id: selectedPharmacist !== "all" ? selectedPharmacist : undefined,
       }),
-    enabled: Boolean(accessToken && activeTab === "pharmacist-performance-report"),
+    enabled: Boolean(accessToken && activeTab === "pharmacist-performance-report" && !isTimeRangeInvalid),
   });
 
   const returnsExchangesQuery = useQuery({
-    queryKey: ["pharmacy-report-returns", startDate, endDate, exchangeStatus, debouncedSearch],
+    queryKey: [
+      "pharmacy-report-returns",
+      startDate,
+      startTime,
+      endDate,
+      endTime,
+      selectedPharmacist,
+      exchangeStatus,
+      debouncedSearch,
+    ],
     queryFn: () =>
       getReturnsExchangesReport({
         start_date: startDate,
+        start_time: startTime || undefined,
         end_date: endDate,
+        end_time: endTime || undefined,
+        pharmacist_id: selectedPharmacist !== "all" ? selectedPharmacist : undefined,
         status: exchangeStatus,
         search: debouncedSearch,
       }),
-    enabled: Boolean(accessToken && activeTab === "returns-exchanges-report"),
+    enabled: Boolean(accessToken && activeTab === "returns-exchanges-report" && !isTimeRangeInvalid),
   });
 
   // Active loaded data for print/export fallback
@@ -359,17 +476,29 @@ function formatLocalYMD(d: Date): string {
       setIsExporting(true);
       const filters: Record<string, any> = {
         start_date: startDate,
+        start_time: startTime || undefined,
         end_date: endDate,
+        end_time: endTime || undefined,
+        pharmacist_id: selectedPharmacist !== "all" ? selectedPharmacist : undefined,
+        pharmacist_name: selectedPharmacistObj?.name || undefined,
         search: debouncedSearch || undefined,
       };
 
       if (activeTab === "stock-inventory-report") {
         delete filters.start_date;
+        delete filters.start_time;
         delete filters.end_date;
+        delete filters.end_time;
+        delete filters.pharmacist_id;
+        delete filters.pharmacist_name;
         filters.stock_status = stockStatus;
       } else if (activeTab === "expiry-report") {
         delete filters.start_date;
+        delete filters.start_time;
         delete filters.end_date;
+        delete filters.end_time;
+        delete filters.pharmacist_id;
+        delete filters.pharmacist_name;
         filters.timeframe = expiryTimeframe;
       } else if (activeTab === "returns-exchanges-report") {
         filters.status = exchangeStatus;
@@ -394,17 +523,29 @@ function formatLocalYMD(d: Date): string {
   const handlePrint = async () => {
     const filters: Record<string, any> = {
       start_date: startDate,
+      start_time: startTime || undefined,
       end_date: endDate,
+      end_time: endTime || undefined,
+      pharmacist_id: selectedPharmacist !== "all" ? selectedPharmacist : undefined,
+      pharmacist_name: selectedPharmacistObj?.name || undefined,
       search: debouncedSearch || undefined,
     };
 
     if (activeTab === "stock-inventory-report") {
       delete filters.start_date;
+      delete filters.start_time;
       delete filters.end_date;
+      delete filters.end_time;
+      delete filters.pharmacist_id;
+      delete filters.pharmacist_name;
       filters.stock_status = stockStatus;
     } else if (activeTab === "expiry-report") {
       delete filters.start_date;
+      delete filters.start_time;
       delete filters.end_date;
+      delete filters.end_time;
+      delete filters.pharmacist_id;
+      delete filters.pharmacist_name;
       filters.timeframe = expiryTimeframe;
     } else if (activeTab === "returns-exchanges-report") {
       filters.status = exchangeStatus;
@@ -498,118 +639,39 @@ function formatLocalYMD(d: Date): string {
           </div>
         )}
 
-        {/* Global Toolbar: Date Presets, Custom Range, Search */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900 space-y-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Quick Date Presets (Visible on date-dependent tabs) */}
-            {activeTab !== "stock-inventory-report" && activeTab !== "expiry-report" ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mr-1">
-                  Preset:
-                </span>
-                {(
-                  [
-                    { id: "today", label: "Today" },
-                    { id: "yesterday", label: "Yesterday" },
-                    { id: "this_week", label: "This Week" },
-                    { id: "this_month", label: "This Month" },
-                    { id: "last_30_days", label: "Last 30 Days" },
-                  ] as const
-                ).map((preset) => {
-                  const isActive = datePreset === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      onClick={() => applyDatePreset(preset.id)}
-                      className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
-                        isActive
-                          ? "bg-brand-600 text-white shadow-xs dark:bg-brand-500"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 border border-slate-200/80 dark:border-slate-800/80"
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-xs text-slate-400 font-medium">
-                Live Real-Time Inventory Snapshots
-              </div>
-            )}
-
-            {/* Custom Date Pickers */}
-            {activeTab !== "stock-inventory-report" && activeTab !== "expiry-report" && (
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950/60">
-                  <FiCalendar className="text-slate-400" />
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">From:</span>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      setDatePreset("custom");
-                    }}
-                    className="bg-transparent text-slate-800 focus:outline-none dark:text-slate-200"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950/60">
-                  <FiCalendar className="text-slate-400" />
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">To:</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
-                      setDatePreset("custom");
-                    }}
-                    className="bg-transparent text-slate-800 focus:outline-none dark:text-slate-200"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Search Bar & Clear Filters */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-3 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="relative flex-1 max-w-md">
-              <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder={
-                  activeTab === "detailed-drug-report"
-                    ? "Search drug, patient name, PID, phone, or billing code..."
-                    : activeTab === "expiry-report"
-                    ? "Search medication name, generic, or batch number..."
-                    : activeTab === "returns-exchanges-report"
-                    ? "Search exchange code, patient name, PID, or drug..."
-                    : "Search medication or generic name..."
-                }
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 py-2 pl-9 pr-4 text-xs text-slate-900 placeholder-slate-400 shadow-xs focus:border-brand-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-100 dark:focus:bg-slate-950"
-              />
-              {searchInput && (
-                <button
-                  onClick={() => setSearchInput("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <button
-              onClick={handleResetFilters}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-brand-500 dark:text-slate-400 dark:hover:text-brand-400 transition"
-            >
-              <FiRotateCcw />
-              Reset Filters to Today
-            </button>
-          </div>
-        </div>
+        {/* Global Toolbar: Modern Compact Presets, Pharmacist Dropdown, Custom Range, Search */}
+        <PharmacyReportsToolbar
+          isInventoryTab={activeTab === "stock-inventory-report" || activeTab === "expiry-report"}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          datePreset={datePreset}
+          onApplyDatePreset={applyDatePreset}
+          startTime={startTime}
+          setStartTime={setStartTime}
+          endTime={endTime}
+          setEndTime={setEndTime}
+          activeShift={activeShift}
+          onApplyShiftPreset={applyShiftPreset}
+          selectedPharmacist={selectedPharmacist}
+          onSelectPharmacist={setSelectedPharmacist}
+          pharmacists={pharmacists}
+          isPharmacistsLoading={pharmacistsQuery.isLoading}
+          searchInput={searchInput}
+          setSearchInput={setSearchInput}
+          searchPlaceholder={
+            activeTab === "detailed-drug-report"
+              ? "Search drug, patient name, PID, phone, or billing code..."
+              : activeTab === "expiry-report"
+              ? "Search medication name, generic, or batch number..."
+              : activeTab === "returns-exchanges-report"
+              ? "Search exchange code, patient name, PID, or drug..."
+              : "Search medication or generic name..."
+          }
+          onResetFilters={handleResetFilters}
+          isTimeRangeInvalid={isTimeRangeInvalid}
+        />
 
         {/* Tab Content Sub-views */}
         {activeTab === "drug-report" && (

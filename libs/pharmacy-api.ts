@@ -1660,3 +1660,28 @@ export async function updatePharmacyPointItem(
   );
 }
 
+/**
+ * Get active pharmacists in unit (for reports & shift filters)
+ * GET /api/pharmacy/pharmacists
+ */
+export async function getPharmacyUnitPharmacists(pharmacyUnitId?: string) {
+  const query = pharmacyUnitId ? `?pharmacy_unit_id=${encodeURIComponent(pharmacyUnitId)}` : "";
+  return withPharmacySessionRetry((accessToken) =>
+    getJson<{
+      status: string;
+      message?: string;
+      data: {
+        id: string;
+        name: string;
+        email?: string;
+        phone?: string;
+        pharmacy_unit_id?: string;
+        unit_name?: string;
+      }[];
+    }>(`/api/pharmacy/pharmacists${query}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  );
+}
+
+
